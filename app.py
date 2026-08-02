@@ -33,15 +33,13 @@ if ROOT_DIR not in sys.path:
 # ============================================================================
 
 try:
-    from config import STOCK_SYMBOLS, APP_SETTINGS, get_symbols_by_sector, get_sectors
+    from config import STOCK_SYMBOLS, APP_SETTINGS
 except ImportError:
-    STOCK_SYMBOLS = [
-        'AAPL', 'MSFT', 'GOOGL', 'AMZN', 'NVDA', 'META', 'TSLA', 'AMD',
-        'INTC', 'NFLX', 'PYPL', 'ADBE', 'CRM', 'ORCL', 'IBM', 'CSCO'
-    ]
+    STOCK_SYMBOLS = {
+        'الكل': ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'NVDA', 'META', 'TSLA', 'AMD'],
+        'التكنولوجيا': ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'NVDA', 'META', 'TSLA', 'AMD']
+    }
     APP_SETTINGS = {'title': 'AI Breakout Scanner'}
-    get_symbols_by_sector = lambda x: STOCK_SYMBOLS
-    get_sectors = lambda: ['الكل']
 
 try:
     from backend.scanner.breakout_scanner import BreakoutScanner
@@ -49,7 +47,7 @@ except ImportError:
     BreakoutScanner = None
 
 # ============================================================================
-# تحميل ملف الاستايل المنفصل
+# تحميل ملف الاستايل
 # ============================================================================
 
 def load_css():
@@ -71,9 +69,11 @@ def load_inline_css():
     """استايل مضمن في حال عدم وجود الملف الخارجي"""
     st.markdown("""
     <style>
+    /* ===== الإعدادات الأساسية ===== */
     .stApp {
         background: linear-gradient(135deg, #0f0f1a 0%, #1a1a2e 50%, #16213e 100%);
     }
+    
     .main-header {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         padding: 20px 30px;
@@ -82,6 +82,7 @@ def load_inline_css():
         color: white;
         box-shadow: 0 8px 32px rgba(102,126,234,0.25);
     }
+    
     .main-header h1 {
         color: #ffffff;
         font-size: 2rem;
@@ -89,24 +90,31 @@ def load_inline_css():
         margin: 0;
         text-shadow: 0 2px 10px rgba(0,0,0,0.2);
     }
+    
     .main-header p {
         color: rgba(255,255,255,0.9);
         font-size: 1rem;
         margin-top: 6px;
         margin-bottom: 0;
     }
+    
     [data-testid="stSidebar"] {
         background: rgba(20,20,40,0.92) !important;
         backdrop-filter: blur(15px);
         border-right: 1px solid rgba(255,255,255,0.06);
     }
+    
+    /* ===== النصوص العامة ===== */
     .stMarkdown, p, div, span, label {
         color: #e8e8e8 !important;
     }
+    
     h1, h2, h3, h4, h5, h6 {
         color: #ffffff !important;
         font-weight: 700 !important;
     }
+    
+    /* ===== البطاقات ===== */
     .metric-card {
         background: rgba(255,255,255,0.04);
         border: 1px solid rgba(255,255,255,0.06);
@@ -116,25 +124,31 @@ def load_inline_css():
         transition: all 0.3s ease;
         backdrop-filter: blur(10px);
     }
+    
     .metric-card:hover {
         transform: translateY(-4px);
         border-color: rgba(102,126,234,0.3);
         box-shadow: 0 8px 25px rgba(0,0,0,0.2);
     }
+    
     .metric-card .value {
         font-size: 1.8rem;
         font-weight: 800;
         color: #ffffff;
         margin-bottom: 4px;
     }
+    
     .metric-card .label {
         font-size: 0.85rem;
         color: rgba(255,255,255,0.55);
     }
+    
     .metric-card .icon {
         font-size: 1.6rem;
         margin-bottom: 4px;
     }
+    
+    /* ===== الأزرار ===== */
     .stButton > button {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
         color: #ffffff !important;
@@ -144,34 +158,168 @@ def load_inline_css():
         box-shadow: 0 4px 15px rgba(102,126,234,0.25) !important;
         transition: all 0.3s ease !important;
     }
+    
     .stButton > button:hover {
         transform: translateY(-2px) !important;
         box-shadow: 0 8px 25px rgba(102,126,234,0.35) !important;
     }
+    
     button[kind="primary"] {
         background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%) !important;
         box-shadow: 0 4px 15px rgba(245,87,108,0.3) !important;
     }
+    
     button[kind="primary"]:hover {
         box-shadow: 0 8px 25px rgba(245,87,108,0.4) !important;
     }
+    
+    /* ===== الجداول ===== */
     [data-testid="stDataFrame"] {
         background: rgba(255,255,255,0.03) !important;
         border-radius: 14px !important;
         border: 1px solid rgba(255,255,255,0.06) !important;
     }
+    
     [data-testid="stDataFrame"] thead th {
         background: rgba(102,126,234,0.12) !important;
         color: #ffffff !important;
         font-weight: 700 !important;
     }
+    
     [data-testid="stDataFrame"] tbody td {
         color: #d0d0d0 !important;
     }
+    
+    /* ===== القوائم المنسدلة - خلفية فاتحة ونص واضح ===== */
+    .stSelectbox > div[data-baseweb="select"] > div {
+        background-color: rgba(255, 255, 255, 0.12) !important;
+        border: 1px solid rgba(255, 255, 255, 0.2) !important;
+        border-radius: 10px !important;
+        color: #000000 !important;
+        min-height: 38px !important;
+        padding: 6px 12px !important;
+    }
+    
+    .stSelectbox > div[data-baseweb="select"] > div:hover {
+        background-color: rgba(255, 255, 255, 0.18) !important;
+        border-color: rgba(102, 126, 234, 0.4) !important;
+    }
+    
+    .stSelectbox > div[data-baseweb="select"] > div:focus-within {
+        border-color: #667eea !important;
+        box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.3) !important;
+    }
+    
+    .stSelectbox > div[data-baseweb="select"] > div div[data-baseweb="select-value"] {
+        color: #000000 !important;
+        font-weight: 600 !important;
+    }
+    
+    .stSelectbox > div[data-baseweb="select"] > div div[data-baseweb="select-placeholder"] {
+        color: rgba(0, 0, 0, 0.6) !important;
+    }
+    
+    .stSelectbox > div[data-baseweb="select"] > div svg {
+        fill: #333333 !important;
+    }
+    
+    .stSelectbox > div[data-baseweb="select"] ul {
+        background-color: #f0f0f5 !important;
+        border: 1px solid rgba(0, 0, 0, 0.1) !important;
+        border-radius: 10px !important;
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2) !important;
+        max-height: 300px !important;
+        overflow-y: auto !important;
+        z-index: 9999 !important;
+    }
+    
+    .stSelectbox > div[data-baseweb="select"] ul li {
+        color: #1a1a2e !important;
+        background-color: transparent !important;
+        padding: 10px 16px !important;
+        font-size: 0.95rem !important;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.05) !important;
+        transition: all 0.2s ease !important;
+        cursor: pointer !important;
+    }
+    
+    .stSelectbox > div[data-baseweb="select"] ul li:hover {
+        background-color: rgba(102, 126, 234, 0.15) !important;
+        color: #667eea !important;
+        border-left: 3px solid #667eea !important;
+    }
+    
+    .stSelectbox > div[data-baseweb="select"] ul li[aria-selected="true"] {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+        color: #ffffff !important;
+        font-weight: 700 !important;
+        border-left: 4px solid #ffffff !important;
+        padding-left: 18px !important;
+    }
+    
+    .stSelectbox > div[data-baseweb="select"] ul li[aria-selected="true"]:hover {
+        background: linear-gradient(135deg, #764ba2 0%, #667eea 100%) !important;
+        border-left: 4px solid #FFD700 !important;
+    }
+    
+    .stSelectbox > div[data-baseweb="select"] ul li[aria-selected="true"]::after {
+        content: " ✓" !important;
+        color: #FFD700 !important;
+        font-weight: 800 !important;
+        font-size: 1.1rem !important;
+        float: left !important;
+    }
+    
+    /* ===== Text Input ===== */
+    .stTextInput > div > div > input {
+        background-color: rgba(255, 255, 255, 0.12) !important;
+        border: 1px solid rgba(255, 255, 255, 0.2) !important;
+        border-radius: 10px !important;
+        color: #000000 !important;
+        padding: 10px 14px !important;
+    }
+    
+    .stTextInput > div > div > input::placeholder {
+        color: rgba(0, 0, 0, 0.5) !important;
+    }
+    
+    .stTextInput > div > div > input:focus {
+        border-color: #667eea !important;
+        box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.3) !important;
+    }
+    
+    /* ===== التنبيهات ===== */
     .stAlert {
         background: rgba(255,255,255,0.04) !important;
         border-radius: 12px !important;
         border: 1px solid rgba(255,255,255,0.06) !important;
+    }
+    
+    /* ===== الشريط الجانبي - القوائم المنسدلة ===== */
+    [data-testid="stSidebar"] .stSelectbox > div[data-baseweb="select"] > div {
+        background-color: rgba(255, 255, 255, 0.1) !important;
+        border: 1px solid rgba(255, 255, 255, 0.15) !important;
+        color: #000000 !important;
+    }
+    
+    [data-testid="stSidebar"] .stSelectbox > div[data-baseweb="select"] > div div[data-baseweb="select-value"] {
+        color: #000000 !important;
+    }
+    
+    [data-testid="stSidebar"] .stSelectbox > div[data-baseweb="select"] > div div[data-baseweb="select-placeholder"] {
+        color: rgba(0, 0, 0, 0.5) !important;
+    }
+    
+    [data-testid="stSidebar"] .stSelectbox > div[data-baseweb="select"] > div svg {
+        fill: #333333 !important;
+    }
+    
+    [data-testid="stSidebar"] .stSelectbox > div[data-baseweb="select"] ul {
+        background-color: #f0f0f5 !important;
+    }
+    
+    [data-testid="stSidebar"] .stSelectbox > div[data-baseweb="select"] ul li {
+        color: #1a1a2e !important;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -188,11 +336,14 @@ def init_session_state():
         'scan_in_progress': False,
         'last_scan_time': None,
         'selected_symbol': None,
-        'sidebar_config': {},
+        'sidebar_config': {
+            'sector': 'الكل',
+            'min_score': 60,
+            'max_symbols': 15
+        },
         'initialized': False,
         'custom_symbols': {},
-        'custom_symbol_input': '',
-        'analysis_cache': {}
+        'custom_symbol_input': ''
     }
     
     if not st.session_state.get('initialized', False):
@@ -200,6 +351,32 @@ def init_session_state():
             if key not in st.session_state:
                 st.session_state[key] = value
         st.session_state.initialized = True
+
+# ============================================================================
+# دوال الحصول على الرموز حسب القطاع
+# ============================================================================
+
+def get_symbols_by_sector(sector):
+    """الحصول على رموز الأسهم حسب القطاع"""
+    if sector == 'الكل' or sector is None:
+        # إذا كانت STOCK_SYMBOLS قاموس، نجمع كل الرموز
+        if isinstance(STOCK_SYMBOLS, dict):
+            all_symbols = []
+            for syms in STOCK_SYMBOLS.values():
+                if isinstance(syms, list):
+                    all_symbols.extend(syms)
+            return all_symbols
+        return STOCK_SYMBOLS
+    
+    if isinstance(STOCK_SYMBOLS, dict):
+        return STOCK_SYMBOLS.get(sector, [])
+    return STOCK_SYMBOLS
+
+def get_sectors():
+    """الحصول على قائمة القطاعات المتاحة"""
+    if isinstance(STOCK_SYMBOLS, dict):
+        return ['الكل'] + [s for s in STOCK_SYMBOLS.keys() if s != 'الكل']
+    return ['الكل']
 
 # ============================================================================
 # الشريط الجانبي
@@ -247,15 +424,20 @@ def render_sidebar():
         # إعدادات المسح
         st.subheader("⚙️ إعدادات المسح")
         
-        # استخدام .get() مع قيمة افتراضية لتجنب KeyError
+        # الحصول على الإعدادات الحالية
         config = st.session_state.get('sidebar_config', {})
         
         # اختيار القطاع
-        sectors = ['الكل', 'التكنولوجيا', 'المالية', 'الرعاية الصحية', 'الاستهلاك', 'الطاقة']
+        sectors = get_sectors()
+        sector_index = 0
+        current_sector = config.get('sector', 'الكل')
+        if current_sector in sectors:
+            sector_index = sectors.index(current_sector)
+        
         sector = st.selectbox(
             "🏢 القطاع",
             sectors,
-            index=0,
+            index=sector_index,
             key="sector_select"
         )
         
@@ -263,7 +445,7 @@ def render_sidebar():
             "🎯 الحد الأدنى للدرجة",
             min_value=40,
             max_value=90,
-            value=config.get('min_score', 60) if config else 60,
+            value=config.get('min_score', 60),
             step=5,
             key="min_score_slider"
         )
@@ -272,7 +454,7 @@ def render_sidebar():
             "📊 عدد الأسهم",
             min_value=5,
             max_value=30,
-            value=config.get('max_symbols', 15) if config else 15,
+            value=config.get('max_symbols', 15),
             step=5,
             key="max_symbols_slider"
         )
@@ -699,7 +881,8 @@ def render_scanner():
     """صفحة المسح"""
     st.subheader("🔍 مسح السوق")
     
-    config = st.session_state.get('sidebar_config', {'min_score': 60, 'max_symbols': 15})
+    # الحصول على الإعدادات
+    config = st.session_state.get('sidebar_config', {})
     
     col1, col2, col3 = st.columns(3)
     with col1:
@@ -724,7 +907,7 @@ def render_scanner():
         with st.spinner("🔍 جاري مسح السوق..."):
             try:
                 # الحصول على الرموز حسب القطاع
-                symbols = get_symbols_by_sector(selected_sector if selected_sector != "الكل" else None)
+                symbols = get_symbols_by_sector(selected_sector)
                 symbols = symbols[:config.get('max_symbols', 15)]
                 
                 if BreakoutScanner is None:
