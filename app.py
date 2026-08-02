@@ -30,8 +30,19 @@ if ROOT_DIR not in sys.path:
 # استيراد المكونات
 # ============================================================================
 
-from config import STOCK_SYMBOLS, APP_SETTINGS
-from backend.scanner.breakout_scanner import BreakoutScanner
+try:
+    from config import STOCK_SYMBOLS, APP_SETTINGS
+except ImportError:
+    STOCK_SYMBOLS = [
+        'AAPL', 'MSFT', 'GOOGL', 'AMZN', 'NVDA', 'META', 'TSLA', 'AMD',
+        'INTC', 'NFLX', 'PYPL', 'ADBE', 'CRM', 'ORCL', 'IBM', 'CSCO'
+    ]
+    APP_SETTINGS = {'title': 'AI Breakout Scanner'}
+
+try:
+    from backend.scanner.breakout_scanner import BreakoutScanner
+except ImportError:
+    BreakoutScanner = None
 
 # ============================================================================
 # التصميم - استايل خفيف ونظيف
@@ -41,19 +52,16 @@ def load_css():
     """تحميل استايل خفيف ونظيف مع كتابة واضحة"""
     st.markdown("""
     <style>
-    /* ===== الخطوط الأساسية ===== */
     @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800&display=swap');
     
     * {
         font-family: 'Tajawal', 'Segoe UI', sans-serif;
     }
     
-    /* ===== الخلفية ===== */
     .stApp {
         background: linear-gradient(135deg, #0f0f1a 0%, #1a1a2e 50%, #16213e 100%);
     }
     
-    /* ===== الهيدر الرئيسي ===== */
     .main-header {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         padding: 20px 30px;
@@ -69,7 +77,6 @@ def load_css():
         font-weight: 800;
         margin: 0;
         text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
-        letter-spacing: 0.5px;
     }
     
     .main-header p {
@@ -77,10 +84,8 @@ def load_css():
         font-size: 1rem;
         margin-top: 6px;
         margin-bottom: 0;
-        font-weight: 400;
     }
     
-    /* ===== الشريط الجانبي ===== */
     [data-testid="stSidebar"] {
         background: rgba(20, 20, 40, 0.92) !important;
         backdrop-filter: blur(15px);
@@ -88,7 +93,11 @@ def load_css():
         padding-top: 20px;
     }
     
-    [data-testid="stSidebar"] .stMarkdown {
+    [data-testid="stSidebar"] .stMarkdown,
+    [data-testid="stSidebar"] p,
+    [data-testid="stSidebar"] div,
+    [data-testid="stSidebar"] span,
+    [data-testid="stSidebar"] label {
         color: #e0e0e0 !important;
     }
     
@@ -99,11 +108,6 @@ def load_css():
         color: #ffffff !important;
     }
     
-    [data-testid="stSidebar"] .stCaption {
-        color: rgba(255, 255, 255, 0.5) !important;
-    }
-    
-    /* ===== النصوص العامة ===== */
     .stMarkdown, .stText, .stWrite, p, div, span, label {
         color: #e8e8e8 !important;
     }
@@ -112,7 +116,6 @@ def load_css():
         color: #ffffff !important;
     }
     
-    /* ===== البطاقات ===== */
     .metric-card {
         background: rgba(255, 255, 255, 0.04);
         backdrop-filter: blur(10px);
@@ -142,7 +145,11 @@ def load_css():
         font-weight: 400;
     }
     
-    /* ===== الأزرار ===== */
+    .metric-card .icon {
+        font-size: 1.6rem;
+        margin-bottom: 4px;
+    }
+    
     .stButton > button, button {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
         color: #ffffff !important;
@@ -160,11 +167,6 @@ def load_css():
         box-shadow: 0 8px 25px rgba(102, 126, 234, 0.35) !important;
     }
     
-    .stButton > button:active, button:active {
-        transform: translateY(0px) !important;
-    }
-    
-    /* زر رئيسي */
     button[kind="primary"], .stButton button[data-testid="baseButton-primary"] {
         background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%) !important;
         box-shadow: 0 4px 15px rgba(245, 87, 108, 0.3) !important;
@@ -174,7 +176,6 @@ def load_css():
         box-shadow: 0 8px 25px rgba(245, 87, 108, 0.4) !important;
     }
     
-    /* ===== الجداول ===== */
     [data-testid="stDataFrame"] {
         background: rgba(255, 255, 255, 0.03) !important;
         border-radius: 14px !important;
@@ -204,7 +205,6 @@ def load_css():
         background: rgba(102, 126, 234, 0.06) !important;
     }
     
-    /* ===== المؤشرات (Metrics) ===== */
     [data-testid="stMetric"] {
         background: rgba(255, 255, 255, 0.03) !important;
         border-radius: 12px !important;
@@ -222,7 +222,6 @@ def load_css():
         font-weight: 700 !important;
     }
     
-    /* ===== التبويبات (Tabs) ===== */
     .stTabs [data-baseweb="tab-list"] {
         gap: 8px;
     }
@@ -242,7 +241,6 @@ def load_css():
         border-color: rgba(102, 126, 234, 0.3) !important;
     }
     
-    /* ===== الإكسباندر (Expander) ===== */
     .stExpander {
         background: rgba(255, 255, 255, 0.02) !important;
         border-radius: 12px !important;
@@ -254,7 +252,6 @@ def load_css():
         font-weight: 600 !important;
     }
     
-    /* ===== السلايدرات ===== */
     [data-testid="stSlider"] > div {
         background: rgba(255, 255, 255, 0.03) !important;
         border-radius: 10px !important;
@@ -262,7 +259,6 @@ def load_css():
         border: 1px solid rgba(255, 255, 255, 0.05) !important;
     }
     
-    /* ===== السيلكت بوكس ===== */
     [data-testid="stSelectbox"] > div {
         background: rgba(255, 255, 255, 0.03) !important;
         border-radius: 10px !important;
@@ -273,7 +269,6 @@ def load_css():
         color: rgba(255, 255, 255, 0.7) !important;
     }
     
-    /* ===== التنبيهات ===== */
     .stAlert {
         background: rgba(255, 255, 255, 0.04) !important;
         border-radius: 12px !important;
@@ -285,7 +280,6 @@ def load_css():
         color: #e0e0e0 !important;
     }
     
-    /* ===== شريط التمرير ===== */
     ::-webkit-scrollbar {
         width: 6px;
         height: 6px;
@@ -299,28 +293,6 @@ def load_css():
     ::-webkit-scrollbar-thumb {
         background: linear-gradient(135deg, #667eea, #764ba2);
         border-radius: 10px;
-    }
-    
-    ::-webkit-scrollbar-thumb:hover {
-        background: linear-gradient(135deg, #764ba2, #667eea);
-    }
-    
-    /* ===== الصناديق (Containers) ===== */
-    .stContainer {
-        background: transparent !important;
-    }
-    
-    /* ===== الكود ===== */
-    .stCodeBlock {
-        background: rgba(0, 0, 0, 0.3) !important;
-        border-radius: 10px !important;
-        border: 1px solid rgba(255, 255, 255, 0.05) !important;
-    }
-    
-    /* ===== رسائل الخطأ والنجاح ===== */
-    .stSuccess, .stInfo, .stWarning, .stError {
-        border-radius: 12px !important;
-        padding: 12px 16px !important;
     }
     
     .stSuccess {
@@ -347,7 +319,6 @@ def load_css():
         color: #FF5252 !important;
     }
     
-    /* ===== شريط التقدم ===== */
     [data-testid="stProgress"] > div {
         background: rgba(255, 255, 255, 0.05) !important;
         border-radius: 20px !important;
@@ -359,7 +330,6 @@ def load_css():
         border-radius: 20px !important;
     }
     
-    /* ===== مسافة بين العناصر ===== */
     .element-container {
         margin-bottom: 8px !important;
     }
@@ -368,23 +338,15 @@ def load_css():
         margin-bottom: 4px !important;
     }
     
-    /* ===== نص العناوين ===== */
     h1, h2, h3, h4, h5, h6 {
         color: #ffffff !important;
         font-weight: 700 !important;
     }
     
-    h1 {
-        font-size: 2.2rem !important;
-    }
-    h2 {
-        font-size: 1.8rem !important;
-    }
-    h3 {
-        font-size: 1.4rem !important;
-    }
+    h1 { font-size: 2.2rem !important; }
+    h2 { font-size: 1.8rem !important; }
+    h3 { font-size: 1.4rem !important; }
     
-    /* ===== الروابط ===== */
     a {
         color: #667eea !important;
         text-decoration: none !important;
@@ -393,21 +355,6 @@ def load_css():
     a:hover {
         color: #764ba2 !important;
         text-decoration: underline !important;
-    }
-    
-    /* ===== تحسين ظهور النصوص في الشريط الجانبي ===== */
-    .sidebar-content {
-        color: #e0e0e0 !important;
-    }
-    
-    .sidebar-content .stMarkdown {
-        color: #e0e0e0 !important;
-    }
-    
-    /* ===== أيقونات البطاقات ===== */
-    .metric-card .icon {
-        font-size: 1.6rem;
-        margin-bottom: 4px;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -425,7 +372,8 @@ def init_session_state():
         'last_scan_time': None,
         'selected_symbol': None,
         'sidebar_config': {},
-        'initialized': False
+        'initialized': False,
+        'custom_symbols': {}  # لتخزين الرموز المضافة
     }
     
     if not st.session_state.get('initialized', False):
@@ -435,7 +383,7 @@ def init_session_state():
         st.session_state.initialized = True
 
 # ============================================================================
-# المكونات
+# الشريط الجانبي
 # ============================================================================
 
 def render_sidebar():
@@ -505,25 +453,21 @@ def render_sidebar():
             'max_symbols': max_symbols
         }
         
-        scan_clicked = st.button(
-            "🚀 بدء المسح",
-            type="primary",
-            width="stretch",
-            key="scan_btn"
-        )
-        
-        if scan_clicked:
+        if st.button("🚀 بدء المسح", type="primary", width="stretch", key="scan_btn"):
             st.session_state.scan_in_progress = True
             st.session_state.current_page = "scanner"
             st.rerun()
         
         st.markdown("---")
         
-        # معلومات
         if st.session_state.get('last_scan_time'):
             st.caption(f"⏱️ آخر مسح: {st.session_state.last_scan_time}")
         st.caption(f"🕐 {datetime.now().strftime('%H:%M:%S')}")
         st.caption("💡 اضبط الإعدادات وابدأ المسح")
+
+# ============================================================================
+# الصفحات
+# ============================================================================
 
 def render_dashboard():
     """لوحة التحكم"""
@@ -572,7 +516,6 @@ def render_dashboard():
     
     st.markdown("---")
     
-    # عرض النتائج
     if not results.empty:
         st.subheader("📋 أفضل الفرص")
         st.dataframe(
@@ -611,18 +554,34 @@ def render_scanner():
     if st.button("🔄 تحديث النتائج", type="primary", width="stretch"):
         with st.spinner("🔍 جاري مسح السوق..."):
             try:
-                scanner = BreakoutScanner()
-                results = scanner.scan_market(
-                    STOCK_SYMBOLS[:config.get('max_symbols', 15)],
-                    min_score=config.get('min_score', 60)
-                )
-                
-                if not results.empty:
-                    st.session_state.scan_results = results
+                if BreakoutScanner is None:
+                    st.warning("⚠️ ماسح الانفجار غير متوفر، استخدم بيانات نموذجية")
+                    # بيانات نموذجية للعرض
+                    sample_data = pd.DataFrame({
+                        'symbol': ['AAPL', 'MSFT', 'NVDA', 'AMD', 'TSLA'],
+                        'score': [75, 68, 82, 71, 65],
+                        'squeeze': [70, 55, 85, 60, 50],
+                        'recommendation': ['🟡 شراء', '🔍 مراقبة', '🟢 شراء قوي', '🔍 مراقبة', '🔴 تجنب'],
+                        'risk': ['متوسط', 'متوسط', 'منخفض', 'متوسط', 'مرتفع'],
+                        'price': [175.34, 378.91, 895.32, 165.42, 245.68],
+                        'target': [195.00, 410.00, 980.00, 185.00, 270.00]
+                    })
+                    st.session_state.scan_results = sample_data
                     st.session_state.last_scan_time = datetime.now().strftime('%H:%M:%S')
-                    st.success(f"✅ تم العثور على {len(results)} فرصة!")
+                    st.success("✅ تم عرض بيانات نموذجية")
                 else:
-                    st.warning("⚠️ لا توجد نتائج مطابقة للمعايير")
+                    scanner = BreakoutScanner()
+                    results = scanner.scan_market(
+                        STOCK_SYMBOLS[:config.get('max_symbols', 15)],
+                        min_score=config.get('min_score', 60)
+                    )
+                    
+                    if not results.empty:
+                        st.session_state.scan_results = results
+                        st.session_state.last_scan_time = datetime.now().strftime('%H:%M:%S')
+                        st.success(f"✅ تم العثور على {len(results)} فرصة!")
+                    else:
+                        st.warning("⚠️ لا توجد نتائج مطابقة للمعايير")
             except Exception as e:
                 st.error(f"❌ خطأ في المسح: {str(e)}")
     
@@ -641,9 +600,19 @@ def render_scanner():
         )
 
 def render_analyze():
-    """تحليل سهم"""
+    """تحليل سهم محدد مع رموز رئيسية"""
     st.subheader("📈 تحليل سهم محدد")
     
+    # محاولة استيراد صفحة التحليل المتقدمة
+    try:
+        from frontend.pages.analyze import render as render_analyze_advanced
+        render_analyze_advanced()
+    except ImportError:
+        # النسخة البسيطة إذا لم تتوفر الصفحة المتقدمة
+        render_analyze_simple()
+
+def render_analyze_simple():
+    """النسخة البسيطة لتحليل السهم"""
     symbol = st.text_input(
         "أدخل رمز السهم",
         value="AAPL",
@@ -653,6 +622,10 @@ def render_analyze():
     if symbol:
         with st.spinner(f"📊 جاري تحليل {symbol}..."):
             try:
+                if BreakoutScanner is None:
+                    st.warning("⚠️ ماسح الانفجار غير متوفر")
+                    return
+                
                 scanner = BreakoutScanner()
                 result = scanner.scan_stock(symbol)
                 
@@ -674,7 +647,6 @@ def render_analyze():
                         st.metric("المخاطرة", result['recommendation']['risk'])
                     
                     st.markdown("---")
-                    
                     st.markdown("#### 📍 مستويات التداول")
                     levels = result['levels']
                     st.write(f"💰 السعر الحالي: **${levels['current']:.2f}**")
@@ -710,6 +682,11 @@ def render_market_data():
         render_market_data_page()
     except ImportError:
         st.warning("⚠️ صفحة بيانات السوق غير متوفرة حالياً")
+        st.info("💡 تأكد من وجود ملف frontend/pages/market_data.py")
+
+# ============================================================================
+# عرض الصفحة المختارة
+# ============================================================================
 
 def render_current_page():
     """عرض الصفحة المختارة"""
@@ -723,26 +700,7 @@ def render_current_page():
     }
     
     pages.get(page, render_dashboard)()
-# في app.py - إضافة في تهيئة الجلسة
 
-def init_session_state():
-    """تهيئة جميع متغيرات الجلسة"""
-    defaults = {
-        'scan_results': pd.DataFrame(),
-        'current_page': 'dashboard',
-        'scan_in_progress': False,
-        'last_scan_time': None,
-        'selected_symbol': None,
-        'sidebar_config': {},
-        'initialized': False,
-        'custom_symbols': {}  # لتخزين الرموز المضافة
-    }
-    
-    if not st.session_state.get('initialized', False):
-        for key, value in defaults.items():
-            if key not in st.session_state:
-                st.session_state[key] = value
-        st.session_state.initialized = True
 # ============================================================================
 # التطبيق الرئيسي
 # ============================================================================
