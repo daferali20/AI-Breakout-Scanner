@@ -256,83 +256,98 @@ button[kind="primary"]:hover, .stButton button[data-testid="baseButton-primary"]
 }
 
 /* ============================================================================
-   القوائم المنسدلة (Selectbox)
+   القوائم المنسدلة (Selectbox) - نسخة محسنة بوضوح عالي
    ============================================================================ */
 
+/* === الحقل المغلق - الوضع العادي === */
 .stSelectbox > div[data-baseweb="select"] > div {
-    color: #000000 !important; /* أسود: لون النص الأساسي */
-    background-color: rgba(255, 255, 255, 0.08) !important; /* أبيض بنسبة شفافية 8%: خلفية العنصر الرئيسية */
-    border: 1px solid rgba(255, 255, 255, 0.12) !important; /* أبيض بنسبة شفافية 12%: لون الإطار */
+    color: #ffffff !important;
+    background-color: rgba(255, 255, 255, 0.08) !important;
+    border: 1px solid rgba(255, 255, 255, 0.12) !important;
     border-radius: 10px !important;
     padding: 6px 12px !important;
     min-height: 38px !important;
 }
 
+/* === الحقل المغلق - عند التمرير === */
 .stSelectbox > div[data-baseweb="select"] > div:hover {
-    color: #667eea !important; /* أزرق: لون النص عند تحويم الماوس على حقل الاختيار */
-    border-color: rgba(102, 126, 234, 0.4) !important; /* أزرق بنفسجي بنسبة شفافية 40%: لون الإطار عند تحويم الماوس */
-    background-color: rgba(255, 255, 255, 0.12) !important; /* أبيض بنسبة شفافية 12%: لون الخلفية عند تحويم الماوس */
+    border-color: rgba(102, 126, 234, 0.4) !important;
+    background-color: rgba(255, 255, 255, 0.12) !important;
 }
 
+/* === الحقل المغلق - عند التركيز === */
 .stSelectbox > div[data-baseweb="select"] > div:focus-within {
-    border-color: #667eea !important; /* أزرق بنفسجي فاتح: لون الإطار عند التركيز/النقر */
-    box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.3) !important; /* أزرق بنفسجي بنسبة شفافية 30%: لون الظل التوضيحي للتركيز */
+    border-color: #667eea !important;
+    box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.3) !important;
 }
 
+/* === النص المختار داخل الحقل === */
 .stSelectbox > div[data-baseweb="select"] > div div[data-baseweb="select-value"] {
-    color: #000000 !important; /* أسود: لون النص المختار */
+    color: #ffffff !important;
     font-weight: 500 !important;
 }
 
-.stSelectbox > div[data-baseweb="select"] > div:hover div[data-baseweb="select-value"] {
-    color: #667eea !important; /* أزرق: لون النص المختار عند تمرير الماوس */
-}
-
+/* === النص الإرشادي === */
 .stSelectbox > div[data-baseweb="select"] > div div[data-baseweb="select-placeholder"] {
-    color: rgba(0, 0, 0, 0.6) !important; /* أسود بنسبة شفافية 60%: لون النص الإرشادي قبل الاختيار */
+    color: rgba(255, 255, 255, 0.5) !important;
 }
 
+/* === القائمة المفتوحة === */
 .stSelectbox > div[data-baseweb="select"] ul {
-    background-color: #1a1a2e !important; /* كحلي داكن جداً / أزرق ليلي: لون خلفية القائمة المنسدلة */
-    border: 1px solid rgba(255, 255, 255, 0.1) !important; /* أبيض بنسبة شفافية 10%: لون إطار القائمة */
+    background-color: #1a1a2e !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
     border-radius: 10px !important;
     padding: 4px 0 !important;
-    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5) !important; /* أسود بنسبة شفافية 50%: لون ظل القائمة */
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5) !important;
     max-height: 300px !important;
     overflow-y: auto !important;
     z-index: 9999 !important;
 }
 
+/* === عناصر القائمة - الوضع العادي === */
 .stSelectbox > div[data-baseweb="select"] ul li {
-    color: #000000 !important; /* أسود: لون نص الخيارات في القائمة المنسدلة */
-    background-color: transparent !important; /* شفاف: خلفية خيارات القائمة */
+    color: #c0c0c0 !important;
+    background-color: transparent !important;
     padding: 10px 16px !important;
     font-size: 0.95rem !important;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.03) !important; /* أبيض خفيف جداً بنسبة 3%: لون الخط الفاصل بين الخيارات */
+    border-bottom: 1px solid rgba(255, 255, 255, 0.03) !important;
     transition: all 0.2s ease !important;
     cursor: pointer !important;
 }
 
+/* === عناصر القائمة - عند التمرير === */
 .stSelectbox > div[data-baseweb="select"] ul li:hover {
-    background-color: rgba(102, 126, 234, 0.25) !important; /* أزرق بنفسجي شفاف بنسبة 25%: خلفية الخيار عند تحويم الماوس */
-    color: #667eea !important; /* أزرق: لون نص الخيار عند تحويم الماوس عليه */
-    border-left: 3px solid #667eea !important; /* أزرق بنفسجي فاتح: لون الشريط الجانبي الأيسر عند تحويم الماوس */
+    background-color: rgba(102, 126, 234, 0.25) !important;
+    color: #ffffff !important;
+    border-left: 3px solid #667eea !important;
 }
 
+/* ===== العنصر المحدد - تدرج أرجواني مع نص أبيض وعلامة ✓ ===== */
 .stSelectbox > div[data-baseweb="select"] ul li[aria-selected="true"] {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important; /* تدرج لوني من الأزرق البنفسجي إلى البنفسجي الداكن: خلفية الخيار المحدد */
-    color: #000000 !important; /* أسود: لون نص الخيار المحدد */
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+    color: #ffffff !important;
     font-weight: 700 !important;
-    border-left: 4px solid #ffffff !important; /* أبيض نقي: لون الشريط الجانبي الأيسر للخيار المحدد */
-    box-shadow: inset 0 0 30px rgba(255, 255, 255, 0.08) !important; /* أبيض بنسبة شفافية 8%: توهج داخلي خفيف */
+    border-left: 4px solid #ffffff !important;
+    box-shadow: inset 0 0 30px rgba(255, 255, 255, 0.08) !important;
     padding-left: 18px !important;
 }
 
+/* === العنصر المحدد - عند التمرير === */
 .stSelectbox > div[data-baseweb="select"] ul li[aria-selected="true"]:hover {
-    background: linear-gradient(135deg, #764ba2 0%, #667eea 100%) !important; /* تدرج لوني معكوس: خلفية الخيار المحدد عند تمرير الماوس */
-    color: #667eea !important; /* أزرق: لون نص الخيار المحدد عند تمرير الماوس عليه */
-    border-left: 4px solid #FFD700 !important; /* ذهبي ناصع: لون الشريط الجانبي الأيسر للخيار المحدد عند تمرير الماوس */
+    background: linear-gradient(135deg, #764ba2 0%, #667eea 100%) !important;
+    color: #ffffff !important;
+    border-left: 4px solid #FFD700 !important;
 }
+
+/* === إضافة علامة ✓ بجانب الخيار المحدد === */
+.stSelectbox > div[data-baseweb="select"] ul li[aria-selected="true"]::after {
+    content: " ✓" !important;
+    color: #FFD700 !important;
+    font-weight: 800 !important;
+    font-size: 1.1rem !important;
+    float: left !important;
+}
+
 /* ============================================================================
    القوائم المنسدلة في الشريط الجانبي
    ============================================================================ */
@@ -355,11 +370,12 @@ button[kind="primary"]:hover, .stButton button[data-testid="baseButton-primary"]
 }
 
 [data-testid="stSidebar"] .stSelectbox > div[data-baseweb="select"] ul li {
-    color: #ffffff !important;
+    color: #c0c0c0 !important;
 }
 
 [data-testid="stSidebar"] .stSelectbox > div[data-baseweb="select"] ul li:hover {
     background-color: rgba(102, 126, 234, 0.25) !important;
+    color: #ffffff !important;
 }
 
 [data-testid="stSidebar"] .stSelectbox > div[data-baseweb="select"] ul li[aria-selected="true"] {
@@ -374,6 +390,15 @@ button[kind="primary"]:hover, .stButton button[data-testid="baseButton-primary"]
     border-left: 4px solid #FFD700 !important;
 }
 
+[data-testid="stSidebar"] .stSelectbox > div[data-baseweb="select"] ul li[aria-selected="true"]::after {
+    content: " ✓" !important;
+    color: #FFD700 !important;
+    font-weight: 800 !important;
+    font-size: 1.1rem !important;
+    float: left !important;
+}
+
+/* === شريط التمرير في القائمة === */
 .stSelectbox > div[data-baseweb="select"] ul::-webkit-scrollbar {
     width: 4px;
 }
