@@ -260,7 +260,7 @@ button[kind="primary"]:hover, .stButton button[data-testid="baseButton-primary"]
    ============================================================================ */
 
 .stSelectbox > div[data-baseweb="select"] > div {
-    color: #667eea !important; /* أزرق: لون النص الأساسي */
+    color: #000000 !important; /* أسود: لون النص الأساسي */
     background-color: rgba(255, 255, 255, 0.08) !important; /* أبيض بنسبة شفافية 8%: خلفية العنصر الرئيسية */
     border: 1px solid rgba(255, 255, 255, 0.12) !important; /* أبيض بنسبة شفافية 12%: لون الإطار */
     border-radius: 10px !important;
@@ -269,6 +269,7 @@ button[kind="primary"]:hover, .stButton button[data-testid="baseButton-primary"]
 }
 
 .stSelectbox > div[data-baseweb="select"] > div:hover {
+    color: #667eea !important; /* أزرق: لون النص عند تحويم الماوس على حقل الاختيار */
     border-color: rgba(102, 126, 234, 0.4) !important; /* أزرق بنفسجي بنسبة شفافية 40%: لون الإطار عند تحويم الماوس */
     background-color: rgba(255, 255, 255, 0.12) !important; /* أبيض بنسبة شفافية 12%: لون الخلفية عند تحويم الماوس */
 }
@@ -279,12 +280,16 @@ button[kind="primary"]:hover, .stButton button[data-testid="baseButton-primary"]
 }
 
 .stSelectbox > div[data-baseweb="select"] > div div[data-baseweb="select-value"] {
-    color: #667eea !important; /* أزرق: لون النص المختار */
+    color: #000000 !important; /* أسود: لون النص المختار */
     font-weight: 500 !important;
 }
 
+.stSelectbox > div[data-baseweb="select"] > div:hover div[data-baseweb="select-value"] {
+    color: #667eea !important; /* أزرق: لون النص المختار عند تمرير الماوس */
+}
+
 .stSelectbox > div[data-baseweb="select"] > div div[data-baseweb="select-placeholder"] {
-    color: rgba(102, 126, 234, 0.7) !important; /* أزرق بنسبة شفافية 70%: لون النص الإرشادي قبل الاختيار */
+    color: rgba(0, 0, 0, 0.6) !important; /* أسود بنسبة شفافية 60%: لون النص الإرشادي قبل الاختيار */
 }
 
 .stSelectbox > div[data-baseweb="select"] ul {
@@ -299,7 +304,7 @@ button[kind="primary"]:hover, .stButton button[data-testid="baseButton-primary"]
 }
 
 .stSelectbox > div[data-baseweb="select"] ul li {
-    color: #667eea !important; /* أزرق: لون نص الخيارات في القائمة */
+    color: #000000 !important; /* أسود: لون نص الخيارات في القائمة المنسدلة */
     background-color: transparent !important; /* شفاف: خلفية خيارات القائمة */
     padding: 10px 16px !important;
     font-size: 0.95rem !important;
@@ -310,13 +315,13 @@ button[kind="primary"]:hover, .stButton button[data-testid="baseButton-primary"]
 
 .stSelectbox > div[data-baseweb="select"] ul li:hover {
     background-color: rgba(102, 126, 234, 0.25) !important; /* أزرق بنفسجي شفاف بنسبة 25%: خلفية الخيار عند تحويم الماوس */
-    color: #667eea !important; /* أزرق: لون النص عند تحويم الماوس */
+    color: #667eea !important; /* أزرق: لون نص الخيار عند تحويم الماوس عليه */
     border-left: 3px solid #667eea !important; /* أزرق بنفسجي فاتح: لون الشريط الجانبي الأيسر عند تحويم الماوس */
 }
 
 .stSelectbox > div[data-baseweb="select"] ul li[aria-selected="true"] {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important; /* تدرج لوني من الأزرق البنفسجي إلى البنفسجي الداكن: خلفية الخيار المحدد */
-    color: #667eea !important; /* أزرق: لون نص الخيار المحدد */
+    color: #000000 !important; /* أسود: لون نص الخيار المحدد */
     font-weight: 700 !important;
     border-left: 4px solid #ffffff !important; /* أبيض نقي: لون الشريط الجانبي الأيسر للخيار المحدد */
     box-shadow: inset 0 0 30px rgba(255, 255, 255, 0.08) !important; /* أبيض بنسبة شفافية 8%: توهج داخلي خفيف */
@@ -325,7 +330,7 @@ button[kind="primary"]:hover, .stButton button[data-testid="baseButton-primary"]
 
 .stSelectbox > div[data-baseweb="select"] ul li[aria-selected="true"]:hover {
     background: linear-gradient(135deg, #764ba2 0%, #667eea 100%) !important; /* تدرج لوني معكوس: خلفية الخيار المحدد عند تمرير الماوس */
-    color: #667eea !important; /* أزرق: لون نص الخيار المحدد عند تحويم الماوس */
+    color: #667eea !important; /* أزرق: لون نص الخيار المحدد عند تمرير الماوس عليه */
     border-left: 4px solid #FFD700 !important; /* ذهبي ناصع: لون الشريط الجانبي الأيسر للخيار المحدد عند تمرير الماوس */
 }
 /* ============================================================================
