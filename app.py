@@ -269,10 +269,10 @@ def load_css():
     }
     
     /* ========================================================================
-       إصلاح شامل للقوائم المنسدلة (Selectbox) في كل مكان
-       ======================================================================== */
-    
-    /* === القائمة الرئيسية (الحقل المغلق) === */
+   إصلاح شامل للقوائم المنسدلة (Selectbox) - نسخة كاملة
+   ======================================================================== */
+
+    /* القائمة الرئيسية (الحقل المغلق) */
     .stSelectbox > div[data-baseweb="select"] > div {
         color: #ffffff !important;
         background-color: rgba(255, 255, 255, 0.08) !important;
@@ -292,7 +292,7 @@ def load_css():
         box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.3) !important;
     }
     
-    /* === النص داخل الحقل المغلق === */
+    /* النص داخل الحقل المغلق */
     .stSelectbox > div[data-baseweb="select"] > div div[data-baseweb="select-value"] {
         color: #ffffff !important;
         font-weight: 500 !important;
@@ -302,7 +302,7 @@ def load_css():
         color: rgba(255, 255, 255, 0.5) !important;
     }
     
-    /* === القائمة المنسدلة المفتوحة === */
+    /* القائمة المنسدلة المفتوحة */
     .stSelectbox > div[data-baseweb="select"] ul {
         background-color: #1a1a2e !important;
         border: 1px solid rgba(255, 255, 255, 0.1) !important;
@@ -314,7 +314,7 @@ def load_css():
         z-index: 9999 !important;
     }
     
-    /* === عناصر القائمة المنسدلة === */
+    /* عناصر القائمة - الوضع العادي */
     .stSelectbox > div[data-baseweb="select"] ul li {
         color: #ffffff !important;
         background-color: transparent !important;
@@ -325,20 +325,44 @@ def load_css():
         cursor: pointer !important;
     }
     
+    /* عناصر القائمة - عند التمرير */
     .stSelectbox > div[data-baseweb="select"] ul li:hover {
-        background-color: rgba(102, 126, 234, 0.2) !important;
-        color: #ffffff !important;
-        border-left: 3px solid #667eea !important;
-    }
-    
-    .stSelectbox > div[data-baseweb="select"] ul li[aria-selected="true"] {
         background-color: rgba(102, 126, 234, 0.25) !important;
         color: #ffffff !important;
-        font-weight: 600 !important;
         border-left: 3px solid #667eea !important;
     }
     
-    /* === شريط التمرير في القائمة === */
+    /* ===== العنصر المحدد - تدرج أرجواني مع نص أبيض واضح ===== */
+    .stSelectbox > div[data-baseweb="select"] ul li[aria-selected="true"] {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+        color: #ffffff !important;
+        font-weight: 700 !important;
+        border-left: 4px solid #ffffff !important;
+        box-shadow: inset 0 0 30px rgba(255, 255, 255, 0.08) !important;
+        padding-left: 18px !important;
+    }
+    
+    /* العنصر المحدد - عند التمرير */
+    .stSelectbox > div[data-baseweb="select"] ul li[aria-selected="true"]:hover {
+        background: linear-gradient(135deg, #764ba2 0%, #667eea 100%) !important;
+        color: #ffffff !important;
+        border-left: 4px solid #FFD700 !important;
+    }
+    
+    /* ===== العنصر المحدد في الشريط الجانبي ===== */
+    [data-testid="stSidebar"] .stSelectbox > div[data-baseweb="select"] ul li[aria-selected="true"] {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+        color: #ffffff !important;
+        font-weight: 700 !important;
+        border-left: 4px solid #ffffff !important;
+    }
+    
+    [data-testid="stSidebar"] .stSelectbox > div[data-baseweb="select"] ul li[aria-selected="true"]:hover {
+        background: linear-gradient(135deg, #764ba2 0%, #667eea 100%) !important;
+        border-left: 4px solid #FFD700 !important;
+    }
+    
+    /* شريط التمرير في القائمة */
     .stSelectbox > div[data-baseweb="select"] ul::-webkit-scrollbar {
         width: 4px;
     }
