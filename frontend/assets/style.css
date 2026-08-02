@@ -279,7 +279,7 @@ button[kind="primary"]:hover, .stButton button[data-testid="baseButton-primary"]
 }
 
 .stSelectbox > div[data-baseweb="select"] > div div[data-baseweb="select-value"] {
-    color: #ffffff !important;
+    color: #667eea !important;
     font-weight: 500 !important;
 }
 
