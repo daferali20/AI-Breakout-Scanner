@@ -373,7 +373,7 @@ def init_session_state():
         'selected_symbol': None,
         'sidebar_config': {},
         'initialized': False,
-        'custom_symbols': {}  # لتخزين الرموز المضافة
+        'custom_symbols': {}
     }
     
     if not st.session_state.get('initialized', False):
@@ -401,7 +401,6 @@ def render_sidebar():
         
         st.markdown("---")
         
-        # القائمة
         pages = {
             "📊 لوحة التحكم": "dashboard",
             "🔍 مسح السوق": "scanner",
@@ -425,7 +424,6 @@ def render_sidebar():
         
         st.markdown("---")
         
-        # إعدادات المسح
         st.subheader("⚙️ إعدادات المسح")
         
         config = st.session_state.get('sidebar_config', {})
@@ -466,7 +464,356 @@ def render_sidebar():
         st.caption("💡 اضبط الإعدادات وابدأ المسح")
 
 # ============================================================================
-# الصفحات
+# دوال عرض التحليل - مدمجة في app.py
+# ============================================================================
+
+def render_analyze():
+    """تحليل سهم محدد مع رموز رئيسية وزر تحديث"""
+    st.subheader("📈 تحليل سهم محدد")
+    
+    # ====================================================================
+    # رموز رئيسية
+    # ====================================================================
+    
+    MAIN_SYMBOLS = {
+        'AAPL': 'Apple Inc.',
+        'MSFT': 'Microsoft Corp.',
+        'GOOGL': 'Alphabet Inc.',
+        'AMZN': 'Amazon.com Inc.',
+        'NVDA': 'NVIDIA Corp.',
+        'META': 'Meta Platforms',
+        'TSLA': 'Tesla Inc.',
+        'AMD': 'Advanced Micro Devices',
+        'INTC': 'Intel Corp.',
+        'NFLX': 'Netflix Inc.',
+        'PYPL': 'PayPal Holdings',
+        'ADBE': 'Adobe Inc.',
+        'CRM': 'Salesforce Inc.',
+        'ORCL': 'Oracle Corp.',
+        'IBM': 'IBM Corp.',
+        'CSCO': 'Cisco Systems',
+        'QCOM': 'Qualcomm Inc.',
+        'TXN': 'Texas Instruments',
+        'JPM': 'JPMorgan Chase',
+        'BAC': 'Bank of America',
+        'WFC': 'Wells Fargo',
+        'JNJ': 'Johnson & Johnson',
+        'UNH': 'UnitedHealth',
+        'PFE': 'Pfizer Inc.',
+        'WMT': 'Walmart Inc.',
+        'PG': 'Procter & Gamble',
+        'KO': 'Coca-Cola Co.',
+        'XOM': 'Exxon Mobil',
+        'CVX': 'Chevron Corp.',
+        'V': 'Visa Inc.',
+        'MA': 'Mastercard Inc.'
+    }
+    
+    if 'custom_symbols' in st.session_state:
+        MAIN_SYMBOLS.update(st.session_state.custom_symbols)
+    
+    # ====================================================================
+    # معلومات مساعدة
+    # ====================================================================
+    
+    st.markdown("""
+    <div style="background: rgba(255,255,255,0.02); padding: 12px 16px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.05); margin-bottom: 20px;">
+        <p style="margin:0; color: rgba(255,255,255,0.6); font-size: 0.85rem;">
+            💡 اختر من الرموز الرئيسية أو اكتب رمزاً مخصصاً (مثل: AAPL, MSFT, TSLA)
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # ====================================================================
+    # إدخال الرمز مع زر تحديث
+    # ====================================================================
+    
+    col1, col2, col3 = st.columns([2, 2, 1])
+    
+    with col1:
+        symbol_options = ["-- اختر رمزاً --"] + list(MAIN_SYMBOLS.keys()) + ["✏️ إدخال مخصص"]
+        
+        selected_option = st.selectbox(
+            "اختر رمز السهم:",
+            options=symbol_options,
+            index=0,
+            key="symbol_select_main"
+        )
+        
+        if selected_option == "✏️ إدخال مخصص":
+            symbol = st.text_input(
+                "أدخل رمز السهم:",
+                value=st.session_state.get('custom_symbol_input', ''),
+                placeholder="مثال: AAPL, MSFT, TSLA...",
+                key="custom_symbol_input_main"
+            ).upper().strip()
+            
+            if symbol and symbol not in MAIN_SYMBOLS:
+                col_a, col_b = st.columns([1, 3])
+                with col_a:
+                    if st.button("➕ إضافة", key="add_symbol_main"):
+                        st.session_state.custom_symbols[symbol] = symbol
+                        st.session_state.custom_symbol_input = symbol
+                        st.success(f"✅ تم إضافة {symbol}")
+                        st.rerun()
+        elif selected_option != "-- اختر رمزاً --":
+            symbol = selected_option
+            st.session_state.custom_symbol_input = symbol
+        else:
+            symbol = ""
+    
+    with col2:
+        if symbol and symbol in MAIN_SYMBOLS:
+            st.markdown(f"""
+            <div style="background: rgba(255,255,255,0.03); padding: 10px; border-radius: 10px; margin-top: 25px; border: 1px solid rgba(255,255,255,0.05);">
+                <div style="color: rgba(255,255,255,0.4); font-size: 0.8rem;">🏢 الشركة</div>
+                <div style="font-weight: 600; font-size: 1rem;">{MAIN_SYMBOLS[symbol]}</div>
+            </div>
+            """, unsafe_allow_html=True)
+    
+    with col3:
+        st.markdown("<br>", unsafe_allow_html=True)
+        refresh_clicked = st.button(
+            "🔄 تحديث",
+            type="primary",
+            width="stretch",
+            key="refresh_analysis_main"
+        )
+    
+    # ====================================================================
+    # عرض التحليل
+    # ====================================================================
+    
+    if symbol:
+        if refresh_clicked:
+            st.cache_data.clear()
+        display_stock_analysis(symbol)
+    else:
+        st.info("🔍 اختر أو اكتب رمز سهم للبدء")
+
+def display_stock_analysis(symbol):
+    """عرض تحليل السهم مع بيانات حقيقية"""
+    
+    with st.spinner(f"📊 جاري تحليل {symbol}..."):
+        try:
+            import yfinance as yf
+            import plotly.graph_objects as go
+            
+            ticker = yf.Ticker(symbol)
+            df = ticker.history(period="6mo")
+            
+            if df.empty:
+                st.error(f"❌ لا توجد بيانات للسهم {symbol}")
+                return
+            
+            info = ticker.info
+            
+            # ============================================================
+            # معلومات أساسية
+            # ============================================================
+            
+            company_name = info.get('longName', symbol)
+            st.markdown(f"""
+            <div style="background: linear-gradient(135deg, rgba(102,126,234,0.1), rgba(118,75,162,0.1)); 
+                        padding: 15px 20px; border-radius: 12px; border: 1px solid rgba(102,126,234,0.2); margin-bottom: 20px;">
+                <h3 style="margin:0; color: #ffffff;">{symbol} - {company_name}</h3>
+                <div style="color: rgba(255,255,255,0.5); font-size: 0.85rem; margin-top: 4px;">
+                    🏢 {info.get('sector', 'غير معروف')} | 📊 {info.get('industry', 'غير معروف')}
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            # ============================================================
+            # بطاقات المؤشرات
+            # ============================================================
+            
+            current_price = df['Close'].iloc[-1]
+            previous_close = info.get('previousClose', current_price)
+            change = current_price - previous_close
+            change_percent = (change / previous_close) * 100 if previous_close > 0 else 0
+            
+            col1, col2, col3, col4 = st.columns(4)
+            
+            with col1:
+                delta_color = "normal" if change >= 0 else "inverse"
+                st.metric(
+                    "💰 السعر الحالي",
+                    f"${current_price:.2f}",
+                    delta=f"{change:+.2f} ({change_percent:+.2f}%)",
+                    delta_color=delta_color
+                )
+            
+            with col2:
+                high_52 = info.get('fiftyTwoWeekHigh', 0)
+                if high_52:
+                    st.metric(
+                        "📈 أعلى 52 أسبوع",
+                        f"${high_52:.2f}",
+                        delta=f"{(current_price/high_52*100 - 100):+.1f}%"
+                    )
+                else:
+                    st.metric("📈 أعلى 52 أسبوع", "N/A")
+            
+            with col3:
+                low_52 = info.get('fiftyTwoWeekLow', 0)
+                if low_52:
+                    st.metric(
+                        "📉 أدنى 52 أسبوع",
+                        f"${low_52:.2f}",
+                        delta=f"{(current_price/low_52*100 - 100):+.1f}%"
+                    )
+                else:
+                    st.metric("📉 أدنى 52 أسبوع", "N/A")
+            
+            with col4:
+                volume = info.get('volume', 0)
+                avg_volume = info.get('averageVolume', 0)
+                if avg_volume > 0:
+                    vol_ratio = volume / avg_volume
+                    st.metric(
+                        "📊 حجم التداول",
+                        f"{volume:,}",
+                        delta=f"{vol_ratio:.1f}x المتوسط"
+                    )
+                else:
+                    st.metric("📊 حجم التداول", f"{volume:,}")
+            
+            st.markdown("---")
+            
+            # ============================================================
+            # رسم بياني ومؤشرات
+            # ============================================================
+            
+            col1, col2 = st.columns([3, 1])
+            
+            with col1:
+                fig = go.Figure()
+                
+                fig.add_trace(go.Candlestick(
+                    x=df.index,
+                    open=df['Open'],
+                    high=df['High'],
+                    low=df['Low'],
+                    close=df['Close'],
+                    name="السعر",
+                    increasing=dict(line=dict(color='#00E676')),
+                    decreasing=dict(line=dict(color='#FF5252'))
+                ))
+                
+                if len(df) > 20:
+                    ma20 = df['Close'].rolling(20).mean()
+                    fig.add_trace(go.Scatter(
+                        x=df.index, y=ma20,
+                        line=dict(color='#FFD700', width=1.5),
+                        name="MA20"
+                    ))
+                
+                if len(df) > 50:
+                    ma50 = df['Close'].rolling(50).mean()
+                    fig.add_trace(go.Scatter(
+                        x=df.index, y=ma50,
+                        line=dict(color='#29B6F6', width=1.5),
+                        name="MA50"
+                    ))
+                
+                fig.update_layout(
+                    title=f"📈 {symbol} - رسم بياني فني",
+                    template="plotly_dark",
+                    xaxis_rangeslider_visible=False,
+                    height=450,
+                    margin=dict(l=20, r=20, t=50, b=20),
+                    legend=dict(
+                        orientation="h",
+                        yanchor="bottom",
+                        y=1.02,
+                        xanchor="right",
+                        x=1
+                    )
+                )
+                
+                st.plotly_chart(fig, use_container_width=True)
+            
+            with col2:
+                st.markdown("#### 📊 مؤشرات سريعة")
+                
+                # RSI
+                delta = df['Close'].diff()
+                gain = delta.where(delta > 0, 0.0).rolling(14).mean()
+                loss = (-delta.where(delta < 0, 0.0)).rolling(14).mean()
+                loss = loss.replace(0, float('nan'))
+                rs = gain / loss
+                rsi = 100 - (100 / (1 + rs))
+                current_rsi = rsi.iloc[-1] if not rsi.isna().iloc[-1] else 50
+                
+                rsi_color = "#00E676" if 40 <= current_rsi <= 70 else "#FF5252" if current_rsi > 70 else "#FFC107"
+                st.markdown(f"""
+                <div style="background: rgba(255,255,255,0.03); padding: 10px; border-radius: 8px; margin-bottom: 8px;">
+                    <div style="color: rgba(255,255,255,0.5); font-size: 0.8rem;">RSI (14)</div>
+                    <div style="font-size: 1.4rem; font-weight: 700; color: {rsi_color};">{current_rsi:.1f}</div>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                # حجم التداول
+                avg_volume = df['Volume'].iloc[-21:-1].mean() if len(df) > 21 else df['Volume'].mean()
+                vol_ratio = df['Volume'].iloc[-1] / avg_volume if avg_volume > 0 else 1
+                vol_color = "#00E676" if vol_ratio > 1.5 else "#FFC107" if vol_ratio > 1 else "#FF5252"
+                st.markdown(f"""
+                <div style="background: rgba(255,255,255,0.03); padding: 10px; border-radius: 8px; margin-bottom: 8px;">
+                    <div style="color: rgba(255,255,255,0.5); font-size: 0.8rem;">نسبة الحجم</div>
+                    <div style="font-size: 1.4rem; font-weight: 700; color: {vol_color};">{vol_ratio:.2f}x</div>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                # ATR
+                atr = (df['High'] - df['Low']).rolling(14).mean().iloc[-1] or 0
+                atr_percent = (atr / current_price) * 100 if current_price > 0 else 0
+                st.markdown(f"""
+                <div style="background: rgba(255,255,255,0.03); padding: 10px; border-radius: 8px; margin-bottom: 8px;">
+                    <div style="color: rgba(255,255,255,0.5); font-size: 0.8rem;">ATR</div>
+                    <div style="font-size: 1.4rem; font-weight: 700; color: #29B6F6;">${atr:.2f} ({atr_percent:.1f}%)</div>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                # PE Ratio
+                pe = info.get('trailingPE', 'N/A')
+                pe_color = "#00E676" if pe != 'N/A' and pe < 25 else "#FFC107" if pe != 'N/A' and pe < 40 else "#FF5252"
+                st.markdown(f"""
+                <div style="background: rgba(255,255,255,0.03); padding: 10px; border-radius: 8px;">
+                    <div style="color: rgba(255,255,255,0.5); font-size: 0.8rem;">نسبة PE</div>
+                    <div style="font-size: 1.4rem; font-weight: 700; color: {pe_color};">{f"{pe:.2f}" if pe != 'N/A' else 'N/A'}</div>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            st.markdown("---")
+            
+            # ============================================================
+            # أخبار الشركة
+            # ============================================================
+            
+            with st.expander("📰 آخر الأخبار", expanded=False):
+                try:
+                    news = ticker.news
+                    if news:
+                        for item in news[:3]:
+                            title = item.get('title', 'عنوان غير معروف')
+                            publisher = item.get('publisher', 'مصدر غير معروف')
+                            st.markdown(f"""
+                            <div style="background: rgba(255,255,255,0.02); padding: 10px 15px; border-radius: 10px; margin-bottom: 8px; border-right: 3px solid #667eea;">
+                                <div style="font-weight: 600;">📰 {title}</div>
+                                <div style="color: rgba(255,255,255,0.4); font-size: 0.8rem;">{publisher}</div>
+                            </div>
+                            """, unsafe_allow_html=True)
+                    else:
+                        st.info("📰 لا توجد أخبار حديثة")
+                except:
+                    st.info("📰 لا توجد أخبار متاحة")
+            
+        except Exception as e:
+            st.error(f"❌ خطأ في التحليل: {str(e)}")
+            st.info("💡 تأكد من صحة الرمز (مثال: AAPL, MSFT, TSLA)")
+
+# ============================================================================
+# الصفحات الأخرى
 # ============================================================================
 
 def render_dashboard():
@@ -555,8 +902,6 @@ def render_scanner():
         with st.spinner("🔍 جاري مسح السوق..."):
             try:
                 if BreakoutScanner is None:
-                    st.warning("⚠️ ماسح الانفجار غير متوفر، استخدم بيانات نموذجية")
-                    # بيانات نموذجية للعرض
                     sample_data = pd.DataFrame({
                         'symbol': ['AAPL', 'MSFT', 'NVDA', 'AMD', 'TSLA'],
                         'score': [75, 68, 82, 71, 65],
@@ -599,82 +944,6 @@ def render_scanner():
             width="stretch"
         )
 
-def render_analyze():
-    """تحليل سهم محدد مع رموز رئيسية"""
-    st.subheader("📈 تحليل سهم محدد")
-    
-    # محاولة استيراد صفحة التحليل المتقدمة
-    try:
-        from frontend.pages.analyze import render as render_analyze_advanced
-        render_analyze_advanced()
-    except ImportError:
-        # النسخة البسيطة إذا لم تتوفر الصفحة المتقدمة
-        render_analyze_simple()
-
-def render_analyze_simple():
-    """النسخة البسيطة لتحليل السهم"""
-    symbol = st.text_input(
-        "أدخل رمز السهم",
-        value="AAPL",
-        key="symbol_input"
-    ).upper()
-    
-    if symbol:
-        with st.spinner(f"📊 جاري تحليل {symbol}..."):
-            try:
-                if BreakoutScanner is None:
-                    st.warning("⚠️ ماسح الانفجار غير متوفر")
-                    return
-                
-                scanner = BreakoutScanner()
-                result = scanner.scan_stock(symbol)
-                
-                if 'error' in result:
-                    st.error(f"❌ {result['error']}")
-                    return
-                
-                col1, col2 = st.columns([2, 1])
-                
-                with col1:
-                    st.markdown(f"### 🎯 {symbol}")
-                    
-                    col_a, col_b, col_c = st.columns(3)
-                    with col_a:
-                        st.metric("الدرجة", f"{result['score']}/100")
-                    with col_b:
-                        st.metric("التوصية", result['recommendation']['action'])
-                    with col_c:
-                        st.metric("المخاطرة", result['recommendation']['risk'])
-                    
-                    st.markdown("---")
-                    st.markdown("#### 📍 مستويات التداول")
-                    levels = result['levels']
-                    st.write(f"💰 السعر الحالي: **${levels['current']:.2f}**")
-                    st.write(f"📈 نقطة الدخول: **${levels['entry']:.2f}**")
-                    st.write(f"🛑 وقف الخسارة: **${levels['stop_loss']:.2f}**")
-                    st.write(f"🎯 الهدف 1: **${levels['target_1']:.2f}**")
-                    st.write(f"🎯 الهدف 2: **${levels['target_2']:.2f}**")
-                
-                with col2:
-                    st.markdown("#### 📊 المؤشرات")
-                    st.metric("درجة الانضغاط", f"{result['squeeze']['squeeze_score']}/100")
-                    st.metric("RSI", f"{result['indicators']['rsi']:.1f}")
-                    st.metric("حجم التداول", f"{result['indicators']['volume_ratio']:.2f}x")
-                    
-                    st.markdown("---")
-                    st.markdown("#### 🤖 تنبؤ الذكاء الاصطناعي")
-                    ai = result['ai']
-                    st.metric("الاحتمالية", f"{ai['probability']}%")
-                    st.metric("الثقة", f"{ai['confidence']:.0f}%")
-                    
-                    if ai['prediction'] == 'explosive':
-                        st.success("✅ انفجار متوقع")
-                    else:
-                        st.warning("⏳ انفجار غير مرجح")
-                        
-            except Exception as e:
-                st.error(f"❌ خطأ في التحليل: {str(e)}")
-
 def render_market_data():
     """صفحة بيانات السوق"""
     try:
@@ -708,13 +977,9 @@ def render_current_page():
 def main():
     """الدالة الرئيسية"""
     
-    # تهيئة
     init_session_state()
-    
-    # تحميل التصميم
     load_css()
     
-    # الهيدر
     st.markdown("""
     <div class="main-header">
         <h1>🚀 AI Breakout Scanner</h1>
@@ -722,10 +987,7 @@ def main():
     </div>
     """, unsafe_allow_html=True)
     
-    # الشريط الجانبي
     render_sidebar()
-    
-    # الصفحة المختارة
     render_current_page()
 
 if __name__ == "__main__":
