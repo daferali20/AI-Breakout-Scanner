@@ -54,12 +54,7 @@ STOCK_SYMBOLS = {
         'AMT', 'PLD', 'CCI', 'EQIX', 'PSA'
     ]
 }
-[theme]
-primaryColor="#667eea"
-backgroundColor="#0f0f1a"
-secondaryBackgroundColor="#1a1a2e"
-textColor="#ffffff"
-base="dark"
+
 # قائمة مسطحة لجميع الرموز (للمسح السريع)
 ALL_SYMBOLS = []
 for sector, symbols in STOCK_SYMBOLS.items():
