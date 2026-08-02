@@ -51,29 +51,15 @@ except ImportError:
 # ============================================================================
 
 def load_css():
-    """تحميل ملف الاستايل من frontend/assets/style.css"""
-    css_path = os.path.join(ROOT_DIR, "frontend", "assets", "style.css")
-    
-    if os.path.exists(css_path):
-        try:
-            with open(css_path, 'r', encoding='utf-8') as f:
-                css_content = f.read()
-                st.markdown(f'<style>{css_content}</style>', unsafe_allow_html=True)
-        except Exception as e:
-            st.warning(f"⚠️ خطأ في تحميل ملف الاستايل: {e}")
-            load_inline_css()
-    else:
-        load_inline_css()
-
-def load_inline_css():
-    """استايل مضمن في حال عدم وجود الملف الخارجي"""
+    """حقن استايل CSS لحل مشكلة ألوان القوائم المنسدلة والنصوص المفقودة"""
     st.markdown("""
     <style>
-    /* ===== الإعدادات الأساسية ===== */
+    /* ===== خلفية التطبيق العامة ===== */
     .stApp {
         background: linear-gradient(135deg, #0f0f1a 0%, #1a1a2e 50%, #16213e 100%);
+        color: #e8e8e8 !important;
     }
-    
+
     .main-header {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         padding: 20px 30px;
@@ -84,36 +70,76 @@ def load_inline_css():
     }
     
     .main-header h1 {
-        color: #ffffff;
+        color: #ffffff !important;
         font-size: 2rem;
         font-weight: 800;
         margin: 0;
-        text-shadow: 0 2px 10px rgba(0,0,0,0.2);
     }
     
     .main-header p {
-        color: rgba(255,255,255,0.9);
+        color: rgba(255,255,255,0.9) !important;
         font-size: 1rem;
         margin-top: 6px;
         margin-bottom: 0;
     }
-    
+
     [data-testid="stSidebar"] {
         background: rgba(20,20,40,0.92) !important;
         backdrop-filter: blur(15px);
         border-right: 1px solid rgba(255,255,255,0.06);
     }
-    
-    /* ===== النصوص العامة ===== */
-    .stMarkdown, p, div, span, label {
-        color: #e8e8e8 !important;
+
+    /* ===== 🔥 الإصلاح الشامل للقوائم المنسدلة Dropdowns 🔥 ===== */
+
+    /* 1. إجبار المربع المغلق على إظهار الخط الأبيض والخلفية الداكنة */
+    .stSelectbox div[data-baseweb="select"] > div {
+        background-color: #1a1a2e !important;
+        border: 1px solid #667eea !important;
+        border-radius: 10px !important;
+        color: #ffffff !important;
     }
-    
-    h1, h2, h3, h4, h5, h6 {
+
+    .stSelectbox div[data-baseweb="select"] div[data-baseweb="select-value"] {
         color: #ffffff !important;
         font-weight: 700 !important;
     }
-    
+
+    .stSelectbox svg {
+        fill: #ffffff !important;
+    }
+
+    /* 2. إصلاح القائمة المنبثقة الخارجيّة (Popover Overlay) - لحل خلفية الأبيض والخط الأبيض */
+    div[data-baseweb="popover"],
+    div[data-baseweb="menu"],
+    div[role="listbox"],
+    ul[role="listbox"] {
+        background-color: #161628 !important;
+        border: 1px solid #667eea !important;
+        border-radius: 10px !important;
+        box-shadow: 0px 10px 30px rgba(0,0,0,0.5) !important;
+    }
+
+    /* 3. الخيارات داخل القائمة (AAPL, MSFT ...) */
+    li[role="option"],
+    div[data-baseweb="option"],
+    ul[role="listbox"] li {
+        background-color: #161628 !important;
+        color: #ffffff !important;
+        font-size: 1rem !important;
+        font-weight: 600 !important;
+        padding: 10px 15px !important;
+    }
+
+    /* 4. إبراز العنصر عند تحريك الماوس عليه (Hover) */
+    li[role="option"]:hover,
+    div[data-baseweb="option"]:hover,
+    ul[role="listbox"] li:hover,
+    li[aria-selected="true"] {
+        background-color: #667eea !important;
+        color: #ffffff !important;
+        cursor: pointer;
+    }
+
     /* ===== البطاقات ===== */
     .metric-card {
         background: rgba(255,255,255,0.04);
@@ -121,33 +147,20 @@ def load_inline_css():
         padding: 18px 20px;
         border-radius: 14px;
         text-align: center;
-        transition: all 0.3s ease;
         backdrop-filter: blur(10px);
     }
-    
-    .metric-card:hover {
-        transform: translateY(-4px);
-        border-color: rgba(102,126,234,0.3);
-        box-shadow: 0 8px 25px rgba(0,0,0,0.2);
-    }
-    
+
     .metric-card .value {
         font-size: 1.8rem;
         font-weight: 800;
         color: #ffffff;
-        margin-bottom: 4px;
     }
-    
+
     .metric-card .label {
         font-size: 0.85rem;
         color: rgba(255,255,255,0.55);
     }
-    
-    .metric-card .icon {
-        font-size: 1.6rem;
-        margin-bottom: 4px;
-    }
-    
+
     /* ===== الأزرار ===== */
     .stButton > button {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
@@ -155,171 +168,10 @@ def load_inline_css():
         border: none !important;
         border-radius: 10px !important;
         font-weight: 600 !important;
-        box-shadow: 0 4px 15px rgba(102,126,234,0.25) !important;
-        transition: all 0.3s ease !important;
     }
-    
-    .stButton > button:hover {
-        transform: translateY(-2px) !important;
-        box-shadow: 0 8px 25px rgba(102,126,234,0.35) !important;
-    }
-    
+
     button[kind="primary"] {
         background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%) !important;
-        box-shadow: 0 4px 15px rgba(245,87,108,0.3) !important;
-    }
-    
-    button[kind="primary"]:hover {
-        box-shadow: 0 8px 25px rgba(245,87,108,0.4) !important;
-    }
-    
-    /* ===== الجداول ===== */
-    [data-testid="stDataFrame"] {
-        background: rgba(255,255,255,0.03) !important;
-        border-radius: 14px !important;
-        border: 1px solid rgba(255,255,255,0.06) !important;
-    }
-    
-    [data-testid="stDataFrame"] thead th {
-        background: rgba(102,126,234,0.12) !important;
-        color: #ffffff !important;
-        font-weight: 700 !important;
-    }
-    
-    [data-testid="stDataFrame"] tbody td {
-        color: #d0d0d0 !important;
-    }
-    
-    /* ===== القوائم المنسدلة - خلفية فاتحة ونص واضح ===== */
-    .stSelectbox > div[data-baseweb="select"] > div {
-        background-color: rgba(255, 255, 255, 0.12) !important;
-        border: 1px solid rgba(255, 255, 255, 0.2) !important;
-        border-radius: 10px !important;
-        color: #000000 !important;
-        min-height: 38px !important;
-        padding: 6px 12px !important;
-    }
-    
-    .stSelectbox > div[data-baseweb="select"] > div:hover {
-        background-color: rgba(255, 255, 255, 0.18) !important;
-        border-color: rgba(102, 126, 234, 0.4) !important;
-    }
-    
-    .stSelectbox > div[data-baseweb="select"] > div:focus-within {
-        border-color: #667eea !important;
-        box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.3) !important;
-    }
-    
-    .stSelectbox > div[data-baseweb="select"] > div div[data-baseweb="select-value"] {
-        color: #000000 !important;
-        font-weight: 600 !important;
-    }
-    
-    .stSelectbox > div[data-baseweb="select"] > div div[data-baseweb="select-placeholder"] {
-        color: rgba(0, 0, 0, 0.6) !important;
-    }
-    
-    .stSelectbox > div[data-baseweb="select"] > div svg {
-        fill: #333333 !important;
-    }
-    
-    .stSelectbox > div[data-baseweb="select"] ul {
-        background-color: #f0f0f5 !important;
-        border: 1px solid rgba(0, 0, 0, 0.1) !important;
-        border-radius: 10px !important;
-        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2) !important;
-        max-height: 300px !important;
-        overflow-y: auto !important;
-        z-index: 9999 !important;
-    }
-    
-    .stSelectbox > div[data-baseweb="select"] ul li {
-        color: #1a1a2e !important;
-        background-color: transparent !important;
-        padding: 10px 16px !important;
-        font-size: 0.95rem !important;
-        border-bottom: 1px solid rgba(0, 0, 0, 0.05) !important;
-        transition: all 0.2s ease !important;
-        cursor: pointer !important;
-    }
-    
-    .stSelectbox > div[data-baseweb="select"] ul li:hover {
-        background-color: rgba(102, 126, 234, 0.15) !important;
-        color: #667eea !important;
-        border-left: 3px solid #667eea !important;
-    }
-    
-    .stSelectbox > div[data-baseweb="select"] ul li[aria-selected="true"] {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
-        color: #ffffff !important;
-        font-weight: 700 !important;
-        border-left: 4px solid #ffffff !important;
-        padding-left: 18px !important;
-    }
-    
-    .stSelectbox > div[data-baseweb="select"] ul li[aria-selected="true"]:hover {
-        background: linear-gradient(135deg, #764ba2 0%, #667eea 100%) !important;
-        border-left: 4px solid #FFD700 !important;
-    }
-    
-    .stSelectbox > div[data-baseweb="select"] ul li[aria-selected="true"]::after {
-        content: " ✓" !important;
-        color: #FFD700 !important;
-        font-weight: 800 !important;
-        font-size: 1.1rem !important;
-        float: left !important;
-    }
-    
-    /* ===== Text Input ===== */
-    .stTextInput > div > div > input {
-        background-color: rgba(255, 255, 255, 0.12) !important;
-        border: 1px solid rgba(255, 255, 255, 0.2) !important;
-        border-radius: 10px !important;
-        color: #000000 !important;
-        padding: 10px 14px !important;
-    }
-    
-    .stTextInput > div > div > input::placeholder {
-        color: rgba(0, 0, 0, 0.5) !important;
-    }
-    
-    .stTextInput > div > div > input:focus {
-        border-color: #667eea !important;
-        box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.3) !important;
-    }
-    
-    /* ===== التنبيهات ===== */
-    .stAlert {
-        background: rgba(255,255,255,0.04) !important;
-        border-radius: 12px !important;
-        border: 1px solid rgba(255,255,255,0.06) !important;
-    }
-    
-    /* ===== الشريط الجانبي - القوائم المنسدلة ===== */
-    [data-testid="stSidebar"] .stSelectbox > div[data-baseweb="select"] > div {
-        background-color: rgba(255, 255, 255, 0.1) !important;
-        border: 1px solid rgba(255, 255, 255, 0.15) !important;
-        color: #000000 !important;
-    }
-    
-    [data-testid="stSidebar"] .stSelectbox > div[data-baseweb="select"] > div div[data-baseweb="select-value"] {
-        color: #000000 !important;
-    }
-    
-    [data-testid="stSidebar"] .stSelectbox > div[data-baseweb="select"] > div div[data-baseweb="select-placeholder"] {
-        color: rgba(0, 0, 0, 0.5) !important;
-    }
-    
-    [data-testid="stSidebar"] .stSelectbox > div[data-baseweb="select"] > div svg {
-        fill: #333333 !important;
-    }
-    
-    [data-testid="stSidebar"] .stSelectbox > div[data-baseweb="select"] ul {
-        background-color: #f0f0f5 !important;
-    }
-    
-    [data-testid="stSidebar"] .stSelectbox > div[data-baseweb="select"] ul li {
-        color: #1a1a2e !important;
     }
     </style>
     """, unsafe_allow_html=True)
