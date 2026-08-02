@@ -342,4 +342,46 @@ def render_analyze():
                 st.markdown("#### 🤖 تنبؤ الذكاء الاصطناعي")
                 ai = result['ai']
                 st.metric("الاحتمالية", f"{ai['probability']}%")
-                st.metric("الثقة", f"{
+                st.metric("الثقة", f"{ai['confidence']:.0f}%")
+                
+                if ai['prediction'] == 'explosive':
+                    st.success("✅ انفجار متوقع")
+                else:
+                    st.warning("⏳ انفجار غير مرجح")
+
+# ============================================================================
+# التطبيق الرئيسي
+# ============================================================================
+
+def main():
+    """الدالة الرئيسية"""
+    
+    # تحميل التصميم
+    load_css()
+    
+    # عرض الهيدر
+    st.markdown("""
+    <div class="main-header">
+        <h1>🚀 AI Breakout Scanner</h1>
+        <p>اكتشاف فرص الانفجار السعري باستخدام الذكاء الاصطناعي ومؤشرات الضغط (Squeeze)</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # عرض الشريط الجانبي
+    config = render_sidebar()
+    st.session_state.sidebar_config = config
+    
+    # عرض الصفحة المختارة
+    page = st.session_state.get('current_page', 'dashboard')
+    
+    if page == 'dashboard':
+        render_dashboard()
+    elif page == 'scanner':
+        render_scanner()
+    elif page == 'analyze':
+        render_analyze()
+    else:
+        render_dashboard()
+
+if __name__ == "__main__":
+    main()
