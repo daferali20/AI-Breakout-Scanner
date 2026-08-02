@@ -9,10 +9,13 @@ import pandas as pd
 import sys
 import os
 from datetime import datetime
+import warnings
+warnings.filterwarnings('ignore')
 
 # ============================================================================
 # إعدادات الصفحة
 # ============================================================================
+
 st.set_page_config(
     page_title="AI Breakout Scanner | ماسح الانفجار السعري",
     page_icon="🚀",
@@ -30,13 +33,15 @@ if ROOT_DIR not in sys.path:
 # ============================================================================
 
 try:
-    from config import STOCK_SYMBOLS, APP_SETTINGS
+    from config import STOCK_SYMBOLS, APP_SETTINGS, get_symbols_by_sector, get_sectors
 except ImportError:
     STOCK_SYMBOLS = [
         'AAPL', 'MSFT', 'GOOGL', 'AMZN', 'NVDA', 'META', 'TSLA', 'AMD',
         'INTC', 'NFLX', 'PYPL', 'ADBE', 'CRM', 'ORCL', 'IBM', 'CSCO'
     ]
     APP_SETTINGS = {'title': 'AI Breakout Scanner'}
+    get_symbols_by_sector = lambda x: STOCK_SYMBOLS
+    get_sectors = lambda: ['الكل']
 
 try:
     from backend.scanner.breakout_scanner import BreakoutScanner
@@ -58,9 +63,8 @@ def load_css():
                 st.markdown(f'<style>{css_content}</style>', unsafe_allow_html=True)
         except Exception as e:
             st.warning(f"⚠️ خطأ في تحميل ملف الاستايل: {e}")
-            load_inline_css()  # استخدام الاستايل المضمن في حالة الخطأ
+            load_inline_css()
     else:
-        st.info("📁 ملف الاستايل غير موجود، استخدام الاستايل المضمن")
         load_inline_css()
 
 def load_inline_css():
@@ -76,12 +80,14 @@ def load_inline_css():
         border-radius: 16px;
         margin-bottom: 25px;
         color: white;
+        box-shadow: 0 8px 32px rgba(102,126,234,0.25);
     }
     .main-header h1 {
         color: #ffffff;
         font-size: 2rem;
         font-weight: 800;
         margin: 0;
+        text-shadow: 0 2px 10px rgba(0,0,0,0.2);
     }
     .main-header p {
         color: rgba(255,255,255,0.9);
@@ -92,6 +98,7 @@ def load_inline_css():
     [data-testid="stSidebar"] {
         background: rgba(20,20,40,0.92) !important;
         backdrop-filter: blur(15px);
+        border-right: 1px solid rgba(255,255,255,0.06);
     }
     .stMarkdown, p, div, span, label {
         color: #e8e8e8 !important;
@@ -107,15 +114,18 @@ def load_inline_css():
         border-radius: 14px;
         text-align: center;
         transition: all 0.3s ease;
+        backdrop-filter: blur(10px);
     }
     .metric-card:hover {
         transform: translateY(-4px);
         border-color: rgba(102,126,234,0.3);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.2);
     }
     .metric-card .value {
         font-size: 1.8rem;
         font-weight: 800;
         color: #ffffff;
+        margin-bottom: 4px;
     }
     .metric-card .label {
         font-size: 0.85rem;
@@ -132,6 +142,7 @@ def load_inline_css():
         border-radius: 10px !important;
         font-weight: 600 !important;
         box-shadow: 0 4px 15px rgba(102,126,234,0.25) !important;
+        transition: all 0.3s ease !important;
     }
     .stButton > button:hover {
         transform: translateY(-2px) !important;
@@ -139,6 +150,28 @@ def load_inline_css():
     }
     button[kind="primary"] {
         background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%) !important;
+        box-shadow: 0 4px 15px rgba(245,87,108,0.3) !important;
+    }
+    button[kind="primary"]:hover {
+        box-shadow: 0 8px 25px rgba(245,87,108,0.4) !important;
+    }
+    [data-testid="stDataFrame"] {
+        background: rgba(255,255,255,0.03) !important;
+        border-radius: 14px !important;
+        border: 1px solid rgba(255,255,255,0.06) !important;
+    }
+    [data-testid="stDataFrame"] thead th {
+        background: rgba(102,126,234,0.12) !important;
+        color: #ffffff !important;
+        font-weight: 700 !important;
+    }
+    [data-testid="stDataFrame"] tbody td {
+        color: #d0d0d0 !important;
+    }
+    .stAlert {
+        background: rgba(255,255,255,0.04) !important;
+        border-radius: 12px !important;
+        border: 1px solid rgba(255,255,255,0.06) !important;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -157,7 +190,9 @@ def init_session_state():
         'selected_symbol': None,
         'sidebar_config': {},
         'initialized': False,
-        'custom_symbols': {}
+        'custom_symbols': {},
+        'custom_symbol_input': '',
+        'analysis_cache': {}
     }
     
     if not st.session_state.get('initialized', False):
@@ -185,6 +220,7 @@ def render_sidebar():
         
         st.markdown("---")
         
+        # القائمة الرئيسية
         pages = {
             "📊 لوحة التحكم": "dashboard",
             "🔍 مسح السوق": "scanner",
@@ -208,9 +244,19 @@ def render_sidebar():
         
         st.markdown("---")
         
+        # إعدادات المسح
         st.subheader("⚙️ إعدادات المسح")
         
         config = st.session_state.get('sidebar_config', {})
+        
+        # اختيار القطاع
+        sectors = get_sectors()
+        sector = st.selectbox(
+            "🏢 القطاع",
+            sectors,
+            index=0,
+            key="sector_select"
+        )
         
         min_score = st.slider(
             "🎯 الحد الأدنى للدرجة",
@@ -231,10 +277,12 @@ def render_sidebar():
         )
         
         st.session_state.sidebar_config = {
+            'sector': sector,
             'min_score': min_score,
             'max_symbols': max_symbols
         }
         
+        # زر المسح
         if st.button("🚀 بدء المسح", type="primary", width="stretch", key="scan_btn"):
             st.session_state.scan_in_progress = True
             st.session_state.current_page = "scanner"
@@ -242,23 +290,23 @@ def render_sidebar():
         
         st.markdown("---")
         
+        # معلومات النظام
         if st.session_state.get('last_scan_time'):
             st.caption(f"⏱️ آخر مسح: {st.session_state.last_scan_time}")
         st.caption(f"🕐 {datetime.now().strftime('%H:%M:%S')}")
         st.caption("💡 اضبط الإعدادات وابدأ المسح")
+        
+        return st.session_state.sidebar_config
 
 # ============================================================================
-# دوال عرض التحليل - مدمجة في app.py
+# دوال عرض التحليل
 # ============================================================================
 
 def render_analyze():
     """تحليل سهم محدد مع رموز رئيسية وزر تحديث"""
     st.subheader("📈 تحليل سهم محدد")
     
-    # ====================================================================
-    # رموز رئيسية
-    # ====================================================================
-    
+    # الرموز الرئيسية
     MAIN_SYMBOLS = {
         'AAPL': 'Apple Inc.',
         'MSFT': 'Microsoft Corp.',
@@ -296,10 +344,7 @@ def render_analyze():
     if 'custom_symbols' in st.session_state:
         MAIN_SYMBOLS.update(st.session_state.custom_symbols)
     
-    # ====================================================================
     # معلومات مساعدة
-    # ====================================================================
-    
     st.markdown("""
     <div style="background: rgba(255,255,255,0.02); padding: 12px 16px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.05); margin-bottom: 20px;">
         <p style="margin:0; color: rgba(255,255,255,0.6); font-size: 0.85rem;">
@@ -308,10 +353,7 @@ def render_analyze():
     </div>
     """, unsafe_allow_html=True)
     
-    # ====================================================================
-    # إدخال الرمز مع زر تحديث
-    # ====================================================================
-    
+    # إدخال الرمز
     col1, col2, col3 = st.columns([2, 2, 1])
     
     with col1:
@@ -364,10 +406,7 @@ def render_analyze():
             key="refresh_analysis_main"
         )
     
-    # ====================================================================
     # عرض التحليل
-    # ====================================================================
-    
     if symbol:
         if refresh_clicked:
             st.cache_data.clear()
@@ -392,10 +431,7 @@ def display_stock_analysis(symbol):
             
             info = ticker.info
             
-            # ============================================================
             # معلومات أساسية
-            # ============================================================
-            
             company_name = info.get('longName', symbol)
             st.markdown(f"""
             <div style="background: linear-gradient(135deg, rgba(102,126,234,0.1), rgba(118,75,162,0.1)); 
@@ -407,10 +443,7 @@ def display_stock_analysis(symbol):
             </div>
             """, unsafe_allow_html=True)
             
-            # ============================================================
             # بطاقات المؤشرات
-            # ============================================================
-            
             current_price = df['Close'].iloc[-1]
             previous_close = info.get('previousClose', current_price)
             change = current_price - previous_close
@@ -464,10 +497,7 @@ def display_stock_analysis(symbol):
             
             st.markdown("---")
             
-            # ============================================================
-            # رسم بياني ومؤشرات
-            # ============================================================
-            
+            # رسم بياني
             col1, col2 = st.columns([3, 1])
             
             with col1:
@@ -570,10 +600,7 @@ def display_stock_analysis(symbol):
             
             st.markdown("---")
             
-            # ============================================================
             # أخبار الشركة
-            # ============================================================
-            
             with st.expander("📰 آخر الأخبار", expanded=False):
                 try:
                     news = ticker.news
@@ -682,9 +709,22 @@ def render_scanner():
     
     st.markdown("---")
     
+    # اختيار القطاع
+    sectors = get_sectors()
+    selected_sector = st.selectbox(
+        "🏢 تصفية حسب القطاع",
+        sectors,
+        index=0,
+        key="scanner_sector"
+    )
+    
     if st.button("🔄 تحديث النتائج", type="primary", width="stretch"):
         with st.spinner("🔍 جاري مسح السوق..."):
             try:
+                # الحصول على الرموز حسب القطاع
+                symbols = get_symbols_by_sector(selected_sector if selected_sector != "الكل" else None)
+                symbols = symbols[:config.get('max_symbols', 15)]
+                
                 if BreakoutScanner is None:
                     sample_data = pd.DataFrame({
                         'symbol': ['AAPL', 'MSFT', 'NVDA', 'AMD', 'TSLA'],
@@ -701,7 +741,7 @@ def render_scanner():
                 else:
                     scanner = BreakoutScanner()
                     results = scanner.scan_market(
-                        STOCK_SYMBOLS[:config.get('max_symbols', 15)],
+                        symbols,
                         min_score=config.get('min_score', 60)
                     )
                     
@@ -762,7 +802,7 @@ def main():
     """الدالة الرئيسية"""
     
     init_session_state()
-    load_css()  # تحميل ملف الاستايل المنفصل
+    load_css()
     
     st.markdown("""
     <div class="main-header">
