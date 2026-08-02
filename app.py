@@ -723,7 +723,26 @@ def render_current_page():
     }
     
     pages.get(page, render_dashboard)()
+# في app.py - إضافة في تهيئة الجلسة
 
+def init_session_state():
+    """تهيئة جميع متغيرات الجلسة"""
+    defaults = {
+        'scan_results': pd.DataFrame(),
+        'current_page': 'dashboard',
+        'scan_in_progress': False,
+        'last_scan_time': None,
+        'selected_symbol': None,
+        'sidebar_config': {},
+        'initialized': False,
+        'custom_symbols': {}  # لتخزين الرموز المضافة
+    }
+    
+    if not st.session_state.get('initialized', False):
+        for key, value in defaults.items():
+            if key not in st.session_state:
+                st.session_state[key] = value
+        st.session_state.initialized = True
 # ============================================================================
 # التطبيق الرئيسي
 # ============================================================================
