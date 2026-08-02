@@ -86,6 +86,7 @@ def load_css():
         margin-bottom: 0;
     }
     
+    /* ===== الشريط الجانبي ===== */
     [data-testid="stSidebar"] {
         background: rgba(20, 20, 40, 0.92) !important;
         backdrop-filter: blur(15px);
@@ -108,6 +109,7 @@ def load_css():
         color: #ffffff !important;
     }
     
+    /* ===== النصوص العامة ===== */
     .stMarkdown, .stText, .stWrite, p, div, span, label {
         color: #e8e8e8 !important;
     }
@@ -116,6 +118,7 @@ def load_css():
         color: #ffffff !important;
     }
     
+    /* ===== البطاقات ===== */
     .metric-card {
         background: rgba(255, 255, 255, 0.04);
         backdrop-filter: blur(10px);
@@ -150,6 +153,7 @@ def load_css():
         margin-bottom: 4px;
     }
     
+    /* ===== الأزرار ===== */
     .stButton > button, button {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
         color: #ffffff !important;
@@ -176,6 +180,7 @@ def load_css():
         box-shadow: 0 8px 25px rgba(245, 87, 108, 0.4) !important;
     }
     
+    /* ===== الجداول ===== */
     [data-testid="stDataFrame"] {
         background: rgba(255, 255, 255, 0.03) !important;
         border-radius: 14px !important;
@@ -205,6 +210,7 @@ def load_css():
         background: rgba(102, 126, 234, 0.06) !important;
     }
     
+    /* ===== المؤشرات (Metrics) ===== */
     [data-testid="stMetric"] {
         background: rgba(255, 255, 255, 0.03) !important;
         border-radius: 12px !important;
@@ -222,6 +228,7 @@ def load_css():
         font-weight: 700 !important;
     }
     
+    /* ===== التبويبات (Tabs) ===== */
     .stTabs [data-baseweb="tab-list"] {
         gap: 8px;
     }
@@ -241,6 +248,7 @@ def load_css():
         border-color: rgba(102, 126, 234, 0.3) !important;
     }
     
+    /* ===== الإكسباندر (Expander) ===== */
     .stExpander {
         background: rgba(255, 255, 255, 0.02) !important;
         border-radius: 12px !important;
@@ -252,6 +260,7 @@ def load_css():
         font-weight: 600 !important;
     }
     
+    /* ===== السلايدرات ===== */
     [data-testid="stSlider"] > div {
         background: rgba(255, 255, 255, 0.03) !important;
         border-radius: 10px !important;
@@ -259,59 +268,105 @@ def load_css():
         border: 1px solid rgba(255, 255, 255, 0.05) !important;
     }
     
-    [data-testid="stSelectbox"] > div {
-        background: rgba(255, 255, 255, 0.03) !important;
-        border-radius: 10px !important;
-        border: 1px solid rgba(255, 255, 255, 0.06) !important;
-    }
+    /* ========================================================================
+       إصلاح شامل للقوائم المنسدلة (Selectbox) في كل مكان
+       ======================================================================== */
     
-    [data-testid="stSelectbox"] label {
-        color: rgba(255, 255, 255, 0.7) !important;
-    }
-    
-    /* ===== إصلاح القوائم المنسدلة (Selectbox) ===== */
+    /* === القائمة الرئيسية (الحقل المغلق) === */
     .stSelectbox > div[data-baseweb="select"] > div {
         color: #ffffff !important;
-        background-color: rgba(255, 255, 255, 0.05) !important;
+        background-color: rgba(255, 255, 255, 0.08) !important;
+        border: 1px solid rgba(255, 255, 255, 0.12) !important;
+        border-radius: 10px !important;
+        padding: 6px 12px !important;
+        min-height: 38px !important;
     }
     
+    .stSelectbox > div[data-baseweb="select"] > div:hover {
+        border-color: rgba(102, 126, 234, 0.4) !important;
+        background-color: rgba(255, 255, 255, 0.12) !important;
+    }
+    
+    .stSelectbox > div[data-baseweb="select"] > div:focus-within {
+        border-color: #667eea !important;
+        box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.3) !important;
+    }
+    
+    /* === النص داخل الحقل المغلق === */
+    .stSelectbox > div[data-baseweb="select"] > div div[data-baseweb="select-value"] {
+        color: #ffffff !important;
+        font-weight: 500 !important;
+    }
+    
+    .stSelectbox > div[data-baseweb="select"] > div div[data-baseweb="select-placeholder"] {
+        color: rgba(255, 255, 255, 0.5) !important;
+    }
+    
+    /* === القائمة المنسدلة المفتوحة === */
     .stSelectbox > div[data-baseweb="select"] ul {
         background-color: #1a1a2e !important;
         border: 1px solid rgba(255, 255, 255, 0.1) !important;
+        border-radius: 10px !important;
+        padding: 4px 0 !important;
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5) !important;
+        max-height: 300px !important;
+        overflow-y: auto !important;
+        z-index: 9999 !important;
     }
     
+    /* === عناصر القائمة المنسدلة === */
     .stSelectbox > div[data-baseweb="select"] ul li {
         color: #ffffff !important;
         background-color: transparent !important;
-        padding: 8px 12px !important;
+        padding: 10px 16px !important;
+        font-size: 0.95rem !important;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.03) !important;
+        transition: all 0.2s ease !important;
+        cursor: pointer !important;
     }
     
     .stSelectbox > div[data-baseweb="select"] ul li:hover {
         background-color: rgba(102, 126, 234, 0.2) !important;
         color: #ffffff !important;
+        border-left: 3px solid #667eea !important;
     }
     
     .stSelectbox > div[data-baseweb="select"] ul li[aria-selected="true"] {
-        background-color: rgba(102, 126, 234, 0.3) !important;
+        background-color: rgba(102, 126, 234, 0.25) !important;
         color: #ffffff !important;
+        font-weight: 600 !important;
+        border-left: 3px solid #667eea !important;
     }
     
-    /* ===== إصلاح النص في الـ Input ===== */
-    .stTextInput > div > div > input {
-        color: #ffffff !important;
-        background-color: rgba(255, 255, 255, 0.05) !important;
-        border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    /* === شريط التمرير في القائمة === */
+    .stSelectbox > div[data-baseweb="select"] ul::-webkit-scrollbar {
+        width: 4px;
     }
     
-    .stTextInput > div > div > input:focus {
-        border-color: #667eea !important;
-        box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.3) !important;
+    .stSelectbox > div[data-baseweb="select"] ul::-webkit-scrollbar-track {
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 10px;
     }
     
-    /* ===== الشريط الجانبي - Selectbox ===== */
+    .stSelectbox > div[data-baseweb="select"] ul::-webkit-scrollbar-thumb {
+        background: #667eea;
+        border-radius: 10px;
+    }
+    
+    /* ========================================================================
+       إصلاح القوائم المنسدلة في الشريط الجانبي
+       ======================================================================== */
+    
     [data-testid="stSidebar"] .stSelectbox > div[data-baseweb="select"] > div {
         color: #ffffff !important;
-        background-color: rgba(255, 255, 255, 0.05) !important;
+        background-color: rgba(255, 255, 255, 0.06) !important;
+        border: 1px solid rgba(255, 255, 255, 0.1) !important;
+        border-radius: 10px !important;
+    }
+    
+    [data-testid="stSidebar"] .stSelectbox > div[data-baseweb="select"] > div:hover {
+        border-color: rgba(102, 126, 234, 0.4) !important;
+        background-color: rgba(255, 255, 255, 0.1) !important;
     }
     
     [data-testid="stSidebar"] .stSelectbox > div[data-baseweb="select"] ul {
@@ -327,27 +382,65 @@ def load_css():
         background-color: rgba(102, 126, 234, 0.2) !important;
     }
     
-    /* ===== Radio Buttons ===== */
+    [data-testid="stSidebar"] .stSelectbox > div[data-baseweb="select"] ul li[aria-selected="true"] {
+        background-color: rgba(102, 126, 234, 0.25) !important;
+    }
+    
+    /* ========================================================================
+       إصلاح الـ Radio Buttons
+       ======================================================================== */
+    
     .stRadio > div[role="radiogroup"] label {
         color: #e0e0e0 !important;
+        padding: 6px 10px !important;
+        border-radius: 8px !important;
+        transition: all 0.2s ease !important;
     }
     
     .stRadio > div[role="radiogroup"] label:hover {
         color: #ffffff !important;
+        background-color: rgba(102, 126, 234, 0.08) !important;
     }
     
     .stRadio > div[role="radiogroup"] label div[data-testid="stMarkdownContainer"] {
-        color: #e0e0e0 !important;
+        color: inherit !important;
     }
     
-    /* ===== الشريط الجانبي - Radio ===== */
+    /* === Radio في الشريط الجانبي === */
     [data-testid="stSidebar"] .stRadio > div[role="radiogroup"] label {
         color: #e0e0e0 !important;
     }
     
     [data-testid="stSidebar"] .stRadio > div[role="radiogroup"] label:hover {
         color: #ffffff !important;
+        background-color: rgba(102, 126, 234, 0.08) !important;
     }
+    
+    /* ========================================================================
+       إصلاح الـ Text Input
+       ======================================================================== */
+    
+    .stTextInput > div > div > input {
+        color: #ffffff !important;
+        background-color: rgba(255, 255, 255, 0.05) !important;
+        border: 1px solid rgba(255, 255, 255, 0.1) !important;
+        border-radius: 10px !important;
+        padding: 10px 14px !important;
+    }
+    
+    .stTextInput > div > div > input::placeholder {
+        color: rgba(255, 255, 255, 0.4) !important;
+    }
+    
+    .stTextInput > div > div > input:focus {
+        border-color: #667eea !important;
+        box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.3) !important;
+        background-color: rgba(255, 255, 255, 0.08) !important;
+    }
+    
+    /* ========================================================================
+       التنبيهات
+       ======================================================================== */
     
     .stAlert {
         background: rgba(255, 255, 255, 0.04) !important;
@@ -359,6 +452,10 @@ def load_css():
     .stAlert .stMarkdown {
         color: #e0e0e0 !important;
     }
+    
+    /* ========================================================================
+       شريط التمرير العام
+       ======================================================================== */
     
     ::-webkit-scrollbar {
         width: 6px;
@@ -374,6 +471,14 @@ def load_css():
         background: linear-gradient(135deg, #667eea, #764ba2);
         border-radius: 10px;
     }
+    
+    ::-webkit-scrollbar-thumb:hover {
+        background: linear-gradient(135deg, #764ba2, #667eea);
+    }
+    
+    /* ========================================================================
+       رسائل الحالة
+       ======================================================================== */
     
     .stSuccess {
         background: rgba(0, 230, 118, 0.08) !important;
@@ -399,6 +504,10 @@ def load_css():
         color: #FF5252 !important;
     }
     
+    /* ========================================================================
+       شريط التقدم
+       ======================================================================== */
+    
     [data-testid="stProgress"] > div {
         background: rgba(255, 255, 255, 0.05) !important;
         border-radius: 20px !important;
@@ -409,6 +518,10 @@ def load_css():
         background: linear-gradient(135deg, #667eea, #764ba2) !important;
         border-radius: 20px !important;
     }
+    
+    /* ========================================================================
+       العناوين والنصوص
+       ======================================================================== */
     
     .element-container {
         margin-bottom: 8px !important;
@@ -435,6 +548,23 @@ def load_css():
     a:hover {
         color: #764ba2 !important;
         text-decoration: underline !important;
+    }
+    
+    /* ========================================================================
+       تحسينات إضافية للقوائم في الشريط الجانبي
+       ======================================================================== */
+    
+    [data-testid="stSidebar"] .stSelectbox label {
+        color: rgba(255, 255, 255, 0.7) !important;
+        font-weight: 500 !important;
+    }
+    
+    [data-testid="stSidebar"] .stSelectbox > div[data-baseweb="select"] > div div[data-baseweb="select-value"] {
+        color: #ffffff !important;
+    }
+    
+    [data-testid="stSidebar"] .stSelectbox > div[data-baseweb="select"] > div div[data-baseweb="select-placeholder"] {
+        color: rgba(255, 255, 255, 0.5) !important;
     }
     </style>
     """, unsafe_allow_html=True)
