@@ -23,9 +23,7 @@ class TechnicalIndicators:
             'volume_ratio': self._volume_ratio(volume),
             'volume_score': self._volume_score(volume),
             'volatility_score': self._volatility_score(df),
-            'compression_score': self._compression_score(df),
-            'price_position': self._price_position(close, high),
-            'atr': self._calculate_atr(df)
+            'price_position': self._price_position(close, high)
         }
     
     def _calculate_rsi(self, close: pd.Series, period: int = 14) -> float:
@@ -55,34 +53,21 @@ class TechnicalIndicators:
         return min(100, ratio * 40)
     
     def _volatility_score(self, df: pd.DataFrame) -> float:
-        atr = self._calculate_atr(df)
-        current_price = df['Close'].iloc[-1]
-        atr_percent = (atr / current_price) * 100
-        return min(100, atr_percent * 10)
-    
-    def _compression_score(self, df: pd.DataFrame) -> float:
+        close = df['Close']
         high = df['High']
         low = df['Low']
-        close = df['Close']
-        
-        recent_high = high.iloc[-20:].max()
-        recent_low = low.iloc[-20:].min()
-        price_range = (recent_high - recent_low) / close.iloc[-1] * 100
-        
-        return max(0, 100 - price_range * 3)
-    
-    def _price_position(self, close: pd.Series, high: pd.Series) -> float:
-        high_52 = high.iloc[-252:].max()
-        return (close.iloc[-1] / high_52 * 100) if high_52 > 0 else 50
-    
-    def _calculate_atr(self, df: pd.DataFrame, period: int = 14) -> float:
-        high = df['High']
-        low = df['Low']
-        close = df['Close']
         
         high_low = high - low
         high_close = abs(high - close.shift())
         low_close = abs(low - close.shift())
         ranges = pd.concat([high_low, high_close, low_close], axis=1)
         true_range = np.max(ranges, axis=1)
-        return true_range.rolling(period).mean().iloc[-1]
+        atr = true_range.rolling(14).mean().iloc[-1] or 0
+        
+        current_price = close.iloc[-1]
+        atr_percent = (atr / current_price) * 100 if current_price > 0 else 0
+        return min(100, atr_percent * 10)
+    
+    def _price_position(self, close: pd.Series, high: pd.Series) -> float:
+        high_52 = high.iloc[-252:].max()
+        return (close.iloc[-1] / high_52 * 100) if high_52 > 0 else 50
