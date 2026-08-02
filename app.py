@@ -66,7 +66,7 @@ def load_css():
         load_inline_css()
 
 def load_inline_css():
-    """استايل مضمن محسن للتوافق مع الثيم الداكن"""
+    """استايل مضمن محسن لحل مشكلة خلفية ونصوص القوائم المنسدلة"""
     st.markdown("""
     <style>
     /* ===== الإعدادات الأساسية ===== */
@@ -190,39 +190,63 @@ def load_inline_css():
         color: #d0d0d0 !important;
     }
     
-    /* ===== القوائم المنسدلة - تحسين وضوح النص ===== */
-    .stSelectbox > div[data-baseweb="select"] > div {
-        background-color: rgba(255, 255, 255, 0.08) !important;
+    /* ===== إصلاح القوائم المنسدلة (Dropdown Menu Fix) ===== */
+    
+    /* صندوق اختيار القائمة المستقر */
+    .stSelectbox div[data-baseweb="select"] > div {
+        background-color: rgba(255, 255, 255, 0.1) !important;
         border: 1px solid rgba(255, 255, 255, 0.2) !important;
         border-radius: 10px !important;
         color: #ffffff !important;
-        min-height: 38px !important;
     }
     
-    .stSelectbox > div[data-baseweb="select"] > div div[data-baseweb="select-value"] {
+    /* قيمة الخيار المحدد داخل الصندوق */
+    .stSelectbox div[data-baseweb="select"] div[data-baseweb="select-value"] {
         color: #ffffff !important;
         font-weight: 600 !important;
     }
-    
-    .stSelectbox > div[data-baseweb="select"] ul {
+
+    /* إصلاح قائمة القيمة الخافية (الخيارات الخارجيّة المنبثقة) */
+    div[data-baseweb="popover"] {
         background-color: #1a1a2e !important;
-        border: 1px solid rgba(255, 255, 255, 0.1) !important;
     }
-    
-    .stSelectbox > div[data-baseweb="select"] ul li {
+
+    div[data-baseweb="popover"] ul {
+        background-color: #1a1a2e !important;
+        border: 1px solid rgba(255, 255, 255, 0.15) !important;
+        border-radius: 10px !important;
+    }
+
+    div[data-baseweb="popover"] ul li {
+        background-color: transparent !important;
+        color: #ffffff !important;
+        padding: 10px 15px !important;
+    }
+
+    /* لون العنصر عند التمرير عليه (Hover) */
+    div[data-baseweb="popover"] ul li:hover {
+        background-color: #667eea !important;
         color: #ffffff !important;
     }
-    
-    .stSelectbox > div[data-baseweb="select"] ul li:hover {
-        background-color: rgba(102, 126, 234, 0.3) !important;
+
+    /* العنصر المختار حالياً داخل القائمة */
+    div[data-baseweb="popover"] ul li[aria-selected="true"] {
+        background-color: #764ba2 !important;
+        color: #ffffff !important;
+        font-weight: bold !important;
     }
     
-    /* ===== حقول الإدخال ===== */
+    /* ===== Text Input ===== */
     .stTextInput > div > div > input {
-        background-color: rgba(255, 255, 255, 0.08) !important;
+        background-color: rgba(255, 255, 255, 0.1) !important;
         border: 1px solid rgba(255, 255, 255, 0.2) !important;
         border-radius: 10px !important;
         color: #ffffff !important;
+        padding: 10px 14px !important;
+    }
+    
+    .stTextInput > div > div > input::placeholder {
+        color: rgba(255, 255, 255, 0.5) !important;
     }
     </style>
     """, unsafe_allow_html=True)
