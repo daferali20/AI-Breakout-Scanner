@@ -1,6 +1,6 @@
 # frontend/pages/analyze.py
 """
-صفحة تحليل سهم محدد - مع رموز رئيسية وإضافة مخصصة
+صفحة تحليل سهم محدد - نسخة كاملة مع رموز رئيسية وإضافة مخصصة
 """
 
 import streamlit as st
@@ -10,7 +10,7 @@ import plotly.graph_objects as go
 from datetime import datetime, timedelta
 
 # ============================================================================
-# قائمة الرموز الرئيسية
+# قائمة الرموز الرئيسية (موسعة)
 # ============================================================================
 
 MAIN_SYMBOLS = {
@@ -34,6 +34,16 @@ MAIN_SYMBOLS = {
     'QCOM': 'Qualcomm Inc.',
     'TXN': 'Texas Instruments',
     'AVGO': 'Broadcom Inc.',
+    'INTU': 'Intuit Inc.',
+    'AMAT': 'Applied Materials',
+    'LRCX': 'Lam Research',
+    'MU': 'Micron Technology',
+    'NOW': 'ServiceNow',
+    'PANW': 'Palo Alto Networks',
+    'SNPS': 'Synopsys Inc.',
+    'CDNS': 'Cadence Design',
+    'MCHP': 'Microchip Technology',
+    'ADI': 'Analog Devices',
     
     # المالية
     'JPM': 'JPMorgan Chase',
@@ -44,6 +54,9 @@ MAIN_SYMBOLS = {
     'MS': 'Morgan Stanley',
     'V': 'Visa Inc.',
     'MA': 'Mastercard Inc.',
+    'AXP': 'American Express',
+    'BLK': 'BlackRock Inc.',
+    'SCHW': 'Charles Schwab',
     
     # الرعاية الصحية
     'JNJ': 'Johnson & Johnson',
@@ -54,6 +67,10 @@ MAIN_SYMBOLS = {
     'TMO': 'Thermo Fisher',
     'ABT': 'Abbott Laboratories',
     'DHR': 'Danaher Corp.',
+    'LLY': 'Eli Lilly',
+    'AMGN': 'Amgen Inc.',
+    'GILD': 'Gilead Sciences',
+    'BMY': 'Bristol-Myers',
     
     # الاستهلاك
     'WMT': 'Walmart Inc.',
@@ -65,6 +82,7 @@ MAIN_SYMBOLS = {
     'NKE': 'Nike Inc.',
     'SBUX': 'Starbucks Corp.',
     'HD': 'Home Depot',
+    'LOW': "Lowe's Companies",
     
     # الطاقة والصناعة
     'XOM': 'Exxon Mobil',
@@ -74,11 +92,15 @@ MAIN_SYMBOLS = {
     'CAT': 'Caterpillar Inc.',
     'GE': 'General Electric',
     'HON': 'Honeywell International',
+    'LMT': 'Lockheed Martin',
+    'RTX': 'Raytheon Technologies',
+    'UPS': 'United Parcel Service',
     
     # الاتصالات
     'T': 'AT&T Inc.',
     'VZ': 'Verizon Communications',
     'TMUS': 'T-Mobile US',
+    'CHTR': 'Charter Communications',
     
     # العقارات
     'AMT': 'American Tower',
@@ -92,7 +114,7 @@ MAIN_SYMBOLS = {
 # ============================================================================
 
 @st.cache_data(ttl=60)
-def fetch_stock_data(symbol, period="3mo", interval="1d"):
+def fetch_stock_data(symbol, period="6mo", interval="1d"):
     """جلب بيانات السهم"""
     try:
         ticker = yf.Ticker(symbol)
@@ -110,7 +132,7 @@ def fetch_stock_info(symbol):
     except:
         return {}
 
-@st.cache_data(ttl=60)
+@st.cache_data(ttl=300)
 def fetch_company_news(symbol, limit=5):
     """جلب أخبار الشركة"""
     try:
@@ -126,7 +148,7 @@ def fetch_company_news(symbol, limit=5):
 # دوال عرض البيانات
 # ============================================================================
 
-def create_candlestick_chart(df, symbol, title=""):
+def create_candlestick_chart(df, symbol):
     """إنشاء رسم بياني للشموع"""
     fig = go.Figure()
     
@@ -178,10 +200,10 @@ def create_candlestick_chart(df, symbol, title=""):
     ))
     
     fig.update_layout(
-        title=title or f"📈 {symbol} - رسم بياني فني",
+        title=f"📈 {symbol} - رسم بياني فني",
         template="plotly_dark",
         xaxis_rangeslider_visible=False,
-        height=450,
+        height=500,
         margin=dict(l=20, r=20, t=50, b=20),
         legend=dict(
             orientation="h",
@@ -257,23 +279,32 @@ def render():
     st.subheader("📈 تحليل سهم محدد")
     
     # ====================================================================
-    # اختيار الرمز - مع رموز رئيسية وإضافة مخصصة
+    # معلومات مساعدة
     # ====================================================================
     
     st.markdown("""
-    <div style="background: rgba(255,255,255,0.02); padding: 15px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05); margin-bottom: 20px;">
-        <p style="margin:0; color: rgba(255,255,255,0.6); font-size: 0.9rem;">
-            💡 اختر من الرموز الرئيسية أو اكتب رمزاً مخصصاً
+    <div style="background: rgba(255,255,255,0.02); padding: 12px 16px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.05); margin-bottom: 20px;">
+        <p style="margin:0; color: rgba(255,255,255,0.6); font-size: 0.85rem;">
+            💡 اختر من الرموز الرئيسية أو اكتب رمزاً مخصصاً (مثل: AAPL, MSFT, TSLA)
         </p>
     </div>
     """, unsafe_allow_html=True)
     
-    # صف الإدخال
+    # ====================================================================
+    # إدخال الرمز
+    # ====================================================================
+    
     col1, col2 = st.columns([3, 1])
     
     with col1:
-        # قائمة الرموز الرئيسية مع خيار إدخال مخصص
-        symbol_options = ["-- اختر رمزاً --"] + list(MAIN_SYMBOLS.keys()) + ["✏️ إدخال مخصص"]
+        # دمج الرموز الرئيسية مع الرموز المضافة
+        all_symbols = dict(MAIN_SYMBOLS)
+        
+        # إضافة الرموز المخصصة من الجلسة
+        if 'custom_symbols' in st.session_state:
+            all_symbols.update(st.session_state.custom_symbols)
+        
+        symbol_options = ["-- اختر رمزاً --"] + list(all_symbols.keys()) + ["✏️ إدخال مخصص"]
         
         selected_option = st.selectbox(
             "اختر رمز السهم:",
@@ -282,22 +313,31 @@ def render():
             key="symbol_select"
         )
         
-        # إذا اختار المستخدم "إدخال مخصص" أو ليس رمزاً رئيسياً
         if selected_option == "✏️ إدخال مخصص":
             symbol = st.text_input(
                 "أدخل رمز السهم:",
-                value="",
+                value=st.session_state.get('custom_symbol_input', ''),
                 placeholder="مثال: AAPL, MSFT, TSLA...",
-                key="custom_symbol"
+                key="custom_symbol_input"
             ).upper().strip()
+            
+            # زر لإضافة الرمز إلى القائمة
+            if symbol and symbol not in all_symbols:
+                col_a, col_b, col_c = st.columns([1, 2, 1])
+                with col_a:
+                    if st.button("➕ إضافة الرمز", key="add_symbol_btn"):
+                        st.session_state.custom_symbols[symbol] = symbol
+                        st.session_state.custom_symbol_input = symbol
+                        st.success(f"✅ تم إضافة {symbol}")
+                        st.rerun()
         elif selected_option != "-- اختر رمزاً --":
             symbol = selected_option
+            st.session_state.custom_symbol_input = symbol
         else:
             symbol = ""
     
     with col2:
-        # زر التحديث بجانب الإدخال
-        st.markdown("<br>", unsafe_allow_html=True)  # مسافة
+        st.markdown("<br>", unsafe_allow_html=True)
         refresh_clicked = st.button(
             "🔄 تحديث",
             type="primary",
@@ -305,9 +345,16 @@ def render():
             key="refresh_analysis"
         )
     
-    # إذا كان هناك رمز محدد
+    # ====================================================================
+    # عرض التحليل
+    # ====================================================================
+    
     if symbol:
-        display_analysis(symbol, refresh_clicked)
+        # إذا تم الضغط على تحديث، نمسح الكاش
+        if refresh_clicked:
+            st.cache_data.clear()
+        
+        display_analysis(symbol)
     else:
         st.info("🔍 اختر أو اكتب رمز سهم للبدء")
 
@@ -315,12 +362,8 @@ def render():
 # عرض التحليل
 # ============================================================================
 
-def display_analysis(symbol, refresh=False):
+def display_analysis(symbol):
     """عرض تحليل السهم"""
-    
-    # إذا تم الضغط على تحديث، نمسح الكاش
-    if refresh:
-        st.cache_data.clear()
     
     with st.spinner(f"📊 جاري تحليل {symbol}..."):
         # جلب البيانات
@@ -346,7 +389,6 @@ def display_analysis(symbol, refresh=False):
         </div>
         """, unsafe_allow_html=True)
         
-        # معلومات الشركة
         display_stock_info(info)
         
         st.markdown("---")
@@ -366,12 +408,12 @@ def display_analysis(symbol, refresh=False):
             st.metric(
                 "💰 السعر الحالي",
                 f"${current_price:.2f}",
-                delta=f"{change:+.2f} ({change_percent:+.2f}%)"
+                delta=f"{change:+.2f} ({change_percent:+.2f}%)",
+                delta_color="normal"
             )
         
         with col2:
             high_52 = info.get('fiftyTwoWeekHigh', 0)
-            low_52 = info.get('fiftyTwoWeekLow', 0)
             st.metric(
                 "📈 أعلى 52 أسبوع",
                 f"${high_52:.2f}" if high_52 else "N/A",
@@ -379,6 +421,7 @@ def display_analysis(symbol, refresh=False):
             )
         
         with col3:
+            low_52 = info.get('fiftyTwoWeekLow', 0)
             st.metric(
                 "📉 أدنى 52 أسبوع",
                 f"${low_52:.2f}" if low_52 else "N/A",
@@ -398,21 +441,19 @@ def display_analysis(symbol, refresh=False):
         st.markdown("---")
         
         # ============================================================
-        # رسم بياني
+        # رسم بياني ومؤشرات
         # ============================================================
         
         col1, col2 = st.columns([3, 1])
         
         with col1:
-            # الرسم البياني
             fig = create_candlestick_chart(df, symbol)
             st.plotly_chart(fig, use_container_width=True)
         
         with col2:
-            # مؤشرات سريعة
             st.markdown("#### 📊 مؤشرات سريعة")
             
-            # حساب RSI
+            # RSI
             delta = df['Close'].diff()
             gain = delta.where(delta > 0, 0.0).rolling(14).mean()
             loss = (-delta.where(delta < 0, 0.0)).rolling(14).mean()
@@ -421,29 +462,62 @@ def display_analysis(symbol, refresh=False):
             rsi = 100 - (100 / (1 + rs))
             current_rsi = rsi.iloc[-1] if not rsi.isna().iloc[-1] else 50
             
-            st.metric("RSI (14)", f"{current_rsi:.1f}")
+            rsi_color = "#00E676" if 40 <= current_rsi <= 70 else "#FF5252" if current_rsi > 70 else "#FFC107"
+            st.markdown(f"""
+            <div style="background: rgba(255,255,255,0.03); padding: 10px; border-radius: 8px; margin-bottom: 8px;">
+                <div style="color: rgba(255,255,255,0.5); font-size: 0.8rem;">RSI (14)</div>
+                <div style="font-size: 1.4rem; font-weight: 700; color: {rsi_color};">{current_rsi:.1f}</div>
+            </div>
+            """, unsafe_allow_html=True)
             
-            # حجم التداول
+            # نسبة الحجم
             avg_volume = df['Volume'].iloc[-21:-1].mean() if len(df) > 21 else df['Volume'].mean()
             vol_ratio = df['Volume'].iloc[-1] / avg_volume if avg_volume > 0 else 1
-            st.metric("نسبة الحجم", f"{vol_ratio:.2f}x")
+            vol_color = "#00E676" if vol_ratio > 1.5 else "#FFC107" if vol_ratio > 1 else "#FF5252"
+            st.markdown(f"""
+            <div style="background: rgba(255,255,255,0.03); padding: 10px; border-radius: 8px; margin-bottom: 8px;">
+                <div style="color: rgba(255,255,255,0.5); font-size: 0.8rem;">نسبة الحجم</div>
+                <div style="font-size: 1.4rem; font-weight: 700; color: {vol_color};">{vol_ratio:.2f}x</div>
+            </div>
+            """, unsafe_allow_html=True)
             
-            # التقلبات
+            # ATR
             atr = (df['High'] - df['Low']).rolling(14).mean().iloc[-1] or 0
             atr_percent = (atr / current_price) * 100 if current_price > 0 else 0
-            st.metric("ATR", f"${atr:.2f} ({atr_percent:.1f}%)")
+            st.markdown(f"""
+            <div style="background: rgba(255,255,255,0.03); padding: 10px; border-radius: 8px; margin-bottom: 8px;">
+                <div style="color: rgba(255,255,255,0.5); font-size: 0.8rem;">ATR</div>
+                <div style="font-size: 1.4rem; font-weight: 700; color: #29B6F6;">${atr:.2f} ({atr_percent:.1f}%)</div>
+            </div>
+            """, unsafe_allow_html=True)
             
-            # نسبة PE
+            # PE Ratio
             pe = info.get('trailingPE', 'N/A')
-            st.metric("نسبة PE", pe if pe == 'N/A' else f"{pe:.2f}")
+            pe_color = "#00E676" if pe != 'N/A' and pe < 25 else "#FFC107" if pe != 'N/A' and pe < 40 else "#FF5252"
+            st.markdown(f"""
+            <div style="background: rgba(255,255,255,0.03); padding: 10px; border-radius: 8px; margin-bottom: 8px;">
+                <div style="color: rgba(255,255,255,0.5); font-size: 0.8rem;">نسبة PE</div>
+                <div style="font-size: 1.4rem; font-weight: 700; color: {pe_color};">{f"{pe:.2f}" if pe != 'N/A' else 'N/A'}</div>
+            </div>
+            """, unsafe_allow_html=True)
             
             # توزيعات الأرباح
             dividend = info.get('dividendRate', 0)
             if dividend > 0:
                 dividend_yield = info.get('dividendYield', 0) * 100
-                st.metric("توزيعات الأرباح", f"${dividend:.2f}", delta=f"{dividend_yield:.2f}%")
+                st.markdown(f"""
+                <div style="background: rgba(255,255,255,0.03); padding: 10px; border-radius: 8px;">
+                    <div style="color: rgba(255,255,255,0.5); font-size: 0.8rem;">توزيعات الأرباح</div>
+                    <div style="font-size: 1.2rem; font-weight: 700; color: #FFD700;">${dividend:.2f} ({dividend_yield:.2f}%)</div>
+                </div>
+                """, unsafe_allow_html=True)
             else:
-                st.metric("توزيعات الأرباح", "لا توجد")
+                st.markdown(f"""
+                <div style="background: rgba(255,255,255,0.03); padding: 10px; border-radius: 8px;">
+                    <div style="color: rgba(255,255,255,0.5); font-size: 0.8rem;">توزيعات الأرباح</div>
+                    <div style="font-size: 1.2rem; font-weight: 700; color: rgba(255,255,255,0.3);">لا توجد</div>
+                </div>
+                """, unsafe_allow_html=True)
         
         st.markdown("---")
         
@@ -453,8 +527,6 @@ def display_analysis(symbol, refresh=False):
         
         with st.expander("📰 آخر الأخبار", expanded=False):
             display_news(news)
-        
-        st.markdown("---")
         
         # ============================================================
         # رموز مشابهة
@@ -469,22 +541,23 @@ def display_analysis(symbol, refresh=False):
                     similar_symbols.append(sym)
             
             if similar_symbols:
-                cols = st.columns(8)
-                for i, sym in enumerate(similar_symbols[:16]):
-                    with cols[i % 8]:
+                st.markdown("اضغط على أي رمز لتحليله:")
+                cols = st.columns(6)
+                for i, sym in enumerate(similar_symbols[:18]):
+                    with cols[i % 6]:
                         if st.button(sym, key=f"similar_{sym}"):
-                            st.session_state.custom_symbol = sym
+                            st.session_state.custom_symbol_input = sym
                             st.rerun()
             else:
                 st.info("لا توجد رموز مشابهة")
 
 # ============================================================================
-# دالة لإضافة رمز جديد
+# دالة مساعدة للحصول على جميع الرموز
 # ============================================================================
 
-def add_custom_symbol(symbol, name=""):
-    """إضافة رمز مخصص إلى القائمة"""
-    if symbol and symbol not in MAIN_SYMBOLS:
-        MAIN_SYMBOLS[symbol] = name or symbol
-        return True
-    return False
+def get_all_symbols():
+    """الحصول على جميع الرموز المتاحة"""
+    all_symbols = dict(MAIN_SYMBOLS)
+    if 'custom_symbols' in st.session_state:
+        all_symbols.update(st.session_state.custom_symbols)
+    return all_symbols
