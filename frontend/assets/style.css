@@ -251,171 +251,69 @@ button[kind="primary"]:hover, .stButton button[data-testid="baseButton-primary"]
 }
 
 /* ============================================================================
-   القوائم المنسدلة (Selectbox) - إصلاح نهائي للوضوح
+   القوائم المنسدلة (Selectbox) - التنسيق الداكن فائق الوضوح
    ============================================================================ */
 
-/* ===== الحقل المغلق ===== */
-.stSelectbox > div[data-baseweb="select"] > div {
-    background-color: rgba(255, 255, 255, 0.12) !important;
-    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+/* 1. الحقل المغلق (Container) */
+div[data-baseweb="select"] > div {
+    background-color: #1e1e38 !important;
+    border: 1px solid rgba(102, 126, 234, 0.4) !important;
     border-radius: 10px !important;
-    color: #000000 !important;
-    min-height: 38px !important;
-    padding: 6px 12px !important;
+    min-height: 42px !important;
 }
 
-.stSelectbox > div[data-baseweb="select"] > div:hover {
-    background-color: rgba(255, 255, 255, 0.18) !important;
-    border-color: rgba(102, 126, 234, 0.4) !important;
-}
-
-.stSelectbox > div[data-baseweb="select"] > div:focus-within {
+div[data-baseweb="select"] > div:hover {
     border-color: #667eea !important;
-    box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.3) !important;
+    box-shadow: 0 0 10px rgba(102, 126, 234, 0.3) !important;
 }
 
-/* ===== النص المختار داخل الحقل ===== */
-.stSelectbox > div[data-baseweb="select"] > div div[data-baseweb="select-value"] {
-    color: #000000 !important;
+/* 2. النص داخل الحقل المغلق والنص المختار */
+div[data-baseweb="select"] * {
+    color: #ffffff !important;
     font-weight: 600 !important;
-}
-
-/* ===== النص الإرشادي (placeholder) ===== */
-.stSelectbox > div[data-baseweb="select"] > div div[data-baseweb="select-placeholder"] {
-    color: rgba(0, 0, 0, 0.6) !important;
-}
-
-/* ===== السهم ===== */
-.stSelectbox > div[data-baseweb="select"] > div svg {
-    fill: #333333 !important;
-}
-
-/* ===== القائمة المفتوحة - خلفية فاتحة ===== */
-.stSelectbox > div[data-baseweb="select"] ul {
-    background-color: #f0f0f5 !important;
-    border: 1px solid rgba(0, 0, 0, 0.1) !important;
-    border-radius: 10px !important;
-    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2) !important;
-    max-height: 300px !important;
-    overflow-y: auto !important;
-    z-index: 9999 !important;
-}
-
-/* ===== عناصر القائمة - نص داكن ===== */
-.stSelectbox > div[data-baseweb="select"] ul li {
-    color: #1a1a2e !important;
-    background-color: transparent !important;
-    padding: 10px 16px !important;
     font-size: 0.95rem !important;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.05) !important;
+}
+
+/* 3. سهم القائمة */
+div[data-baseweb="select"] svg {
+    fill: #667eea !important;
+}
+
+/* 4. القائمة المفتوحة (Dropdown Menu Box) */
+div[data-baseweb="popover"] div[role="listbox"],
+ul[data-baseweb="menu"] {
+    background-color: #16162a !important;
+    border: 1px solid rgba(102, 126, 234, 0.5) !important;
+    border-radius: 12px !important;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6) !important;
+    padding: 6px !important;
+}
+
+/* 5. عناصر القائمة المنسدلة (Options) */
+div[data-baseweb="popover"] li,
+ul[data-baseweb="menu"] li {
+    background-color: transparent !important;
+    color: #e0e0e0 !important;
+    padding: 10px 16px !important;
+    border-radius: 8px !important;
+    margin-bottom: 2px !important;
+    font-weight: 500 !important;
     transition: all 0.2s ease !important;
-    cursor: pointer !important;
 }
 
-/* ===== عناصر القائمة - عند التمرير ===== */
-.stSelectbox > div[data-baseweb="select"] ul li:hover {
-    background-color: rgba(102, 126, 234, 0.15) !important;
-    color: #667eea !important;
-    border-left: 3px solid #667eea !important;
+/* 6. عند التمرير بالماوس فوق العنصر (Hover) */
+div[data-baseweb="popover"] li:hover,
+ul[data-baseweb="menu"] li:hover {
+    background: rgba(102, 126, 234, 0.25) !important;
+    color: #ffffff !important;
 }
 
-/* ===== الخيار المحدد ===== */
-.stSelectbox > div[data-baseweb="select"] ul li[aria-selected="true"] {
+/* 7. الخيار المحدد حالياً (Selected Item) */
+div[data-baseweb="popover"] li[aria-selected="true"],
+ul[data-baseweb="menu"] li[aria-selected="true"] {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
     color: #ffffff !important;
     font-weight: 700 !important;
-    border-left: 4px solid #ffffff !important;
-    padding-left: 18px !important;
-}
-
-.stSelectbox > div[data-baseweb="select"] ul li[aria-selected="true"]:hover {
-    background: linear-gradient(135deg, #764ba2 0%, #667eea 100%) !important;
-    border-left: 4px solid #FFD700 !important;
-}
-
-/* ===== علامة ✓ للخيار المحدد ===== */
-.stSelectbox > div[data-baseweb="select"] ul li[aria-selected="true"]::after {
-    content: " ✓" !important;
-    color: #FFD700 !important;
-    font-weight: 800 !important;
-    font-size: 1.1rem !important;
-    float: left !important;
-}
-
-/* ===== شريط التمرير ===== */
-.stSelectbox > div[data-baseweb="select"] ul::-webkit-scrollbar {
-    width: 4px;
-}
-
-.stSelectbox > div[data-baseweb="select"] ul::-webkit-scrollbar-track {
-    background: rgba(0, 0, 0, 0.05);
-    border-radius: 10px;
-}
-
-.stSelectbox > div[data-baseweb="select"] ul::-webkit-scrollbar-thumb {
-    background: #667eea;
-    border-radius: 10px;
-}
-
-/* ============================================================================
-   القوائم المنسدلة في الشريط الجانبي
-   ============================================================================ */
-
-[data-testid="stSidebar"] .stSelectbox > div[data-baseweb="select"] > div {
-    background-color: rgba(255, 255, 255, 0.1) !important;
-    border: 1px solid rgba(255, 255, 255, 0.15) !important;
-    border-radius: 10px !important;
-    color: #000000 !important;
-}
-
-[data-testid="stSidebar"] .stSelectbox > div[data-baseweb="select"] > div:hover {
-    background-color: rgba(255, 255, 255, 0.15) !important;
-}
-
-[data-testid="stSidebar"] .stSelectbox > div[data-baseweb="select"] > div div[data-baseweb="select-value"] {
-    color: #000000 !important;
-}
-
-[data-testid="stSidebar"] .stSelectbox > div[data-baseweb="select"] > div div[data-baseweb="select-placeholder"] {
-    color: rgba(0, 0, 0, 0.5) !important;
-}
-
-[data-testid="stSidebar"] .stSelectbox > div[data-baseweb="select"] > div svg {
-    fill: #333333 !important;
-}
-
-[data-testid="stSidebar"] .stSelectbox > div[data-baseweb="select"] ul {
-    background-color: #f0f0f5 !important;
-    border: 1px solid rgba(0, 0, 0, 0.1) !important;
-}
-
-[data-testid="stSidebar"] .stSelectbox > div[data-baseweb="select"] ul li {
-    color: #1a1a2e !important;
-}
-
-[data-testid="stSidebar"] .stSelectbox > div[data-baseweb="select"] ul li:hover {
-    background-color: rgba(102, 126, 234, 0.15) !important;
-    color: #667eea !important;
-}
-
-[data-testid="stSidebar"] .stSelectbox > div[data-baseweb="select"] ul li[aria-selected="true"] {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
-    color: #ffffff !important;
-    font-weight: 700 !important;
-    border-left: 4px solid #ffffff !important;
-}
-
-[data-testid="stSidebar"] .stSelectbox > div[data-baseweb="select"] ul li[aria-selected="true"]:hover {
-    background: linear-gradient(135deg, #764ba2 0%, #667eea 100%) !important;
-    border-left: 4px solid #FFD700 !important;
-}
-
-[data-testid="stSidebar"] .stSelectbox > div[data-baseweb="select"] ul li[aria-selected="true"]::after {
-    content: " ✓" !important;
-    color: #FFD700 !important;
-    font-weight: 800 !important;
-    font-size: 1.1rem !important;
-    float: left !important;
 }
 
 /* ============================================================================
@@ -438,29 +336,20 @@ button[kind="primary"]:hover, .stButton button[data-testid="baseButton-primary"]
     color: inherit !important;
 }
 
-[data-testid="stSidebar"] .stRadio > div[role="radiogroup"] label {
-    color: #e0e0e0 !important;
-}
-
-[data-testid="stSidebar"] .stRadio > div[role="radiogroup"] label:hover {
-    color: #ffffff !important;
-    background-color: rgba(102, 126, 234, 0.08) !important;
-}
-
 /* ============================================================================
    الـ Text Input
    ============================================================================ */
 
 .stTextInput > div > div > input {
-    background-color: rgba(255, 255, 255, 0.12) !important;
-    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    background-color: #1e1e38 !important;
+    border: 1px solid rgba(255, 255, 255, 0.15) !important;
     border-radius: 10px !important;
-    color: #000000 !important;
+    color: #ffffff !important;
     padding: 10px 14px !important;
 }
 
 .stTextInput > div > div > input::placeholder {
-    color: rgba(0, 0, 0, 0.5) !important;
+    color: rgba(255, 255, 255, 0.4) !important;
 }
 
 .stTextInput > div > div > input:focus {
@@ -578,17 +467,4 @@ a {
 a:hover {
     color: #764ba2 !important;
     text-decoration: underline !important;
-}
-
-/* ============================================================================
-   تحسينات إضافية للقوائم المنسدلة
-   ============================================================================ */
-
-/* التأكد من أن جميع النصوص في القائمة بيضاء */
-.stSelectbox > div[data-baseweb="select"] > div * {
-    color: #000000 !important;
-}
-
-[data-testid="stSidebar"] .stSelectbox > div[data-baseweb="select"] > div * {
-    color: #000000 !important;
 }
