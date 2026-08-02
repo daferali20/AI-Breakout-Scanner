@@ -9,7 +9,6 @@ from typing import List, Dict, Optional
 import yfinance as yf
 from backend.analysis.squeeze_detector import SqueezeDetector
 from backend.analysis.indicators import TechnicalIndicators
-from backend.ai.predictor import AIPredictor
 
 class BreakoutScanner:
     """الماسح الرئيسي لاكتشاف فرص الانفجار السعري"""
@@ -17,13 +16,15 @@ class BreakoutScanner:
     def __init__(self):
         self.squeeze = SqueezeDetector()
         self.indicators = TechnicalIndicators()
-        self.ai = AIPredictor()
     
     def scan_stock(self, symbol: str, df: pd.DataFrame = None) -> Dict:
         """مسح سهم واحد"""
         if df is None:
-            ticker = yf.Ticker(symbol)
-            df = ticker.history(period="6mo")
+            try:
+                ticker = yf.Ticker(symbol)
+                df = ticker.history(period="6mo")
+            except:
+                return {'error': f'لا يمكن جلب بيانات السهم {symbol}'}
         
         if df.empty or len(df) < 50:
             return {'error': f'بيانات غير كافية للسهم {symbol}'}
@@ -44,13 +45,10 @@ class BreakoutScanner:
                 'current_price': df['Close'].iloc[-1]
             }
             
-            # 4. تنبؤ الذكاء الاصطناعي
-            ai_result = self.ai.predict(all_indicators)
+            # 4. حساب الدرجة النهائية
+            total_score = self._calculate_score(all_indicators)
             
-            # 5. حساب الدرجة النهائية
-            total_score = self._calculate_score(all_indicators, ai_result)
-            
-            # 6. مستويات التداول
+            # 5. مستويات التداول
             levels = self._calculate_levels(df)
             
             return {
@@ -58,7 +56,6 @@ class BreakoutScanner:
                 'score': total_score,
                 'squeeze': squeeze_result,
                 'indicators': indicators,
-                'ai': ai_result,
                 'levels': levels,
                 'recommendation': self._get_recommendation(total_score)
             }
@@ -66,24 +63,22 @@ class BreakoutScanner:
         except Exception as e:
             return {'error': str(e)}
     
-    def _calculate_score(self, indicators: Dict, ai_result: Dict) -> float:
+    def _calculate_score(self, indicators: Dict) -> float:
         """حساب الدرجة النهائية"""
         weights = {
-            'squeeze': 0.30,
-            'volatility': 0.10,
-            'compression': 0.15,
-            'volume': 0.15,
-            'rsi': 0.10,
-            'ai': 0.20
+            'squeeze': 0.40,
+            'volatility': 0.15,
+            'volume': 0.20,
+            'rsi': 0.15,
+            'price': 0.10
         }
         
         score = (
             indicators.get('squeeze_score', 0) * weights['squeeze'] +
             indicators.get('volatility_score', 0) * weights['volatility'] +
-            indicators.get('compression_score', 0) * weights['compression'] +
             indicators.get('volume_score', 0) * weights['volume'] +
             indicators.get('rsi_score', 0) * weights['rsi'] +
-            ai_result.get('probability', 50) * weights['ai']
+            indicators.get('price_position', 50) * weights['price']
         )
         
         return round(min(100, max(0, score)), 2)
