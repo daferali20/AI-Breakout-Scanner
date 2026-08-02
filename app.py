@@ -66,7 +66,7 @@ def load_css():
         load_inline_css()
 
 def load_inline_css():
-    """استايل مضمن في حال عدم وجود الملف الخارجي"""
+    """استايل مضمن بديل بفكرة Dark Mode فائقة الوضوح"""
     st.markdown("""
     <style>
     /* ===== الإعدادات الأساسية ===== */
@@ -190,97 +190,60 @@ def load_inline_css():
         color: #d0d0d0 !important;
     }
     
-    /* ===== القوائم المنسدلة - خلفية فاتحة ونص واضح ===== */
-    .stSelectbox > div[data-baseweb="select"] > div {
-        background-color: rgba(255, 255, 255, 0.12) !important;
-        border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    /* ===== القوائم المنسدلة (Selectbox) - إصلاح النص الداكن والوضوح ===== */
+    div[data-baseweb="select"] > div {
+        background-color: #1e1e38 !important;
+        border: 1px solid rgba(102, 126, 234, 0.4) !important;
         border-radius: 10px !important;
-        color: #000000 !important;
-        min-height: 38px !important;
-        padding: 6px 12px !important;
+        min-height: 42px !important;
     }
-    
-    .stSelectbox > div[data-baseweb="select"] > div:hover {
-        background-color: rgba(255, 255, 255, 0.18) !important;
-        border-color: rgba(102, 126, 234, 0.4) !important;
-    }
-    
-    .stSelectbox > div[data-baseweb="select"] > div:focus-within {
-        border-color: #667eea !important;
-        box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.3) !important;
-    }
-    
-    .stSelectbox > div[data-baseweb="select"] > div div[data-baseweb="select-value"] {
-        color: #000000 !important;
+
+    div[data-baseweb="select"] * {
+        color: #ffffff !important;
         font-weight: 600 !important;
     }
-    
-    .stSelectbox > div[data-baseweb="select"] > div div[data-baseweb="select-placeholder"] {
-        color: rgba(0, 0, 0, 0.6) !important;
+
+    div[data-baseweb="select"] svg {
+        fill: #667eea !important;
     }
-    
-    .stSelectbox > div[data-baseweb="select"] > div svg {
-        fill: #333333 !important;
+
+    div[data-baseweb="popover"] div[role="listbox"],
+    ul[data-baseweb="menu"] {
+        background-color: #16162a !important;
+        border: 1px solid rgba(102, 126, 234, 0.5) !important;
+        border-radius: 12px !important;
     }
-    
-    .stSelectbox > div[data-baseweb="select"] ul {
-        background-color: #f0f0f5 !important;
-        border: 1px solid rgba(0, 0, 0, 0.1) !important;
-        border-radius: 10px !important;
-        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2) !important;
-        max-height: 300px !important;
-        overflow-y: auto !important;
-        z-index: 9999 !important;
-    }
-    
-    .stSelectbox > div[data-baseweb="select"] ul li {
-        color: #1a1a2e !important;
+
+    div[data-baseweb="popover"] li,
+    ul[data-baseweb="menu"] li {
         background-color: transparent !important;
+        color: #e0e0e0 !important;
         padding: 10px 16px !important;
-        font-size: 0.95rem !important;
-        border-bottom: 1px solid rgba(0, 0, 0, 0.05) !important;
-        transition: all 0.2s ease !important;
-        cursor: pointer !important;
     }
-    
-    .stSelectbox > div[data-baseweb="select"] ul li:hover {
-        background-color: rgba(102, 126, 234, 0.15) !important;
-        color: #667eea !important;
-        border-left: 3px solid #667eea !important;
+
+    div[data-baseweb="popover"] li:hover,
+    ul[data-baseweb="menu"] li:hover {
+        background: rgba(102, 126, 234, 0.25) !important;
+        color: #ffffff !important;
     }
-    
-    .stSelectbox > div[data-baseweb="select"] ul li[aria-selected="true"] {
+
+    div[data-baseweb="popover"] li[aria-selected="true"],
+    ul[data-baseweb="menu"] li[aria-selected="true"] {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
         color: #ffffff !important;
-        font-weight: 700 !important;
-        border-left: 4px solid #ffffff !important;
-        padding-left: 18px !important;
-    }
-    
-    .stSelectbox > div[data-baseweb="select"] ul li[aria-selected="true"]:hover {
-        background: linear-gradient(135deg, #764ba2 0%, #667eea 100%) !important;
-        border-left: 4px solid #FFD700 !important;
-    }
-    
-    .stSelectbox > div[data-baseweb="select"] ul li[aria-selected="true"]::after {
-        content: " ✓" !important;
-        color: #FFD700 !important;
-        font-weight: 800 !important;
-        font-size: 1.1rem !important;
-        float: left !important;
     }
     
     /* ===== Text Input ===== */
     .stTextInput > div > div > input {
-        background-color: rgba(255, 255, 255, 0.12) !important;
-        border: 1px solid rgba(255, 255, 255, 0.2) !important;
+        background-color: #1e1e38 !important;
+        border: 1px solid rgba(255, 255, 255, 0.15) !important;
         border-radius: 10px !important;
-        color: #000000 !important;
+        color: #ffffff !important;
         padding: 10px 14px !important;
     }
     
     .stTextInput > div > div > input::placeholder {
-        color: rgba(0, 0, 0, 0.5) !important;
+        color: rgba(255, 255, 255, 0.4) !important;
     }
     
     .stTextInput > div > div > input:focus {
@@ -294,36 +257,8 @@ def load_inline_css():
         border-radius: 12px !important;
         border: 1px solid rgba(255,255,255,0.06) !important;
     }
-    
-    /* ===== الشريط الجانبي - القوائم المنسدلة ===== */
-    [data-testid="stSidebar"] .stSelectbox > div[data-baseweb="select"] > div {
-        background-color: rgba(255, 255, 255, 0.1) !important;
-        border: 1px solid rgba(255, 255, 255, 0.15) !important;
-        color: #000000 !important;
-    }
-    
-    [data-testid="stSidebar"] .stSelectbox > div[data-baseweb="select"] > div div[data-baseweb="select-value"] {
-        color: #000000 !important;
-    }
-    
-    [data-testid="stSidebar"] .stSelectbox > div[data-baseweb="select"] > div div[data-baseweb="select-placeholder"] {
-        color: rgba(0, 0, 0, 0.5) !important;
-    }
-    
-    [data-testid="stSidebar"] .stSelectbox > div[data-baseweb="select"] > div svg {
-        fill: #333333 !important;
-    }
-    
-    [data-testid="stSidebar"] .stSelectbox > div[data-baseweb="select"] ul {
-        background-color: #f0f0f5 !important;
-    }
-    
-    [data-testid="stSidebar"] .stSelectbox > div[data-baseweb="select"] ul li {
-        color: #1a1a2e !important;
-    }
     </style>
     """, unsafe_allow_html=True)
-
 # ============================================================================
 # تهيئة حالة الجلسة
 # ============================================================================
