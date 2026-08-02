@@ -70,9 +70,7 @@ class SqueezeDetector:
                 'squeeze_score': round(squeeze_score, 2),
                 'bb_width': round(current_bb_width, 4),
                 'kc_width': round(current_kc_width, 4),
-                'ratio': round(ratio, 3),
-                'bb_upper': round(bb_upper.iloc[-1], 2),
-                'bb_lower': round(bb_lower.iloc[-1], 2)
+                'ratio': round(ratio, 3)
             }
             
         except Exception as e:
