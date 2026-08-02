@@ -260,7 +260,7 @@ button[kind="primary"]:hover, .stButton button[data-testid="baseButton-primary"]
    ============================================================================ */
 
 .stSelectbox > div[data-baseweb="select"] > div {
-    color: #ffffff !important;
+    color: #667eea !important;
     background-color: rgba(255, 255, 255, 0.08) !important;
     border: 1px solid rgba(255, 255, 255, 0.12) !important;
     border-radius: 10px !important;
