@@ -269,6 +269,86 @@ def load_css():
         color: rgba(255, 255, 255, 0.7) !important;
     }
     
+    /* ===== إصلاح القوائم المنسدلة (Selectbox) ===== */
+    .stSelectbox > div[data-baseweb="select"] > div {
+        color: #ffffff !important;
+        background-color: rgba(255, 255, 255, 0.05) !important;
+    }
+    
+    .stSelectbox > div[data-baseweb="select"] ul {
+        background-color: #1a1a2e !important;
+        border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    }
+    
+    .stSelectbox > div[data-baseweb="select"] ul li {
+        color: #ffffff !important;
+        background-color: transparent !important;
+        padding: 8px 12px !important;
+    }
+    
+    .stSelectbox > div[data-baseweb="select"] ul li:hover {
+        background-color: rgba(102, 126, 234, 0.2) !important;
+        color: #ffffff !important;
+    }
+    
+    .stSelectbox > div[data-baseweb="select"] ul li[aria-selected="true"] {
+        background-color: rgba(102, 126, 234, 0.3) !important;
+        color: #ffffff !important;
+    }
+    
+    /* ===== إصلاح النص في الـ Input ===== */
+    .stTextInput > div > div > input {
+        color: #ffffff !important;
+        background-color: rgba(255, 255, 255, 0.05) !important;
+        border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    }
+    
+    .stTextInput > div > div > input:focus {
+        border-color: #667eea !important;
+        box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.3) !important;
+    }
+    
+    /* ===== الشريط الجانبي - Selectbox ===== */
+    [data-testid="stSidebar"] .stSelectbox > div[data-baseweb="select"] > div {
+        color: #ffffff !important;
+        background-color: rgba(255, 255, 255, 0.05) !important;
+    }
+    
+    [data-testid="stSidebar"] .stSelectbox > div[data-baseweb="select"] ul {
+        background-color: #1a1a2e !important;
+        border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    }
+    
+    [data-testid="stSidebar"] .stSelectbox > div[data-baseweb="select"] ul li {
+        color: #ffffff !important;
+    }
+    
+    [data-testid="stSidebar"] .stSelectbox > div[data-baseweb="select"] ul li:hover {
+        background-color: rgba(102, 126, 234, 0.2) !important;
+    }
+    
+    /* ===== Radio Buttons ===== */
+    .stRadio > div[role="radiogroup"] label {
+        color: #e0e0e0 !important;
+    }
+    
+    .stRadio > div[role="radiogroup"] label:hover {
+        color: #ffffff !important;
+    }
+    
+    .stRadio > div[role="radiogroup"] label div[data-testid="stMarkdownContainer"] {
+        color: #e0e0e0 !important;
+    }
+    
+    /* ===== الشريط الجانبي - Radio ===== */
+    [data-testid="stSidebar"] .stRadio > div[role="radiogroup"] label {
+        color: #e0e0e0 !important;
+    }
+    
+    [data-testid="stSidebar"] .stRadio > div[role="radiogroup"] label:hover {
+        color: #ffffff !important;
+    }
+    
     .stAlert {
         background: rgba(255, 255, 255, 0.04) !important;
         border-radius: 12px !important;
@@ -358,7 +438,6 @@ def load_css():
     }
     </style>
     """, unsafe_allow_html=True)
-
 # ============================================================================
 # تهيئة حالة الجلسة
 # ============================================================================
