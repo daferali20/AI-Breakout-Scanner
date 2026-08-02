@@ -247,10 +247,11 @@ def render_sidebar():
         # إعدادات المسح
         st.subheader("⚙️ إعدادات المسح")
         
+        # استخدام .get() مع قيمة افتراضية لتجنب KeyError
         config = st.session_state.get('sidebar_config', {})
         
         # اختيار القطاع
-        sectors = get_sectors()
+        sectors = ['الكل', 'التكنولوجيا', 'المالية', 'الرعاية الصحية', 'الاستهلاك', 'الطاقة']
         sector = st.selectbox(
             "🏢 القطاع",
             sectors,
@@ -262,7 +263,7 @@ def render_sidebar():
             "🎯 الحد الأدنى للدرجة",
             min_value=40,
             max_value=90,
-            value=config.get('min_score', 60),
+            value=config.get('min_score', 60) if config else 60,
             step=5,
             key="min_score_slider"
         )
@@ -271,11 +272,12 @@ def render_sidebar():
             "📊 عدد الأسهم",
             min_value=5,
             max_value=30,
-            value=config.get('max_symbols', 15),
+            value=config.get('max_symbols', 15) if config else 15,
             step=5,
             key="max_symbols_slider"
         )
         
+        # تخزين الإعدادات
         st.session_state.sidebar_config = {
             'sector': sector,
             'min_score': min_score,
