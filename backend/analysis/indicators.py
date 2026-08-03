@@ -7,6 +7,37 @@ import pandas as pd
 import numpy as np
 from typing import Dict
 
+def calculate_indicators(df: pd.DataFrame) -> pd.DataFrame:
+    """حساب مؤشرات Bollinger Bands و Keltner Channels واكتشاف الضغط (Squeeze)"""
+    df = df.copy()
+    
+    # حساب المتوسط المتحرك البسيط (SMA 20)
+    df['SMA20'] = df['Close'].rolling(window=20).mean()
+    df['STD20'] = df['Close'].rolling(window=20).std()
+    
+    # Bollinger Bands
+    df['BB_Upper'] = df['SMA20'] + (df['STD20'] * 2)
+    df['BB_Lower'] = df['SMA20'] - (df['STD20'] * 2)
+    
+    # Average True Range (ATR 20)
+    df['TR'] = np.maximum(
+        df['High'] - df['Low'],
+        np.maximum(
+            abs(df['High'] - df['Close'].shift(1)),
+            abs(df['Low'] - df['Close'].shift(1))
+        )
+    )
+    df['ATR20'] = df['TR'].rolling(window=20).mean()
+    
+    # Keltner Channels
+    df['KC_Upper'] = df['SMA20'] + (df['ATR20'] * 1.5)
+    df['KC_Lower'] = df['SMA20'] - (df['ATR20'] * 1.5)
+    
+    # Squeeze Condition (BB inside KC)
+    df['Squeeze_On'] = (df['BB_Upper'] < df['KC_Upper']) & (df['BB_Lower'] > df['KC_Lower'])
+    
+    return df
+
 class TechnicalIndicators:
     """حساب المؤشرات الفنية"""
     
