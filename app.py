@@ -374,11 +374,75 @@ def render_scanner():
 
 def render_analyze():
     st.subheader("📈 تحليل سهم محدد")
-    symbol = st.text_input("أدخل رمز السهم:", value=st.session_state.get('selected_symbol', 'AAPL')).upper()
-    if st.button("تحليل الآن"):
+    
+    # ----- الحل الآمن لمشكلة AttributeError -----
+    # الحصول على القيمة الافتراضية مع التأكد من أنها ليست None
+    default_value = st.session_state.get('selected_symbol')
+    if default_value is None or default_value == '':
+        default_value = 'AAPL'
+    
+    # عرض مربع الإدخال مع القيمة الافتراضية الآمنة
+    symbol = st.text_input(
+        "أدخل رمز السهم:",
+        value=default_value,
+        placeholder="مثال: AAPL, TSLA, NVDA"
+    ).upper()
+    
+    # ----- تحسينات إضافية -----
+    col1, col2 = st.columns([1, 3])
+    
+    with col1:
+        analyze_clicked = st.button("🔍 تحليل الآن", type="primary", use_container_width=True)
+    
+    with col2:
+        # عرض آخر رمز تم تحليله
+        if 'last_analyzed' in st.session_state:
+            st.caption(f"آخر تحليل: {st.session_state.last_analyzed}")
+    
+    if analyze_clicked:
+        if not symbol.strip():
+            st.warning("⚠️ الرجاء إدخال رمز سهم صحيح")
+            return
+            
         st.session_state.selected_symbol = symbol
-        st.success(f"عرض تحليل السهم {symbol}:")
-        st.json({"Symbol": symbol, "Status": "Normal", "RSI": 58.4, "Signal": "BUY"})
+        st.session_state.last_analyzed = symbol
+        
+        with st.spinner(f"جاري تحليل {symbol}..."):
+            # محاكاة التحليل (يجب استبدالها بالدالة الحقيقية)
+            import time
+            time.sleep(1)
+            
+            # عرض بيانات التحليل
+            st.success(f"✅ تم تحليل السهم {symbol} بنجاح!")
+            
+            # عرض معلومات وهمية للتوضيح
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric("السعر الحالي", "$178.50", "+2.3%")
+            with col2:
+                st.metric("RSI", "58.4", "محايد")
+            with col3:
+                st.metric("الإشارة", "🚀 شراء", "قوية")
+            
+            # عرض تفاصيل إضافية
+            with st.expander("📊 تفاصيل المؤشرات الفنية", expanded=True):
+                st.json({
+                    "Symbol": symbol,
+                    "RSI": 58.4,
+                    "MACD": "إيجابي",
+                    "Bollinger Bands": "ضيق (Squeeze)",
+                    "Volume": "متوسط",
+                    "Signal": "BUY",
+                    "Confidence": "85%"
+                })
+            
+            # حفظ النتيجة في session state للاستخدام في صفحات أخرى
+            st.session_state.analysis_result = {
+                'symbol': symbol,
+                'rsi': 58.4,
+                'signal': 'BUY',
+                'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            }
 
 def render_market_data():
     st.subheader("📊 بيانات السوق اليومية")
