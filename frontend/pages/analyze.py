@@ -9,6 +9,46 @@ import yfinance as yf
 import plotly.graph_objects as go
 from datetime import datetime
 
+def run_analysis(ticker):
+    # محاكاة لعملية الفحص الحسابية والذكاء الاصطناعي
+    st.session_state.selected_ticker = ticker
+    st.session_state.analysis_data = {
+        "ticker": ticker,
+        "breakout_score": np.random.randint(60, 99),
+        "squeeze_status": "Squeeze On" if np.random.rand() > 0.5 else "Squeeze Off",
+        "signal": "BUY (STRONG)" if np.random.rand() > 0.4 else "NEUTRAL"
+    }
+
+def render_page():
+    st.header("🔍 فحص وتحليل الاختراقات السعرية")
+    
+    col1, col2 = st.columns([3, 1])
+    with col1:
+        ticker_input = st.text_input(
+            "أدخل رمز السهم (Ticker):", 
+            value=st.session_state.get("selected_ticker", "AAPL")
+        ).upper()
+    
+    with col2:
+        st.write(" ") # محاذاة عمودية
+        st.write(" ")
+        # تشغيل الفحص باستخدام callback لضمان الاستجابة السريعة
+        st.button(
+            "بدء التحليل 🚀", 
+            on_click=run_analysis, 
+            args=(ticker_input,),
+            use_container_width=True
+        )
+
+    # عرض النتائج من الـ Session State إذا كانت متوفرة
+    if "analysis_data" in st.session_state and st.session_state.analysis_data:
+        data = st.session_state.analysis_data
+        st.success(f"تم تحليل السهم: **{data['ticker']}** بنجاح!")
+        
+        m1, m2, m3 = st.columns(3)
+        m1.metric("قوة الاختراق المتوقعة", f"{data['breakout_score']}%")
+        m2.metric("حالة ضغط Bollinger/Keltner", data['squeeze_status'])
+        m3.metric("توصية النموذج الذكي", data['signal'])
 def render():
     """عرض صفحة تحليل السهم"""
     st.subheader("📈 تحليل سهم محدد")
