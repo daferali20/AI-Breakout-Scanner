@@ -6,6 +6,36 @@
 import streamlit as st
 from datetime import datetime
 
+def set_page(page_name):
+    st.session_state.current_page = page_name
+
+def render_sidebar():
+    with st.sidebar:
+        st.title("🤖 AI Breakout Scanner")
+        st.markdown("---")
+        
+        # أزرار التنقل الرئيسية مع ربطها بحالة الجلسة مباشره
+        st.button(
+            "📊 اللوحة الرئيسية (Dashboard)", 
+            on_click=set_page, 
+            args=("Dashboard",),
+            use_container_width=True
+        )
+        st.button(
+            "🔍 تحليل سهم (Analyze)", 
+            on_click=set_page, 
+            args=("Analyze",),
+            use_container_width=True
+        )
+        st.button(
+            "📈 بيانات السوق (Market Data)", 
+            on_click=set_page, 
+            args=("Market Data",),
+            use_container_width=True
+        )
+        
+        st.markdown("---")
+        st.caption("إصدار النظام: v2.0.0")
 def render_sidebar():
     """عرض الشريط الجانبي"""
     with st.sidebar:
