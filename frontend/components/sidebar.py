@@ -1,70 +1,40 @@
-# frontend/components/sidebar.py - إضافة صفحة بيانات السوق
 """
-مكون الشريط الجانبي - مع إضافة صفحة بيانات السوق
+مكون الشريط الجانبي (Sidebar) - AI Breakout Scanner
+يتضمن التنقل بين الصفحات وإعدادات المسح
 """
 
 import streamlit as st
 from datetime import datetime
 
-def set_page(page_name):
-    st.session_state.current_page = page_name
-
 def render_sidebar():
-    with st.sidebar:
-        st.title("🤖 AI Breakout Scanner")
-        st.markdown("---")
-        
-        # أزرار التنقل الرئيسية مع ربطها بحالة الجلسة مباشره
-        st.button(
-            "📊 اللوحة الرئيسية (Dashboard)", 
-            on_click=set_page, 
-            args=("Dashboard",),
-            use_container_width=True
-        )
-        st.button(
-            "🔍 تحليل سهم (Analyze)", 
-            on_click=set_page, 
-            args=("Analyze",),
-            use_container_width=True
-        )
-        st.button(
-            "📈 بيانات السوق (Market Data)", 
-            on_click=set_page, 
-            args=("Market Data",),
-            use_container_width=True
-        )
-        
-        st.markdown("---")
-        st.caption("إصدار النظام: v2.0.0")
-def render_sidebar():
-    """عرض الشريط الجانبي"""
+    """عرض الشريط الجانبي بالكامل وإرجاع الإعدادات المختارة"""
     with st.sidebar:
         st.image("https://img.icons8.com/fluency/96/stock.png", width=80)
         st.title("🚀 AI Scanner")
         st.markdown("---")
         
-        # القائمة الرئيسية - مع إضافة صفحة بيانات السوق
+        # 1. القائمة الرئيسية للتنقل
         render_main_menu()
         
         st.markdown("---")
         
-        # إعدادات المسح
+        # 2. إعدادات المسح
         render_scan_settings()
         
         st.markdown("---")
         
-        # معلومات النظام
+        # 3. معلومات النظام والوقت
         render_system_info()
         
         return st.session_state.get('sidebar_config', {})
 
 def render_main_menu():
-    """عرض القائمة الرئيسية - مع إضافة بيانات السوق"""
+    """عرض القائمة الرئيسية للتنقل بين الصفحات"""
     pages = {
         "📊 لوحة التحكم": "dashboard",
         "🔍 مسح السوق": "scanner",
         "📈 تحليل سهم": "analyze",
-        "📊 بيانات السوق": "market_data"  # الصفحة الجديدة
+        "📊 بيانات السوق": "market_data"
     }
     
     current_page = st.session_state.get('current_page', 'dashboard')
@@ -75,9 +45,9 @@ def render_main_menu():
         if value == current_page:
             current_index = i
             break
-    
+            
     selected = st.radio(
-        "القائمة", 
+        "القائمة الرئيسية", 
         list(pages.keys()), 
         index=current_index,
         key="main_menu_radio"
@@ -86,20 +56,21 @@ def render_main_menu():
     new_page = pages[selected]
     if new_page != current_page:
         st.session_state.current_page = new_page
+        st.rerun()
 
 def render_scan_settings():
-    """عرض إعدادات المسح"""
+    """عرض شريط إعدادات الفحص والتصفية"""
     st.subheader("⚙️ إعدادات المسح")
     
     if 'sidebar_config' not in st.session_state:
         st.session_state.sidebar_config = {}
-    
+        
     config = st.session_state.sidebar_config
     
     min_score = st.slider(
-        "🎯 درجة الجاهزية", 
+        "🎯 درجة الجاهزية الأدنى", 
         40, 90, 
-        config.get('min_score', 60) if config else 60,
+        config.get('min_score', 60),
         step=5,
         key="min_score_slider"
     )
@@ -107,18 +78,19 @@ def render_scan_settings():
     max_symbols = st.slider(
         "📈 عدد الأسهم للمسح",
         5, 30, 
-        config.get('max_symbols', 15) if config else 15,
+        config.get('max_symbols', 15),
         step=5,
-        key="max_symbols"
+        key="max_symbols_slider"
     )
     
     scan_clicked = st.button(
         "🔍 ابدأ المسح", 
-        width="stretch",
+        use_container_width=True,
         type="primary",
         key="scan_button"
     )
     
+    # حفظ الإعدادات في Session State
     st.session_state.sidebar_config = {
         'min_score': min_score,
         'max_symbols': max_symbols,
@@ -126,8 +98,10 @@ def render_scan_settings():
     }
 
 def render_system_info():
-    """عرض معلومات النظام"""
+    """عرض معلومات النظام والتوقيت"""
     if st.session_state.get('last_scan_time'):
         st.caption(f"⏱️ آخر مسح: {st.session_state.last_scan_time}")
+    
     st.caption(f"🕐 {datetime.now().strftime('%Y-%m-%d %H:%M')}")
-    st.caption("💡 بيانات السوق محدثة لحظياً")
+    st.caption("💡 بيانات السوق محدثة")
+    st.caption("🏷️ الإصدار: v2.0.0")
