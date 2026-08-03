@@ -71,7 +71,7 @@
    النصوص العامة
    ============================================================================ */
 
-.stMarkdown, .stText, .stWrite, p, div, span, label {
+.stMarkdown, .stText, .stWrite, p, label {
     color: #e8e8e8 !important;
 }
 
@@ -251,69 +251,76 @@ button[kind="primary"]:hover, .stButton button[data-testid="baseButton-primary"]
 }
 
 /* ============================================================================
-   القوائم المنسدلة (Selectbox) - التنسيق الداكن فائق الوضوح
+   القوائم المنسدلة (Selectbox) - التنسيق الداكن المعتمد وواضح القراءة
    ============================================================================ */
 
-/* 1. الحقل المغلق (Container) */
-div[data-baseweb="select"] > div {
+/* 1. الحقل المغلق للقائمة المنسدلة */
+div[data-baseweb="select"] {
     background-color: #1e1e38 !important;
-    border: 1px solid rgba(102, 126, 234, 0.4) !important;
+    border: 1px solid #667eea !important;
     border-radius: 10px !important;
-    min-height: 42px !important;
 }
 
-div[data-baseweb="select"] > div:hover {
-    border-color: #667eea !important;
-    box-shadow: 0 0 10px rgba(102, 126, 234, 0.3) !important;
-}
-
-/* 2. النص داخل الحقل المغلق والنص المختار */
-div[data-baseweb="select"] * {
+div[data-baseweb="select"] div {
+    background-color: transparent !important;
     color: #ffffff !important;
-    font-weight: 600 !important;
-    font-size: 0.95rem !important;
 }
 
-/* 3. سهم القائمة */
+/* النص المختار حالياً داخل الحقل المغلق */
+div[data-baseweb="select"] [data-baseweb="select-value"] span,
+div[data-baseweb="select"] span {
+    color: #ffffff !important;
+    font-weight: 700 !important;
+}
+
+/* أيقونة السهم */
 div[data-baseweb="select"] svg {
     fill: #667eea !important;
 }
 
-/* 4. القائمة المفتوحة (Dropdown Menu Box) */
-div[data-baseweb="popover"] div[role="listbox"],
-ul[data-baseweb="menu"] {
+/* 2. القائمة المنبثقة الخارجيـة عند الضغط (Popover Panel) */
+div[data-baseweb="popover"],
+div[data-baseweb="menu"],
+ul[role="listbox"] {
     background-color: #16162a !important;
-    border: 1px solid rgba(102, 126, 234, 0.5) !important;
+    border: 1px solid #667eea !important;
     border-radius: 12px !important;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6) !important;
-    padding: 6px !important;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.8) !important;
 }
 
-/* 5. عناصر القائمة المنسدلة (Options) */
+/* 3. عناصر الخيارات داخل القائمة (Options) */
 div[data-baseweb="popover"] li,
-ul[data-baseweb="menu"] li {
-    background-color: transparent !important;
-    color: #e0e0e0 !important;
-    padding: 10px 16px !important;
-    border-radius: 8px !important;
-    margin-bottom: 2px !important;
-    font-weight: 500 !important;
-    transition: all 0.2s ease !important;
+div[data-baseweb="menu"] li,
+ul[role="listbox"] li,
+div[role="option"] {
+    background-color: #16162a !important;
+    color: #ffffff !important;
+    font-weight: 600 !important;
+    padding: 10px 14px !important;
 }
 
-/* 6. عند التمرير بالماوس فوق العنصر (Hover) */
+div[data-baseweb="popover"] li *,
+div[data-baseweb="menu"] li *,
+ul[role="listbox"] li *,
+div[role="option"] * {
+    color: #ffffff !important;
+}
+
+/* 4. عند التمرير أو اختيار عنصر من القائمة */
 div[data-baseweb="popover"] li:hover,
-ul[data-baseweb="menu"] li:hover {
-    background: rgba(102, 126, 234, 0.25) !important;
+div[data-baseweb="menu"] li:hover,
+ul[role="listbox"] li:hover,
+div[role="option"]:hover {
+    background-color: #667eea !important;
     color: #ffffff !important;
 }
 
-/* 7. الخيار المحدد حالياً (Selected Item) */
 div[data-baseweb="popover"] li[aria-selected="true"],
-ul[data-baseweb="menu"] li[aria-selected="true"] {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+div[data-baseweb="menu"] li[aria-selected="true"],
+ul[role="listbox"] li[aria-selected="true"],
+div[role="option"][aria-selected="true"] {
+    background-color: #764ba2 !important;
     color: #ffffff !important;
-    font-weight: 700 !important;
 }
 
 /* ============================================================================
