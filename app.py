@@ -22,7 +22,30 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded"
 )
+# 1. تهيئة حالة الجلسة (Session State) لمنع مشاكل عدم استجابة الأزرار
+if "current_page" not in st.session_state:
+    st.session_state.current_page = "Dashboard"
 
+if "scan_results" not in st.session_state:
+    st.session_state.scan_results = None
+
+if "selected_ticker" not in st.session_state:
+    st.session_state.selected_ticker = "AAPL"
+
+# 2. عرض الشريط الجانبي وتحديث الصفحة الحالية
+selected_page = render_sidebar()
+if selected_page:
+    st.session_state.current_page = selected_page
+
+# 3. توجيه الصفحات بناءً على Session State
+pages = {
+    "Dashboard": dashboard.render_page,
+    "Analyze": analyze.render_page,
+    "Market Data": market_data.render_page
+}
+
+# تشغيل الصفحة المختارة
+pages[st.session_state.current_page]()
 # إضافة المسارات
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 if ROOT_DIR not in sys.path:
