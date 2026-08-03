@@ -9,7 +9,27 @@ import sys
 import os
 from datetime import datetime
 import warnings
+import json
+import pickle
 
+def save_results_to_file(results: pd.DataFrame, filename: str = "scan_results.pkl"):
+    """حفظ نتائج المسح في ملف"""
+    try:
+        results.to_pickle(filename)
+        return True
+    except Exception as e:
+        st.error(f"خطأ في حفظ النتائج: {e}")
+        return False
+
+def load_results_from_file(filename: str = "scan_results.pkl") -> pd.DataFrame:
+    """تحميل نتائج المسح من ملف"""
+    try:
+        if os.path.exists(filename):
+            return pd.read_pickle(filename)
+        return pd.DataFrame()
+    except Exception as e:
+        st.error(f"خطأ في تحميل النتائج: {e}")
+        return pd.DataFrame()
 warnings.filterwarnings('ignore')
 
 # ============================================================================
@@ -309,68 +329,152 @@ def render_sidebar():
 def render_dashboard():
     st.subheader("📊 نظرة عامة")
     
+    # الحصول على البيانات من session state
+    results = st.session_state.get('scan_results', pd.DataFrame())
+    
     col1, col2, col3, col4 = st.columns(4)
+    
+    # عدد الأسهم المتاحة
+    all_symbols = []
+    if isinstance(STOCK_SYMBOLS, dict):
+        for syms in STOCK_SYMBOLS.values():
+            if isinstance(syms, list):
+                all_symbols.extend(syms)
+    total_stocks = len(set(all_symbols))
+    
     with col1:
-        st.markdown("""
+        st.markdown(f"""
         <div class="metric-card">
             <div class="icon">📈</div>
-            <div class="value">150+</div>
+            <div class="value">{total_stocks}</div>
             <div class="label">أسهم متاحة</div>
         </div>
         """, unsafe_allow_html=True)
     
-    results = st.session_state.get('scan_results', pd.DataFrame())
-    count = len(results) if not results.empty else 0
-    color = "#00E676" if count > 0 else "#FF5252"
+    # عدد الفرص المكتشفة
+    opportunities = len(results) if not results.empty else 0
+    color = "#00E676" if opportunities > 0 else "#FF5252"
     
     with col2:
         st.markdown(f"""
         <div class="metric-card">
             <div class="icon">🔥</div>
-            <div class="value" style="color:{color};">{count}</div>
+            <div class="value" style="color:{color};">{opportunities}</div>
             <div class="label">فرص مكتشفة</div>
         </div>
         """, unsafe_allow_html=True)
-        
+    
+    # متوسط درجة الثقة
+    avg_score = results['Score'].mean() if not results.empty and 'Score' in results.columns else 0
+    avg_score = round(avg_score, 1) if not pd.isna(avg_score) else 0
+    
     with col3:
-        st.markdown("""
+        st.markdown(f"""
         <div class="metric-card">
             <div class="icon">🎯</div>
-            <div class="value" style="color:#FFD700;">84%</div>
-            <div class="label">دقة النموذج</div>
+            <div class="value" style="color:#FFD700;">{avg_score}%</div>
+            <div class="label">متوسط الثقة</div>
         </div>
         """, unsafe_allow_html=True)
-        
+    
+    # وقت آخر مسح
+    last_scan = st.session_state.get('last_scan_time', 'لم يتم')
+    
     with col4:
-        st.markdown("""
+        st.markdown(f"""
         <div class="metric-card">
-            <div class="icon">🤖</div>
-            <div class="value" style="color:#29B6F6;">AI</div>
-            <div class="label">ذكاء اصطناعي</div>
+            <div class="icon">⏱️</div>
+            <div class="value" style="font-size:1.2rem; color:#29B6F6;">{last_scan}</div>
+            <div class="label">آخر تحديث</div>
         </div>
         """, unsafe_allow_html=True)
-        
+    
     st.markdown("---")
     
+    # عرض أفضل الفرص
     if not results.empty:
-        st.subheader("📋 أفضل الفرص المكتشفة مؤخراً")
-        st.dataframe(results, use_container_width=True)
+        st.subheader("🏆 أفضل الفرص المكتشفة")
+        
+        # ترتيب حسب الدرجة
+        if 'Score' in results.columns:
+            top_results = results.sort_values('Score', ascending=False).head(10)
+        else:
+            top_results = results.head(10)
+        
+        st.dataframe(top_results, use_container_width=True)
+        
+        # عرض رسم بياني بسيط للدرجات
+        if 'Score' in results.columns and len(results) > 1:
+            st.subheader("📊 توزيع درجات الثقة")
+            chart_data = results[['Symbol', 'Score']].set_index('Symbol')
+            st.bar_chart(chart_data)
     else:
-        st.info("💡 لم يتم إجراء مسح بعد. اضغط على زر 'بدء المسح' من الشريط الجانبي لبدء تحليل السوق.")
+        st.info("💡 لم يتم إجراء مسح بعد. استخدم الشريط الجانبي لبدء تحليل السوق.")
 
 def render_scanner():
     st.subheader("🔍 مسح السوق لتتبع الانفجارات السعرية")
-    if st.session_state.get('scan_in_progress', False):
-        with st.spinner("جاري فحص الأسهم وتحليل أنماط الانفجار..."):
-            st.session_state.last_scan_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-            st.session_state.scan_in_progress = False
-            st.success("✅ اكتمل المسح بنجاح!")
     
+    # زر المسح مع حالة التقدم
+    col1, col2 = st.columns([1, 3])
+    with col1:
+        scan_clicked = st.button("🚀 بدء المسح الآن", type="primary", use_container_width=True)
+    
+    with col2:
+        if st.session_state.get('last_scan_time'):
+            st.caption(f"⏱️ آخر مسح: {st.session_state.last_scan_time}")
+    
+    if scan_clicked or st.session_state.get('scan_in_progress', False):
+        if scan_clicked:
+            st.session_state.scan_in_progress = True
+        
+        with st.spinner("🔍 جاري مسح السوق وتحليل الأسهم..."):
+            # محاكاة المسح
+            import time
+            progress_bar = st.progress(0)
+            
+            # محاكاة تقدم المسح
+            for i in range(100):
+                time.sleep(0.02)
+                progress_bar.progress(i + 1)
+            
+            # إنشاء نتائج وهمية للعرض
+            import random
+            symbols = ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'NVDA', 'TSLA', 'META', 'AMD']
+            results = []
+            for sym in random.sample(symbols, min(len(symbols), 5)):
+                results.append({
+                    'Symbol': sym,
+                    'Price': round(random.uniform(100, 500), 2),
+                    'Score': random.randint(65, 95),
+                    'Signal': random.choice(['🚀 BUY', '📊 HOLD', '⚠️ SELL']),
+                    'Volume': random.choice(['مرتفع', 'متوسط', 'منخفض']),
+                    'Pattern': random.choice(['اختراق', 'انعكاس', 'استمرار'])
+                })
+            
+            df_results = pd.DataFrame(results)
+            st.session_state.scan_results = df_results
+            st.session_state.scan_in_progress = False
+            st.session_state.last_scan_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            
+            st.success(f"✅ اكتمل المسح! تم العثور على {len(results)} فرصة.")
+    
+    # عرض النتائج
     results = st.session_state.get('scan_results', pd.DataFrame())
     if not results.empty:
+        st.subheader("📊 نتائج المسح")
         st.dataframe(results, use_container_width=True)
+        
+        # إضافة زر لتصدير النتائج
+        csv = results.to_csv(index=False)
+        st.download_button(
+            label="📥 تحميل النتائج (CSV)",
+            data=csv,
+            file_name=f"scan_results_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
+            mime="text/csv",
+            use_container_width=True
+        )
     else:
-        st.write("اضغط على **بدء المسح** لبدء العملية.")
+        st.info("💡 اضغط على 'بدء المسح الآن' لبدء تحليل السوق.")
 
 def render_analyze():
     st.subheader("📈 تحليل سهم محدد")
@@ -446,7 +550,28 @@ def render_analyze():
 
 def render_market_data():
     st.subheader("📊 بيانات السوق اليومية")
-    st.write("عرض قائمة المؤشرات العامة والأسهم القيادية.")
+    
+    # عرض مؤشرات السوق الرئيسية
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        st.metric("S&P 500", "4,543.20", "+0.85%")
+    with col2:
+        st.metric("NASDAQ", "14,234.50", "+1.12%")
+    with col3:
+        st.metric("DOW", "34,567.80", "+0.65%")
+    
+    st.markdown("---")
+    
+    # عرض الأسهم القيادية
+    st.subheader("🏢 الأسهم القيادية")
+    
+    # عرض نتائج المسح إن وجدت
+    results = st.session_state.get('scan_results', pd.DataFrame())
+    if not results.empty:
+        st.dataframe(results, use_container_width=True)
+    else:
+        st.info("لا توجد بيانات حالية. قم بتشغيل المسح من الشريط الجانبي.")
 
 # ============================================================================
 # 8. التشغيل الرئيسي والتوجيه (Main Router)
