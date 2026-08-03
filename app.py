@@ -534,35 +534,82 @@ def render_analyze():
         st.info("🔍 اختر أو اكتب رمز سهم للبدء")
 
 def display_stock_analysis(symbol):
-    """عرض تحليل السهم مع بيانات حقيقية"""
+    """عرض تحليل السهم مع بيانات حقيقية - نسخة محسنة مع دعم الرموز البديلة"""
     
     with st.spinner(f"📊 جاري تحليل {symbol}..."):
         try:
             import yfinance as yf
             import plotly.graph_objects as go
             
+            # ============================================================
+            # 1. معالجة الرموز البديلة (حل مشكلة META)
+            # ============================================================
+            
+            # قاموس الرموز البديلة
+            alternative_symbols = {
+                'META': 'FB',      # فيسبوك أصبح ميتا
+                'GOOGL': 'GOOG',   # جوجل
+                'BRK.B': 'BRK-B',  # بيركشاير
+                'FB': 'META',      # العكس أيضاً
+            }
+            
+            # محاولة جلب البيانات مع الرمز الأصلي
             ticker = yf.Ticker(symbol)
             df = ticker.history(period="6mo")
+            used_symbol = symbol
             
+            # إذا كانت البيانات فارغة والمستخدم يبحث عن META، جرب FB
+            if df.empty and symbol in alternative_symbols:
+                alt_symbol = alternative_symbols[symbol]
+                st.info(f"🔄 محاولة جلب بيانات {symbol} عبر الرمز البديل {alt_symbol}...")
+                ticker = yf.Ticker(alt_symbol)
+                df = ticker.history(period="6mo")
+                if not df.empty:
+                    used_symbol = alt_symbol
+                    st.success(f"✅ تم جلب بيانات {symbol} بنجاح عبر {alt_symbol}")
+            
+            # إذا كانت البيانات لا تزال فارغة
             if df.empty:
                 st.error(f"❌ لا توجد بيانات للسهم {symbol}")
+                st.info("💡 تأكد من صحة الرمز (مثال: AAPL, MSFT, TSLA)")
                 return
+            
+            # ============================================================
+            # 2. جلب معلومات الشركة
+            # ============================================================
             
             info = ticker.info
             
-            # معلومات أساسية
+            # إذا كانت المعلومات فارغة، حاول جلبها من الرمز الأصلي
+            if not info and used_symbol != symbol:
+                try:
+                    ticker_original = yf.Ticker(symbol)
+                    info = ticker_original.info
+                except:
+                    pass
+            
+            # ============================================================
+            # 3. عرض معلومات الشركة
+            # ============================================================
+            
             company_name = info.get('longName', symbol)
+            sector = info.get('sector', 'غير معروف')
+            industry = info.get('industry', 'غير معروف')
+            
             st.markdown(f"""
             <div style="background: linear-gradient(135deg, rgba(102,126,234,0.1), rgba(118,75,162,0.1)); 
                         padding: 15px 20px; border-radius: 12px; border: 1px solid rgba(102,126,234,0.2); margin-bottom: 20px;">
                 <h3 style="margin:0; color: #ffffff;">{symbol} - {company_name}</h3>
                 <div style="color: rgba(255,255,255,0.5); font-size: 0.85rem; margin-top: 4px;">
-                    🏢 {info.get('sector', 'غير معروف')} | 📊 {info.get('industry', 'غير معروف')}
+                    🏢 {sector} | 📊 {industry}
                 </div>
             </div>
             """, unsafe_allow_html=True)
             
-            # بطاقات المؤشرات
+            # ============================================================
+            # 4. بطاقات المؤشرات
+            # ============================================================
+            
             current_price = df['Close'].iloc[-1]
             previous_close = info.get('previousClose', current_price)
             change = current_price - previous_close
@@ -616,7 +663,10 @@ def display_stock_analysis(symbol):
             
             st.markdown("---")
             
-            # رسم بياني
+            # ============================================================
+            # 5. رسم بياني
+            # ============================================================
+            
             col1, col2 = st.columns([3, 1])
             
             with col1:
@@ -664,7 +714,7 @@ def display_stock_analysis(symbol):
                     )
                 )
                 
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width='stretch')
             
             with col2:
                 st.markdown("#### 📊 مؤشرات سريعة")
@@ -719,10 +769,22 @@ def display_stock_analysis(symbol):
             
             st.markdown("---")
             
-            # أخبار الشركة
+            # ============================================================
+            # 6. أخبار الشركة
+            # ============================================================
+            
             with st.expander("📰 آخر الأخبار", expanded=False):
                 try:
+                    # محاولة جلب الأخبار من الرمز المستخدم
                     news = ticker.news
+                    if not news and used_symbol != symbol:
+                        # محاولة جلب الأخبار من الرمز الأصلي
+                        try:
+                            ticker_original = yf.Ticker(symbol)
+                            news = ticker_original.news
+                        except:
+                            pass
+                    
                     if news:
                         for item in news[:3]:
                             title = item.get('title', 'عنوان غير معروف')
@@ -735,7 +797,7 @@ def display_stock_analysis(symbol):
                             """, unsafe_allow_html=True)
                     else:
                         st.info("📰 لا توجد أخبار حديثة")
-                except:
+                except Exception as news_error:
                     st.info("📰 لا توجد أخبار متاحة")
             
         except Exception as e:
