@@ -29,6 +29,8 @@ for path in [ROOT_DIR, PROJECT_ROOT, BACKEND_DIR, OPPORTUNITY_DIR, PAGES_DIR]:
 
 # ============================================================================
 # استيراد المكونات
+# # ============================================================================
+# استيراد المكونات - مع تجنب الـ Deadlock
 # ============================================================================
 
 try:
@@ -40,10 +42,18 @@ except ImportError:
     }
     APP_SETTINGS = {'title': 'AI Breakout Scanner'}
 
-try:
-    from backend.scanner.breakout_scanner import BreakoutScanner
-except ImportError:
-    BreakoutScanner = None
+# استيراد BreakoutScanner بشكل متأخر (داخل الدالة)
+BreakoutScanner = None
+
+def get_breakout_scanner():
+    """استيراد BreakoutScanner فقط عند الحاجة"""
+    global BreakoutScanner
+    if BreakoutScanner is None:
+        try:
+            from backend.scanner.breakout_scanner import BreakoutScanner
+        except ImportError:
+            BreakoutScanner = None
+    return BreakoutScanner
 
 # ============================================================================
 # استيراد محرك الفرص
@@ -793,7 +803,11 @@ def render_scanner():
             try:
                 symbols = get_symbols_by_sector(selected_sector)
                 symbols = symbols[:config.get('max_symbols', 15)]
-                if BreakoutScanner is None:
+                
+                # استيراد BreakoutScanner فقط عند الحاجة
+                Scanner = get_breakout_scanner()
+                
+                if Scanner is None:
                     sample_data = pd.DataFrame({
                         'symbol': ['AAPL', 'MSFT', 'NVDA', 'AMD', 'TSLA'],
                         'score': [75, 68, 82, 71, 65],
@@ -807,7 +821,7 @@ def render_scanner():
                     st.session_state.last_scan_time = datetime.now().strftime('%H:%M:%S')
                     st.success("✅ تم عرض بيانات نموذجية")
                 else:
-                    scanner = BreakoutScanner()
+                    scanner = Scanner()
                     results = scanner.scan_market(symbols, min_score=config.get('min_score', 60))
                     if not results.empty:
                         st.session_state.scan_results = results
