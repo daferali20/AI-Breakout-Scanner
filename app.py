@@ -14,7 +14,7 @@ st.set_page_config(
 )
 
 # ============================================================================
-# إعداد المسارات - الحل الأبسط
+# إعداد المسارات
 # ============================================================================
 
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -23,13 +23,30 @@ BACKEND_DIR = os.path.join(PROJECT_ROOT, "backend")
 OPPORTUNITY_DIR = os.path.join(BACKEND_DIR, "opportunity")
 PAGES_DIR = os.path.join(ROOT_DIR, "pages")
 
-# إضافة جميع المسارات
 for path in [ROOT_DIR, PROJECT_ROOT, BACKEND_DIR, OPPORTUNITY_DIR, PAGES_DIR]:
     if path not in sys.path:
         sys.path.insert(0, path)
 
 # ============================================================================
-# استيراد محرك الفرص - طريقة مبسطة
+# استيراد المكونات
+# ============================================================================
+
+try:
+    from config import STOCK_SYMBOLS, APP_SETTINGS
+except ImportError:
+    STOCK_SYMBOLS = {
+        'الكل': ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'NVDA', 'META', 'TSLA', 'AMD'],
+        'التكنولوجيا': ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'NVDA', 'META', 'TSLA', 'AMD']
+    }
+    APP_SETTINGS = {'title': 'AI Breakout Scanner'}
+
+try:
+    from backend.scanner.breakout_scanner import BreakoutScanner
+except ImportError:
+    BreakoutScanner = None
+
+# ============================================================================
+# استيراد محرك الفرص
 # ============================================================================
 
 OPPORTUNITY_AVAILABLE = False
@@ -37,19 +54,16 @@ OPPORTUNITY_PAGE_AVAILABLE = False
 opportunity_page = None
 
 try:
-    # محاولة الاستيراد المباشر
     from opportunity import OpportunityEngine, MarketPhase
     OPPORTUNITY_AVAILABLE = True
     print("✅ تم استيراد محرك الفرص")
 except ImportError:
     try:
-        # محاولة من backend.opportunity
         from backend.opportunity import OpportunityEngine, MarketPhase
         OPPORTUNITY_AVAILABLE = True
         print("✅ تم استيراد محرك الفرص (backend)")
     except ImportError:
         try:
-            # استيراد باستخدام importlib
             import importlib.util
             init_file = os.path.join(OPPORTUNITY_DIR, "__init__.py")
             if os.path.exists(init_file):
@@ -64,7 +78,6 @@ except ImportError:
         except Exception:
             pass
 
-# استيراد صفحة الفرص
 if OPPORTUNITY_AVAILABLE:
     try:
         from opportunity_timeline import main as opportunity_page
@@ -94,7 +107,29 @@ print(f"🔍 محرك الفرص: {'✅ متوفر' if OPPORTUNITY_AVAILABLE els
 print(f"🔍 صفحة الفرص: {'✅ متوفرة' if OPPORTUNITY_PAGE_AVAILABLE else '❌ غير متوفرة'}")
 
 # ============================================================================
-# تحميل ملف الاستايل
+# دوال مساعدة
+# ============================================================================
+
+def get_symbols_by_sector(sector):
+    if sector == 'الكل' or sector is None:
+        if isinstance(STOCK_SYMBOLS, dict):
+            all_symbols = []
+            for syms in STOCK_SYMBOLS.values():
+                if isinstance(syms, list):
+                    all_symbols.extend(syms)
+            return all_symbols
+        return STOCK_SYMBOLS
+    if isinstance(STOCK_SYMBOLS, dict):
+        return STOCK_SYMBOLS.get(sector, [])
+    return STOCK_SYMBOLS
+
+def get_sectors():
+    if isinstance(STOCK_SYMBOLS, dict):
+        return ['الكل'] + [s for s in STOCK_SYMBOLS.keys() if s != 'الكل']
+    return ['الكل']
+
+# ============================================================================
+# تحميل الاستايل
 # ============================================================================
 
 def load_inline_css():
@@ -328,114 +363,106 @@ def init_session_state():
                 st.session_state[key] = value
         st.session_state.initialized = True
 
-def render_analyze():
-    st.subheader("📈 تحليل سهم محدد")
-    MAIN_SYMBOLS = {
-        'AAPL': 'Apple Inc.',
-        'MSFT': 'Microsoft Corp.',
-        'GOOGL': 'Alphabet Inc.',
-        'AMZN': 'Amazon.com Inc.',
-        'NVDA': 'NVIDIA Corp.',
-        'META': 'Meta Platforms',
-        'TSLA': 'Tesla Inc.',
-        'AMD': 'Advanced Micro Devices',
-        'INTC': 'Intel Corp.',
-        'NFLX': 'Netflix Inc.',
-        'PYPL': 'PayPal Holdings',
-        'ADBE': 'Adobe Inc.',
-        'CRM': 'Salesforce Inc.',
-        'ORCL': 'Oracle Corp.',
-        'IBM': 'IBM Corp.',
-        'CSCO': 'Cisco Systems',
-        'QCOM': 'Qualcomm Inc.',
-        'TXN': 'Texas Instruments',
-        'JPM': 'JPMorgan Chase',
-        'BAC': 'Bank of America',
-        'WFC': 'Wells Fargo',
-        'JNJ': 'Johnson & Johnson',
-        'UNH': 'UnitedHealth',
-        'PFE': 'Pfizer Inc.',
-        'WMT': 'Walmart Inc.',
-        'PG': 'Procter & Gamble',
-        'KO': 'Coca-Cola Co.',
-        'XOM': 'Exxon Mobil',
-        'CVX': 'Chevron Corp.',
-        'V': 'Visa Inc.',
-        'MA': 'Mastercard Inc.'
-    }
-    if 'custom_symbols' in st.session_state:
-        MAIN_SYMBOLS.update(st.session_state.custom_symbols)
-    st.markdown("""
-    <div style="background: rgba(255,255,255,0.02); padding: 12px 16px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.05); margin-bottom: 20px;">
-        <p style="margin:0; color: rgba(255,255,255,0.6); font-size: 0.85rem;">
-            💡 اختر من الرموز الرئيسية أو اكتب رمزاً مخصصاً (مثل: AAPL, MSFT, TSLA)
-        </p>
-    </div>
-    """, unsafe_allow_html=True)
-    col1, col2, col3 = st.columns([2, 2, 1])
-    with col1:
-        symbol_options = ["-- اختر رمزاً --"] + list(MAIN_SYMBOLS.keys()) + ["✏️ إدخال مخصص"]
-        selected_option = st.selectbox(
-            "اختر رمز السهم:",
-            options=symbol_options,
-            index=0,
-            key="symbol_select_main"
+# ============================================================================
+# الشريط الجانبي
+# ============================================================================
+
+def render_sidebar():
+    with st.sidebar:
+        st.markdown("""
+        <div style="text-align:center; padding: 5px 0 15px 0;">
+            <div style="font-size:3rem;">🚀</div>
+            <h2 style="color:#667eea; margin:0; font-weight:800;">AI Scanner</h2>
+            <p style="color:rgba(255,255,255,0.4); font-size:0.8rem; margin-top:4px;">
+                اكتشاف الانفجارات السعرية
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
+        st.markdown("---")
+        pages = {
+            "📊 لوحة التحكم": "dashboard",
+            "🚀 AI Opportunity Timeline": "opportunity",
+            "🔍 مسح السوق": "scanner",
+            "📈 تحليل سهم": "analyze",
+            "📊 بيانات السوق": "market_data"
+        }
+        current_page = st.session_state.get('current_page', 'dashboard')
+        current_index = list(pages.values()).index(current_page) if current_page in pages.values() else 0
+        selected = st.radio(
+            "القائمة",
+            list(pages.keys()),
+            index=current_index,
+            key="nav_radio",
+            format_func=lambda x: x + " 🆕" if x == "🚀 AI Opportunity Timeline" else x
         )
-        if selected_option == "✏️ إدخال مخصص":
-            symbol = st.text_input(
-                "أدخل رمز السهم:",
-                value=st.session_state.get('custom_symbol_input', ''),
-                placeholder="مثال: AAPL, MSFT, TSLA...",
-                key="custom_symbol_input_main"
-            ).upper().strip()
-            if symbol and symbol not in MAIN_SYMBOLS:
-                col_a, col_b = st.columns([1, 3])
-                with col_a:
-                    if st.button("➕ إضافة", key="add_symbol_main"):
-                        st.session_state.custom_symbols[symbol] = symbol
-                        st.session_state.custom_symbol_input = symbol
-                        st.success(f"✅ تم إضافة {symbol}")
-                        st.rerun()
-        elif selected_option != "-- اختر رمزاً --":
-            symbol = selected_option
-            st.session_state.custom_symbol_input = symbol
-        else:
-            symbol = ""
-    with col2:
-        if symbol and symbol in MAIN_SYMBOLS:
-            st.markdown(f"""
-            <div style="background: rgba(255,255,255,0.03); padding: 10px; border-radius: 10px; margin-top: 25px; border: 1px solid rgba(255,255,255,0.05);">
-                <div style="color: rgba(255,255,255,0.4); font-size: 0.8rem;">🏢 الشركة</div>
-                <div style="font-weight: 600; font-size: 1rem;">{MAIN_SYMBOLS[symbol]}</div>
+        new_page = pages[selected]
+        if new_page != current_page:
+            st.session_state.current_page = new_page
+            st.rerun()
+        st.markdown("---")
+        if new_page != "opportunity":
+            st.subheader("⚙️ إعدادات المسح")
+            config = st.session_state.get('sidebar_config', {})
+            sectors = get_sectors()
+            sector_index = 0
+            current_sector = config.get('sector', 'الكل')
+            if current_sector in sectors:
+                sector_index = sectors.index(current_sector)
+            sector = st.selectbox(
+                "🏢 القطاع",
+                sectors,
+                index=sector_index,
+                key="sector_select"
+            )
+            min_score = st.slider(
+                "🎯 الحد الأدنى للدرجة",
+                min_value=40,
+                max_value=90,
+                value=config.get('min_score', 60),
+                step=5,
+                key="min_score_slider"
+            )
+            max_symbols = st.slider(
+                "📊 عدد الأسهم",
+                min_value=5,
+                max_value=30,
+                value=config.get('max_symbols', 15),
+                step=5,
+                key="max_symbols_slider"
+            )
+            st.session_state.sidebar_config = {
+                'sector': sector,
+                'min_score': min_score,
+                'max_symbols': max_symbols
+            }
+            if st.button("🚀 بدء المسح", type="primary", use_container_width=True, key="scan_btn"):
+                st.session_state.scan_in_progress = True
+                st.session_state.current_page = "scanner"
+                st.rerun()
+            st.markdown("---")
+        if st.session_state.get('last_scan_time'):
+            st.caption(f"⏱️ آخر مسح: {st.session_state.last_scan_time}")
+        st.caption(f"🕐 {datetime.now().strftime('%H:%M:%S')}")
+        st.markdown("---")
+        st.caption("🔧 حالة النظام:")
+        if OPPORTUNITY_AVAILABLE:
+            st.markdown("""
+            <div class="engine-status engine-status-active">
+                🧠 محرك الفرص: ✅ نشط
             </div>
             """, unsafe_allow_html=True)
-    with col3:
-        st.markdown("<br>", unsafe_allow_html=True)
-        refresh_clicked = st.button(
-            "🔄 تحديث",
-            type="primary",
-            use_container_width=True,
-            key="refresh_analysis_main"
-        )
-    if symbol:
-        if refresh_clicked:
-            st.cache_data.clear()
-        display_stock_analysis(symbol)
-    else:
-        st.info("🔍 اختر أو اكتب رمز سهم للبدء")
-# ✅ صحيح
-def my_function():
-    if condition:
-        do_something()
-        return True
-    return False
+        else:
+            st.markdown("""
+            <div class="engine-status engine-status-inactive">
+                🧠 محرك الفرص: ❌ غير متوفر
+            </div>
+            """, unsafe_allow_html=True)
+        return st.session_state.sidebar_config
 
-# ❌ خطأ
-def my_function():
-    if condition:
-        do_something()  # خطأ: يحتاج مسافة بادئة
-        return True  # خطأ: مسافة بادئة غير متسقة
-    return False
+# ============================================================================
+# تحليل السهم
+# ============================================================================
+
 def display_stock_analysis(symbol):
     with st.spinner(f"📊 جاري تحليل {symbol}..."):
         try:
@@ -608,6 +635,74 @@ def display_stock_analysis(symbol):
             st.error(f"❌ خطأ في التحليل: {str(e)}")
             st.info("💡 تأكد من صحة الرمز (مثال: AAPL, MSFT, TSLA)")
 
+def render_analyze():
+    st.subheader("📈 تحليل سهم محدد")
+    MAIN_SYMBOLS = {
+        'AAPL': 'Apple Inc.', 'MSFT': 'Microsoft Corp.', 'GOOGL': 'Alphabet Inc.',
+        'AMZN': 'Amazon.com Inc.', 'NVDA': 'NVIDIA Corp.', 'META': 'Meta Platforms',
+        'TSLA': 'Tesla Inc.', 'AMD': 'Advanced Micro Devices', 'INTC': 'Intel Corp.',
+        'NFLX': 'Netflix Inc.', 'PYPL': 'PayPal Holdings', 'ADBE': 'Adobe Inc.',
+        'CRM': 'Salesforce Inc.', 'ORCL': 'Oracle Corp.', 'IBM': 'IBM Corp.',
+        'CSCO': 'Cisco Systems', 'QCOM': 'Qualcomm Inc.', 'TXN': 'Texas Instruments',
+        'JPM': 'JPMorgan Chase', 'BAC': 'Bank of America', 'WFC': 'Wells Fargo',
+        'JNJ': 'Johnson & Johnson', 'UNH': 'UnitedHealth', 'PFE': 'Pfizer Inc.',
+        'WMT': 'Walmart Inc.', 'PG': 'Procter & Gamble', 'KO': 'Coca-Cola Co.',
+        'XOM': 'Exxon Mobil', 'CVX': 'Chevron Corp.', 'V': 'Visa Inc.', 'MA': 'Mastercard Inc.'
+    }
+    if 'custom_symbols' in st.session_state:
+        MAIN_SYMBOLS.update(st.session_state.custom_symbols)
+    st.markdown("""
+    <div style="background: rgba(255,255,255,0.02); padding: 12px 16px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.05); margin-bottom: 20px;">
+        <p style="margin:0; color: rgba(255,255,255,0.6); font-size: 0.85rem;">
+            💡 اختر من الرموز الرئيسية أو اكتب رمزاً مخصصاً
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
+    col1, col2, col3 = st.columns([2, 2, 1])
+    with col1:
+        symbol_options = ["-- اختر رمزاً --"] + list(MAIN_SYMBOLS.keys()) + ["✏️ إدخال مخصص"]
+        selected_option = st.selectbox("اختر رمز السهم:", options=symbol_options, index=0, key="symbol_select_main")
+        if selected_option == "✏️ إدخال مخصص":
+            symbol = st.text_input(
+                "أدخل رمز السهم:",
+                value=st.session_state.get('custom_symbol_input', ''),
+                placeholder="مثال: AAPL, MSFT, TSLA...",
+                key="custom_symbol_input_main"
+            ).upper().strip()
+            if symbol and symbol not in MAIN_SYMBOLS:
+                with st.columns([1, 3])[0]:
+                    if st.button("➕ إضافة", key="add_symbol_main"):
+                        st.session_state.custom_symbols[symbol] = symbol
+                        st.session_state.custom_symbol_input = symbol
+                        st.success(f"✅ تم إضافة {symbol}")
+                        st.rerun()
+        elif selected_option != "-- اختر رمزاً --":
+            symbol = selected_option
+            st.session_state.custom_symbol_input = symbol
+        else:
+            symbol = ""
+    with col2:
+        if symbol and symbol in MAIN_SYMBOLS:
+            st.markdown(f"""
+            <div style="background: rgba(255,255,255,0.03); padding: 10px; border-radius: 10px; margin-top: 25px; border: 1px solid rgba(255,255,255,0.05);">
+                <div style="color: rgba(255,255,255,0.4); font-size: 0.8rem;">🏢 الشركة</div>
+                <div style="font-weight: 600; font-size: 1rem;">{MAIN_SYMBOLS[symbol]}</div>
+            </div>
+            """, unsafe_allow_html=True)
+    with col3:
+        st.markdown("<br>", unsafe_allow_html=True)
+        refresh_clicked = st.button("🔄 تحديث", type="primary", use_container_width=True, key="refresh_analysis_main")
+    if symbol:
+        if refresh_clicked:
+            st.cache_data.clear()
+        display_stock_analysis(symbol)
+    else:
+        st.info("🔍 اختر أو اكتب رمز سهم للبدء")
+
+# ============================================================================
+# الصفحات
+# ============================================================================
+
 def render_dashboard():
     st.subheader("📊 نظرة عامة")
     col1, col2, col3, col4 = st.columns(4)
@@ -692,12 +787,7 @@ def render_scanner():
         st.metric("🤖 النموذج", "Random Forest")
     st.markdown("---")
     sectors = get_sectors()
-    selected_sector = st.selectbox(
-        "🏢 تصفية حسب القطاع",
-        sectors,
-        index=0,
-        key="scanner_sector"
-    )
+    selected_sector = st.selectbox("🏢 تصفية حسب القطاع", sectors, index=0, key="scanner_sector")
     if st.button("🔄 تحديث النتائج", type="primary", use_container_width=True):
         with st.spinner("🔍 جاري مسح السوق..."):
             try:
@@ -718,10 +808,7 @@ def render_scanner():
                     st.success("✅ تم عرض بيانات نموذجية")
                 else:
                     scanner = BreakoutScanner()
-                    results = scanner.scan_market(
-                        symbols,
-                        min_score=config.get('min_score', 60)
-                    )
+                    results = scanner.scan_market(symbols, min_score=config.get('min_score', 60))
                     if not results.empty:
                         st.session_state.scan_results = results
                         st.session_state.last_scan_time = datetime.now().strftime('%H:%M:%S')
@@ -768,13 +855,7 @@ def render_opportunity_page():
                     AI Opportunity Timeline
                 </span>
             </div>
-            <div style="
-                background: rgba(255,255,255,0.2);
-                padding: 4px 15px;
-                border-radius: 20px;
-                font-size: 0.8rem;
-                font-weight: 600;
-            ">
+            <div style="background: rgba(255,255,255,0.2); padding: 4px 15px; border-radius: 20px; font-size: 0.8rem; font-weight: 600;">
                 🆕 NEW
             </div>
         </div>
@@ -826,6 +907,10 @@ def render_opportunity_page():
         st.error(f"❌ حدث خطأ في صفحة الفرص: {str(e)}")
         st.exception(e)
 
+# ============================================================================
+# عرض الصفحة المختارة
+# ============================================================================
+
 def render_current_page():
     page = st.session_state.get('current_page', 'dashboard')
     pages = {
@@ -836,6 +921,10 @@ def render_current_page():
         'opportunity': render_opportunity_page,
     }
     pages.get(page, render_dashboard)()
+
+# ============================================================================
+# التشغيل الرئيسي
+# ============================================================================
 
 def main():
     init_session_state()
