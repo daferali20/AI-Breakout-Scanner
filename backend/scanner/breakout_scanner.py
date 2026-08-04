@@ -42,7 +42,7 @@ class BreakoutScanner:
             # 2. المؤشرات الفنية
             indicators = self.indicators.calculate_all(df)
             
-            # 3. جمع المؤشرات
+            # 3. دمج النتائج
             all_indicators = {
                 **squeeze_result,
                 **indicators,
@@ -69,6 +69,13 @@ class BreakoutScanner:
     
     def _calculate_score(self, indicators: Dict) -> float:
         """حساب الدرجة النهائية"""
+        # استخدام المفتاح الصحيح من squeeze_detector
+        squeeze_score = indicators.get('squeeze_score', 50)
+        volatility_score = indicators.get('volatility_score', 50)
+        volume_score = indicators.get('volume_score', 50)
+        rsi_score = indicators.get('rsi_score', 50)
+        price_position = indicators.get('price_position', 50)
+        
         weights = {
             'squeeze': 0.40,
             'volatility': 0.15,
@@ -78,11 +85,11 @@ class BreakoutScanner:
         }
         
         score = (
-            indicators.get('squeeze_score', 0) * weights['squeeze'] +
-            indicators.get('volatility_score', 0) * weights['volatility'] +
-            indicators.get('volume_score', 0) * weights['volume'] +
-            indicators.get('rsi_score', 0) * weights['rsi'] +
-            indicators.get('price_position', 50) * weights['price']
+            squeeze_score * weights['squeeze'] +
+            volatility_score * weights['volatility'] +
+            volume_score * weights['volume'] +
+            rsi_score * weights['rsi'] +
+            price_position * weights['price']
         )
         
         return round(min(100, max(0, score)), 2)
@@ -127,7 +134,8 @@ class BreakoutScanner:
                 results.append({
                     'symbol': symbol,
                     'score': result['score'],
-                    'squeeze': result['squeeze']['squeeze_score'],
+                    'squeeze': result['squeeze'].get('squeeze_score', 0),
+                    'is_squeeze': result['squeeze'].get('is_squeeze', False),
                     'recommendation': result['recommendation']['action'],
                     'risk': result['recommendation']['risk'],
                     'price': result['levels']['current'],
