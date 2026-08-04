@@ -423,7 +423,19 @@ def render_analyze():
         display_stock_analysis(symbol)
     else:
         st.info("🔍 اختر أو اكتب رمز سهم للبدء")
+# ✅ صحيح
+def my_function():
+    if condition:
+        do_something()
+        return True
+    return False
 
+# ❌ خطأ
+def my_function():
+    if condition:
+    do_something()  # خطأ: يحتاج مسافة بادئة
+        return True  # خطأ: مسافة بادئة غير متسقة
+    return False
 def display_stock_analysis(symbol):
     with st.spinner(f"📊 جاري تحليل {symbol}..."):
         try:
