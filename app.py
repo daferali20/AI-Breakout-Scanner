@@ -433,7 +433,7 @@ def my_function():
 # ❌ خطأ
 def my_function():
     if condition:
-    do_something()  # خطأ: يحتاج مسافة بادئة
+        do_something()  # خطأ: يحتاج مسافة بادئة
         return True  # خطأ: مسافة بادئة غير متسقة
     return False
 def display_stock_analysis(symbol):
