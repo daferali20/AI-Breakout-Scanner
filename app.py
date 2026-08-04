@@ -1,8 +1,4 @@
-    """
-    AI Breakout Scanner - التطبيق الرئيسي
-    اكتشاف فرص الانفجار السعري باستخدام الذكاء الاصطناعي
-    """
-    
+ 
     import streamlit as st
     import pandas as pd
     import sys
