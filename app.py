@@ -13,84 +13,85 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# ============================================================================
+# إعداد المسارات - الحل الأبسط
+# ============================================================================
+
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.dirname(ROOT_DIR)
 BACKEND_DIR = os.path.join(PROJECT_ROOT, "backend")
 OPPORTUNITY_DIR = os.path.join(BACKEND_DIR, "opportunity")
 PAGES_DIR = os.path.join(ROOT_DIR, "pages")
 
-paths_to_add = [
-    ROOT_DIR,
-    PROJECT_ROOT,
-    BACKEND_DIR,
-    OPPORTUNITY_DIR,
-    PAGES_DIR,
-]
-
-for path in paths_to_add:
+# إضافة جميع المسارات
+for path in [ROOT_DIR, PROJECT_ROOT, BACKEND_DIR, OPPORTUNITY_DIR, PAGES_DIR]:
     if path not in sys.path:
         sys.path.insert(0, path)
 
-try:
-    from config import STOCK_SYMBOLS, APP_SETTINGS
-except ImportError:
-    STOCK_SYMBOLS = {
-        'الكل': ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'NVDA', 'META', 'TSLA', 'AMD'],
-        'التكنولوجيا': ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'NVDA', 'META', 'TSLA', 'AMD']
-    }
-    APP_SETTINGS = {'title': 'AI Breakout Scanner'}
-
-try:
-    from backend.scanner.breakout_scanner import BreakoutScanner
-except ImportError:
-    BreakoutScanner = None
+# ============================================================================
+# استيراد محرك الفرص - طريقة مبسطة
+# ============================================================================
 
 OPPORTUNITY_AVAILABLE = False
 OPPORTUNITY_PAGE_AVAILABLE = False
 opportunity_page = None
 
 try:
-    from backend.opportunity import OpportunityEngine, MarketPhase
+    # محاولة الاستيراد المباشر
+    from opportunity import OpportunityEngine, MarketPhase
     OPPORTUNITY_AVAILABLE = True
-    print("✅ تم استيراد محرك الفرص بنجاح")
+    print("✅ تم استيراد محرك الفرص")
 except ImportError:
     try:
-        from opportunity import OpportunityEngine, MarketPhase
+        # محاولة من backend.opportunity
+        from backend.opportunity import OpportunityEngine, MarketPhase
         OPPORTUNITY_AVAILABLE = True
-        print("✅ تم استيراد محرك الفرص بنجاح (مباشر)")
+        print("✅ تم استيراد محرك الفرص (backend)")
     except ImportError:
         try:
+            # استيراد باستخدام importlib
             import importlib.util
-            init_path = os.path.join(OPPORTUNITY_DIR, "__init__.py")
-            if os.path.exists(init_path):
-                spec = importlib.util.spec_from_file_location("opportunity", init_path)
-                opportunity_module = importlib.util.module_from_spec(spec)
-                spec.loader.exec_module(opportunity_module)
-                OpportunityEngine = getattr(opportunity_module, 'OpportunityEngine', None)
-                MarketPhase = getattr(opportunity_module, 'MarketPhase', None)
-                if OpportunityEngine is not None:
+            init_file = os.path.join(OPPORTUNITY_DIR, "__init__.py")
+            if os.path.exists(init_file):
+                spec = importlib.util.spec_from_file_location("opportunity", init_file)
+                module = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(module)
+                OpportunityEngine = getattr(module, "OpportunityEngine", None)
+                MarketPhase = getattr(module, "MarketPhase", None)
+                if OpportunityEngine:
                     OPPORTUNITY_AVAILABLE = True
-                    print("✅ تم استيراد محرك الفرص بنجاح (importlib)")
+                    print("✅ تم استيراد محرك الفرص (importlib)")
         except Exception:
             pass
 
+# استيراد صفحة الفرص
 if OPPORTUNITY_AVAILABLE:
     try:
-        from pages.opportunity_timeline import main as opportunity_page
+        from opportunity_timeline import main as opportunity_page
         OPPORTUNITY_PAGE_AVAILABLE = True
-        print("✅ تم استيراد صفحة الفرص بنجاح")
+        print("✅ تم استيراد صفحة الفرص")
     except ImportError:
         try:
-            page_path = os.path.join(PAGES_DIR, "opportunity_timeline.py")
-            if os.path.exists(page_path):
-                import importlib.util
-                spec = importlib.util.spec_from_file_location("opportunity_timeline", page_path)
-                page_module = importlib.util.module_from_spec(spec)
-                spec.loader.exec_module(page_module)
-                opportunity_page = page_module.main
-                OPPORTUNITY_PAGE_AVAILABLE = True
-                print("✅ تم استيراد صفحة الفرص بنجاح (importlib)")
-        except Exception:
+            from pages.opportunity_timeline import main as opportunity_page
+            OPPORTUNITY_PAGE_AVAILABLE = True
+            print("✅ تم استيراد صفحة الفرص (pages)")
+        except ImportError:
+            try:
+                page_file = os.path.join(PAGES_DIR, "opportunity_timeline.py")
+                if os.path.exists(page_file):
+                    import importlib.util
+                    spec = importlib.util.spec_from_file_location("opportunity_timeline", page_file)
+                    module = importlib.util.module_from_spec(spec)
+                    spec.loader.exec_module(module)
+                    opportunity_page = getattr(module, "main", None)
+                    if opportunity_page:
+                        OPPORTUNITY_PAGE_AVAILABLE = True
+                        print("✅ تم استيراد صفحة الفرص (importlib)")
+            except Exception:
+                pass
+
+print(f"🔍 محرك الفرص: {'✅ متوفر' if OPPORTUNITY_AVAILABLE else '❌ غير متوفر'}")
+print(f"🔍 صفحة الفرص: {'✅ متوفرة' if OPPORTUNITY_PAGE_AVAILABLE else '❌ غير متوفرة'}")
             pass
 
 def load_inline_css():
