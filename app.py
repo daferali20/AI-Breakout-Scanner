@@ -353,7 +353,7 @@ def load_inline_css():
     """, unsafe_allow_html=True)
 
 def load_css():
-    css_path = os.path.join(ROOT_DIR, "assets", "style.css")
+    css_path = os.path.join(PROJECT_ROOT, "assets", "style.css")  # تم التصحيح هنا
     if os.path.exists(css_path):
         try:
             with open(css_path, 'r', encoding='utf-8') as f:
