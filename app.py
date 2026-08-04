@@ -19,6 +19,7 @@ st.set_page_config(
 
 # المسار الرئيسي للمشروع حيث يوجد ملف app.py
 PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
+ROOT_DIR = PROJECT_ROOT  # للتطابق مع load_css()
 
 # تحديد مجلد backend المباشر من الجذر
 BACKEND_DIR = os.path.join(PROJECT_ROOT, "backend")
