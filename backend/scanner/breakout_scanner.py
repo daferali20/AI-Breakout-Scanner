@@ -1,14 +1,18 @@
 # backend/scanner/breakout_scanner.py
-"""
-الماسح الرئيسي للانفجارات السعرية
-"""
 
 import pandas as pd
 import numpy as np
 from typing import List, Dict, Optional
 import yfinance as yf
-from backend.analysis.squeeze_detector import SqueezeDetector
-from backend.analysis.indicators import TechnicalIndicators
+import sys
+import os
+
+# إضافة المسار لتجنب مشاكل الاستيراد
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+# استيراد من التحليل
+from analysis.squeeze_detector import SqueezeDetector
+from analysis.indicators import TechnicalIndicators
 
 class BreakoutScanner:
     """الماسح الرئيسي لاكتشاف فرص الانفجار السعري"""
