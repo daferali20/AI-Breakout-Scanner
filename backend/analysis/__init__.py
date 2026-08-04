@@ -1,3 +1,8 @@
-from .indicators import TechnicalIndicators
+# backend/analysis/__init__.py
 
-__all__ = ['TechnicalIndicators']
+from .indicators import TechnicalIndicators, calculate_indicators
+
+__all__ = [
+    'TechnicalIndicators',
+    'calculate_indicators'
+]
