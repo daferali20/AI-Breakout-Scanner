@@ -4,6 +4,12 @@ import sys
 import os
 from datetime import datetime
 import warnings
+# قراءة المفتاح
+api_key = st.secrets["OPENAI_API_KEY"]
+
+# أو
+api_key = st.secrets.get("OPENAI_API_KEY", "default_value_if_not_found")
+
 warnings.filterwarnings('ignore')
 
 st.set_page_config(
