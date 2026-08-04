@@ -28,8 +28,6 @@ for path in [ROOT_DIR, PROJECT_ROOT, BACKEND_DIR, OPPORTUNITY_DIR, PAGES_DIR]:
         sys.path.insert(0, path)
 
 # ============================================================================
-# استيراد المكونات
-# # ============================================================================
 # استيراد المكونات - مع تجنب الـ Deadlock
 # ============================================================================
 
@@ -42,21 +40,27 @@ except ImportError:
     }
     APP_SETTINGS = {'title': 'AI Breakout Scanner'}
 
-# استيراد BreakoutScanner بشكل متأخر (داخل الدالة)
-BreakoutScanner = None
+# ============================================================================
+# استيراد BreakoutScanner بشكل متأخر (لتجنب Deadlock)
+# ============================================================================
+
+_BreakoutScanner = None
 
 def get_breakout_scanner():
-    """استيراد BreakoutScanner فقط عند الحاجة"""
-    global BreakoutScanner
-    if BreakoutScanner is None:
+    """استيراد BreakoutScanner فقط عند الحاجة - تجنب Deadlock"""
+    global _BreakoutScanner
+    if _BreakoutScanner is None:
         try:
             from backend.scanner.breakout_scanner import BreakoutScanner
-        except ImportError:
-            BreakoutScanner = None
-    return BreakoutScanner
+            _BreakoutScanner = BreakoutScanner
+            print("✅ تم استيراد BreakoutScanner")
+        except ImportError as e:
+            print(f"⚠️ فشل استيراد BreakoutScanner: {e}")
+            _BreakoutScanner = None
+    return _BreakoutScanner
 
 # ============================================================================
-# استيراد محرك الفرص
+# استيراد محرك الفرص (Opportunity Engine)
 # ============================================================================
 
 OPPORTUNITY_AVAILABLE = False
