@@ -195,4 +195,36 @@ class OpportunityEngine:
 
 {self._format_risks(self._identify_risks(phase_metrics, {}))}
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+💡 **توصية AI:** {'قوية جداً' if score >= 75 else 'قوية' if score >= 60 else 'معتدلة' if score >= 40 else 'ضعيفة'}
+"""
+        return report
+    
+    def _get_score_bar(self, score: float) -> str:
+        """إنشاء شريط تقدم للدرجة"""
+        filled = int(score / 10)
+        empty = 10 - filled
+        return f"▏{'█' * filled}{'░' * empty}▕ {score:.1f}%"
+    
+    def _format_catalysts(self, catalysts: Catalysts) -> str:
+        """تنسيق المحفزات للنص"""
+        all_cats = (
+            catalysts.technical +
+            catalysts.fundamental +
+            catalysts.sentiment +
+            catalysts.institutional +
+            catalysts.macro
+        )
+        
+        if not all_cats:
+            return "لم يتم رصد محفزات واضحة حالياً"
+        
+        return "\n".join([f"  • {c}" for c in all_cats[:7]])
+    
+    def _format_risks(self, risks: List[str]) -> str:
+        """تنسيق المخاطر للنص"""
+        if not risks:
+            return "لم يتم رصد مخاطر كبيرة حالياً"
+        
+        return "\n".join([f"  • {r}" for r in risks])
