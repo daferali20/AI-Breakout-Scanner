@@ -52,6 +52,7 @@ ROOT_DIR = os.path.dirname(os.path.abspath(__file__))  # frontend/
 PROJECT_ROOT = os.path.dirname(ROOT_DIR)  # AI-Breakout-Scanner/
 BACKEND_DIR = os.path.join(PROJECT_ROOT, "backend")  # AI-Breakout-Scanner/backend/
 OPPORTUNITY_DIR = os.path.join(BACKEND_DIR, "opportunity")  # AI-Breakout-Scanner/backend/opportunity/
+PAGES_DIR = os.path.join(ROOT_DIR, "pages")  # frontend/pages/
 
 # إضافة جميع المسارات إلى sys.path
 paths_to_add = [
@@ -59,7 +60,7 @@ paths_to_add = [
     PROJECT_ROOT,  # المشروع الرئيسي
     BACKEND_DIR,  # backend
     OPPORTUNITY_DIR,  # backend/opportunity
-    os.path.join(ROOT_DIR, "pages"),  # frontend/pages
+    PAGES_DIR,  # frontend/pages
 ]
 
 for path in paths_to_add:
@@ -89,7 +90,7 @@ except ImportError:
     BreakoutScanner = None
 
 # ============================================================================
-# 4. استيراد محرك الفرص (Opportunity Engine) - الطريقة الصحيحة
+# 4. استيراد محرك الفرص (Opportunity Engine) - محاولات متعددة
 # ============================================================================
 
 OPPORTUNITY_AVAILABLE = False
@@ -98,61 +99,65 @@ OpportunityEngine = None
 MarketPhase = None
 opportunity_page = None
 
-print("=" * 50)
+print("=" * 60)
 print("🔍 جاري محاولة استيراد محرك الفرص...")
-print(f"📁 المسار: {OPPORTUNITY_DIR}")
-print(f"📁 الملفات الموجودة: {os.listdir(OPPORTUNITY_DIR) if os.path.exists(OPPORTUNITY_DIR) else 'المجلد غير موجود'}")
+print(f"📁 مسار OPPORTUNITY_DIR: {OPPORTUNITY_DIR}")
 
-# محاولة 1: استيراد مباشر
+# التحقق من وجود المجلد
+if os.path.exists(OPPORTUNITY_DIR):
+    files = os.listdir(OPPORTUNITY_DIR)
+    print(f"📁 الملفات الموجودة في opportunity/: {files}")
+else:
+    print(f"❌ المجلد غير موجود: {OPPORTUNITY_DIR}")
+
+# ===== محاولة 1: استيراد من backend.opportunity =====
 try:
-    from opportunity import OpportunityEngine, MarketPhase
+    from backend.opportunity import OpportunityEngine, MarketPhase
     OPPORTUNITY_AVAILABLE = True
-    print("✅ تم استيراد محرك الفرص بنجاح (استيراد مباشر)")
+    print("✅ تم استيراد محرك الفرص بنجاح (من backend.opportunity)")
 except ImportError as e1:
-    print(f"⚠️ فشل الاستيراد المباشر: {e1}")
-    
-    # محاولة 2: استيراد من backend.opportunity
+    print(f"⚠️ فشل الاستيراد من backend.opportunity: {e1}")
+
+# ===== محاولة 2: استيراد مباشر =====
+if not OPPORTUNITY_AVAILABLE:
     try:
-        from backend.opportunity import OpportunityEngine, MarketPhase
+        from opportunity import OpportunityEngine, MarketPhase
         OPPORTUNITY_AVAILABLE = True
-        print("✅ تم استيراد محرك الفرص بنجاح (من backend.opportunity)")
+        print("✅ تم استيراد محرك الفرص بنجاح (استيراد مباشر)")
     except ImportError as e2:
-        print(f"⚠️ فشل الاستيراد من backend.opportunity: {e2}")
+        print(f"⚠️ فشل الاستيراد المباشر: {e2}")
+
+# ===== محاولة 3: استخدام importlib (الحل الأخير) =====
+if not OPPORTUNITY_AVAILABLE:
+    try:
+        import importlib.util
         
-        # محاولة 3: استيراد باستخدام importlib (الحل الأخير)
-        try:
-            import importlib.util
+        # التحقق من وجود ملف __init__.py
+        init_path = os.path.join(OPPORTUNITY_DIR, "__init__.py")
+        if os.path.exists(init_path):
+            spec = importlib.util.spec_from_file_location("opportunity", init_path)
+            opportunity_module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(opportunity_module)
             
-            # التحقق من وجود ملف __init__.py
-            init_path = os.path.join(OPPORTUNITY_DIR, "__init__.py")
-            if os.path.exists(init_path):
-                spec = importlib.util.spec_from_file_location("opportunity", init_path)
-                opportunity_module = importlib.util.module_from_spec(spec)
-                spec.loader.exec_module(opportunity_module)
-                
-                OpportunityEngine = getattr(opportunity_module, 'OpportunityEngine', None)
-                MarketPhase = getattr(opportunity_module, 'MarketPhase', None)
-                
-                if OpportunityEngine is not None:
-                    OPPORTUNITY_AVAILABLE = True
-                    print("✅ تم استيراد محرك الفرص بنجاح (باستخدام importlib)")
-                else:
-                    print("❌ لم يتم العثور على OpportunityEngine في الوحدة")
+            OpportunityEngine = getattr(opportunity_module, 'OpportunityEngine', None)
+            MarketPhase = getattr(opportunity_module, 'MarketPhase', None)
+            
+            if OpportunityEngine is not None:
+                OPPORTUNITY_AVAILABLE = True
+                print("✅ تم استيراد محرك الفرص بنجاح (باستخدام importlib)")
             else:
-                print(f"❌ ملف __init__.py غير موجود: {init_path}")
-        except Exception as e3:
-            print(f"❌ فشل الاستيراد باستخدام importlib: {e3}")
+                print("❌ لم يتم العثور على OpportunityEngine في الوحدة")
+        else:
+            print(f"❌ ملف __init__.py غير موجود: {init_path}")
+    except Exception as e3:
+        print(f"❌ فشل الاستيراد باستخدام importlib: {e3}")
 
 print(f"📊 حالة محرك الفرص: {'✅ متوفر' if OPPORTUNITY_AVAILABLE else '❌ غير متوفر'}")
-print("=" * 50)
+print("=" * 60)
 
-# ============================================================================
-# 5. استيراد صفحة الفرص
-# ============================================================================
-
+# ===== استيراد صفحة الفرص =====
 if OPPORTUNITY_AVAILABLE:
     try:
-        # محاولة استيراد صفحة الفرص
         from pages.opportunity_timeline import main as opportunity_page
         OPPORTUNITY_PAGE_AVAILABLE = True
         print("✅ تم استيراد صفحة الفرص بنجاح")
@@ -161,7 +166,7 @@ if OPPORTUNITY_AVAILABLE:
         
         # محاولة مع مسار مطلق
         try:
-            page_path = os.path.join(ROOT_DIR, "pages", "opportunity_timeline.py")
+            page_path = os.path.join(PAGES_DIR, "opportunity_timeline.py")
             if os.path.exists(page_path):
                 import importlib.util
                 spec = importlib.util.spec_from_file_location("opportunity_timeline", page_path)
@@ -174,7 +179,7 @@ if OPPORTUNITY_AVAILABLE:
             print(f"❌ فشل استيراد صفحة الفرص: {e2}")
 
 # ============================================================================
-# 6. تحميل التصميم والاستايل (CSS)
+# 5. تحميل التصميم والاستايل (CSS)
 # ============================================================================
 
 def load_inline_css():
@@ -344,7 +349,7 @@ def load_inline_css():
 
 def load_css():
     """تحميل ملف الاستايل الخارجي أو المضمن"""
-    css_path = os.path.join(ROOT_DIR, "frontend", "assets", "style.css")
+    css_path = os.path.join(ROOT_DIR, "assets", "style.css")
     if os.path.exists(css_path):
         try:
             with open(css_path, 'r', encoding='utf-8') as f:
@@ -356,7 +361,7 @@ def load_css():
         load_inline_css()
 
 # ============================================================================
-# 7. تهيئة حالة الجلسة (Session State)
+# 6. تهيئة حالة الجلسة (Session State)
 # ============================================================================
 
 def init_session_state():
@@ -390,7 +395,7 @@ def init_session_state():
             st.session_state[key] = value
 
 # ============================================================================
-# 8. دوال مساعدة للبيانات والقطاعات
+# 7. دوال مساعدة للبيانات والقطاعات
 # ============================================================================
 
 def get_symbols_by_sector(sector):
@@ -412,7 +417,7 @@ def get_sectors():
     return ['الكل']
 
 # ============================================================================
-# 9. الشريط الجانبي (Sidebar)
+# 8. الشريط الجانبي (Sidebar)
 # ============================================================================
 
 def render_sidebar():
@@ -518,7 +523,7 @@ def render_sidebar():
         return st.session_state.sidebar_config
 
 # ============================================================================
-# 10. الصفحات المختلفة (Render Pages)
+# 9. الصفحات المختلفة (Render Pages)
 # ============================================================================
 
 def render_dashboard():
@@ -592,10 +597,13 @@ def render_dashboard():
             st.caption("يمكنك استخدام صفحة 'AI Opportunity Timeline' للتحليل المتقدم")
         else:
             st.error("❌ محرك الفرص: غير متوفر")
-            with st.expander("🔧 معلومات التصحيح"):
+            with st.expander("🔧 معلومات التصحيح", expanded=False):
                 st.write(f"مسار backend: `{BACKEND_DIR}`")
                 st.write(f"مسار opportunity: `{OPPORTUNITY_DIR}`")
-                st.write(f"الملفات الموجودة: {os.listdir(OPPORTUNITY_DIR) if os.path.exists(OPPORTUNITY_DIR) else 'المجلد غير موجود'}")
+                if os.path.exists(OPPORTUNITY_DIR):
+                    st.write(f"الملفات الموجودة: {os.listdir(OPPORTUNITY_DIR)}")
+                else:
+                    st.write("❌ المجلد غير موجود")
     
     with col2:
         if OPPORTUNITY_PAGE_AVAILABLE:
@@ -772,7 +780,7 @@ def render_market_data():
 
 
 # ============================================================================
-# 11. صفحة الفرص الجديدة (Opportunity Timeline)
+# 10. صفحة الفرص الجديدة (Opportunity Timeline)
 # ============================================================================
 
 def render_opportunity_page():
@@ -830,6 +838,8 @@ def render_opportunity_page():
             files = os.listdir(OPPORTUNITY_DIR)
             for f in sorted(files):
                 st.write(f"  - {f}")
+        else:
+            st.error(f"❌ المجلد غير موجود: {OPPORTUNITY_DIR}")
     
     # التحقق من توفر المحرك
     if not OPPORTUNITY_AVAILABLE:
@@ -849,37 +859,3 @@ def render_opportunity_page():
         **لتفعيل محرك الفرص:**
         
         1. تأكد من وجود الملفات التالية:
-# ============================================================================
-# 8. التشغيل الرئيسي والتوجيه (Main Router)
-# ============================================================================
-
-def main():
-    # تحميل التنسيقات
-    load_css()
-    
-    # تهيئة حالات الجلسة
-    init_session_state()
-    
-    # عرض الشريط الجانبي
-    render_sidebar()
-    
-    # توجيه الصفحات حسب الصفحة الحالية
-    page = st.session_state.get('current_page', 'dashboard')
-    
-    # عرض الصفحة المختارة
-    if page == 'dashboard':
-        render_dashboard()
-    elif page == 'opportunity':
-        render_opportunity_page()  # الصفحة الجديدة
-    elif page == 'scanner':
-        render_scanner()
-    elif page == 'analyze':
-        render_analyze()
-    elif page == 'market_data':
-        render_market_data()
-    else:
-        render_dashboard()
-
-
-if __name__ == "__main__":
-    main()
