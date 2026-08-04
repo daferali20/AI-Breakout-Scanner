@@ -47,16 +47,31 @@ except ImportError:
 _BreakoutScanner = None
 
 def get_breakout_scanner():
-    """استيراد BreakoutScanner فقط عند الحاجة - تجنب Deadlock"""
+    """استيراد BreakoutScanner فقط عند الحاجة"""
     global _BreakoutScanner
     if _BreakoutScanner is None:
         try:
+            # محاولة استيراد مباشر
             from backend.scanner.breakout_scanner import BreakoutScanner
             _BreakoutScanner = BreakoutScanner
             print("✅ تم استيراد BreakoutScanner")
         except ImportError as e:
             print(f"⚠️ فشل استيراد BreakoutScanner: {e}")
-            _BreakoutScanner = None
+            try:
+                # محاولة بديلة
+                import importlib.util
+                import os
+                scanner_path = os.path.join(BACKEND_DIR, "scanner", "breakout_scanner.py")
+                if os.path.exists(scanner_path):
+                    spec = importlib.util.spec_from_file_location("breakout_scanner", scanner_path)
+                    module = importlib.util.module_from_spec(spec)
+                    spec.loader.exec_module(module)
+                    _BreakoutScanner = getattr(module, "BreakoutScanner", None)
+                    if _BreakoutScanner:
+                        print("✅ تم استيراد BreakoutScanner (importlib)")
+            except Exception as e2:
+                print(f"❌ فشل الاستيراد النهائي: {e2}")
+                _BreakoutScanner = None
     return _BreakoutScanner
 
 # ============================================================================
