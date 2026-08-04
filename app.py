@@ -17,14 +17,17 @@ st.set_page_config(
 # إعداد المسارات
 # ============================================================================
 
-ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
-PROJECT_ROOT = os.path.dirname(ROOT_DIR)
+# المسار الرئيسي للمشروع حيث يوجد ملف app.py
+PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
+
+# تحديد مجلد backend المباشر من الجذر
 BACKEND_DIR = os.path.join(PROJECT_ROOT, "backend")
 OPPORTUNITY_DIR = os.path.join(BACKEND_DIR, "opportunity")
-PAGES_DIR = os.path.join(ROOT_DIR, "pages")
+PAGES_DIR = os.path.join(PROJECT_ROOT, "pages")
 
-for path in [ROOT_DIR, PROJECT_ROOT, BACKEND_DIR, OPPORTUNITY_DIR, PAGES_DIR]:
-    if path not in sys.path:
+# إضافة المسارات إلى sys.path
+for path in [PROJECT_ROOT, BACKEND_DIR, OPPORTUNITY_DIR, PAGES_DIR]:
+    if os.path.exists(path) and path not in sys.path:
         sys.path.insert(0, path)
 
 # ============================================================================
