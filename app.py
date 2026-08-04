@@ -48,6 +48,11 @@ ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 if ROOT_DIR not in sys.path:
     sys.path.append(ROOT_DIR)
 
+# إضافة مسار backend
+BACKEND_DIR = os.path.join(ROOT_DIR, "..", "backend")
+if BACKEND_DIR not in sys.path:
+    sys.path.append(BACKEND_DIR)
+
 # ============================================================================
 # 2. استيراد المكونات والإعدادات
 # ============================================================================
@@ -56,8 +61,11 @@ try:
     from config import STOCK_SYMBOLS, APP_SETTINGS
 except ImportError:
     STOCK_SYMBOLS = {
-        'الكل': ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'NVDA', 'META', 'TSLA', 'AMD'],
-        'التكنولوجيا': ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'NVDA', 'META', 'TSLA', 'AMD']
+        'الكل': ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'NVDA', 'META', 'TSLA', 'AMD', 'NFLX', 'INTC'],
+        'التكنولوجيا': ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'NVDA', 'META', 'TSLA', 'AMD', 'NFLX', 'INTC'],
+        'الطاقة': ['XOM', 'CVX', 'COP', 'SLB', 'EOG'],
+        'الصحة': ['JNJ', 'PFE', 'UNH', 'ABBV', 'MRK'],
+        'المالية': ['JPM', 'BAC', 'WFC', 'GS', 'MS']
     }
     APP_SETTINGS = {'title': 'AI Breakout Scanner'}
 
@@ -65,6 +73,28 @@ try:
     from backend.scanner.breakout_scanner import BreakoutScanner
 except ImportError:
     BreakoutScanner = None
+
+# ============================================================================
+# 2.5 استيراد محرك الفرص (Opportunity Engine)
+# ============================================================================
+
+try:
+    from backend.opportunity import OpportunityEngine
+    from backend.opportunity import MarketPhase
+    OPPORTUNITY_AVAILABLE = True
+except ImportError:
+    OPPORTUNITY_AVAILABLE = False
+    OpportunityEngine = None
+    MarketPhase = None
+
+# استيراد صفحة الفرص
+try:
+    # محاولة استيراد الدالة main من صفحة الفرص
+    from pages.opportunity_timeline import main as opportunity_page
+    OPPORTUNITY_PAGE_AVAILABLE = True
+except ImportError:
+    OPPORTUNITY_PAGE_AVAILABLE = False
+    opportunity_page = None
 
 # ============================================================================
 # 3. تحميل التصميم والاستايل (CSS)
@@ -187,6 +217,31 @@ def load_inline_css():
         color: #ffffff !important;
         font-weight: 600 !important;
     }
+    
+    /* ===== علامة تبويب جديدة ===== */
+    .nav-item-opportunity {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        border-radius: 8px;
+        padding: 2px 12px;
+        margin: 2px 0;
+    }
+    
+    .badge-new {
+        background: #f5576c;
+        color: white;
+        font-size: 0.6rem;
+        padding: 1px 8px;
+        border-radius: 10px;
+        margin-left: 5px;
+        font-weight: 700;
+        animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+        0% { opacity: 1; }
+        50% { opacity: 0.5; }
+        100% { opacity: 1; }
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -222,7 +277,8 @@ def init_session_state():
         },
         'initialized': True,
         'custom_symbols': {},
-        'custom_symbol_input': ''
+        'custom_symbol_input': '',
+        'opportunity_results': {},  # تخزين نتائج تحليل الفرص
     }
     
     for key, value in defaults.items():
@@ -269,56 +325,79 @@ def render_sidebar():
         
         st.markdown("---")
         
-        # القائمة الرئيسية
+        # ===== القائمة الرئيسية =====
+        # تعريف الصفحات مع أيقونات
         pages = {
             "📊 لوحة التحكم": "dashboard",
+            "🚀 AI Opportunity Timeline": "opportunity",  # الصفحة الجديدة
             "🔍 مسح السوق": "scanner",
             "📈 تحليل سهم": "analyze",
             "📊 بيانات السوق": "market_data"
         }
         
-        current_page = st.session_state.get('current_page', 'dashboard')
-        current_index = list(pages.values()).index(current_page) if current_page in pages.values() else 0
+        # إضافة علامة NEW بجانب الصفحة الجديدة
+        page_labels = list(pages.keys())
         
-        selected = st.radio(
+        current_page = st.session_state.get('current_page', 'dashboard')
+        
+        # تحديد الفهرس الحالي
+        try:
+            current_index = list(pages.values()).index(current_page) if current_page in pages.values() else 0
+        except ValueError:
+            current_index = 0
+        
+        # عرض القائمة
+        selected_label = st.radio(
             "القائمة",
-            list(pages.keys()),
+            page_labels,
             index=current_index,
-            key="nav_radio"
+            key="nav_radio",
+            format_func=lambda x: x + " 🆕" if x == "🚀 AI Opportunity Timeline" else x
         )
         
-        new_page = pages[selected]
+        new_page = pages[selected_label]
         if new_page != st.session_state.current_page:
             st.session_state.current_page = new_page
             st.rerun()
         
         st.markdown("---")
-        st.subheader("⚙️ إعدادات المسح")
         
-        config = st.session_state.get('sidebar_config', {})
-        sectors = get_sectors()
-        current_sector = config.get('sector', 'الكل')
-        sector_index = sectors.index(current_sector) if current_sector in sectors else 0
+        # ===== إعدادات المسح (تظهر في جميع الصفحات) =====
+        if new_page != "opportunity":  # إخفاء الإعدادات في صفحة الفرص لتقليل الازدحام
+            st.subheader("⚙️ إعدادات المسح")
+            
+            config = st.session_state.get('sidebar_config', {})
+            sectors = get_sectors()
+            current_sector = config.get('sector', 'الكل')
+            sector_index = sectors.index(current_sector) if current_sector in sectors else 0
+            
+            sector = st.selectbox("🏢 القطاع", sectors, index=sector_index, key="sector_select")
+            min_score = st.slider("🎯 الحد الأدنى للدرجة", 40, 90, config.get('min_score', 60), 5, key="min_score_slider")
+            max_symbols = st.slider("📊 عدد الأسهم", 5, 30, config.get('max_symbols', 15), 5, key="max_symbols_slider")
+            
+            st.session_state.sidebar_config = {
+                'sector': sector,
+                'min_score': min_score,
+                'max_symbols': max_symbols
+            }
+            
+            if st.button("🚀 بدء المسح", type="primary", use_container_width=True, key="scan_btn"):
+                st.session_state.scan_in_progress = True
+                st.session_state.current_page = "scanner"
+                st.rerun()
+            
+            st.markdown("---")
         
-        sector = st.selectbox("🏢 القطاع", sectors, index=sector_index, key="sector_select")
-        min_score = st.slider("🎯 الحد الأدنى للدرجة", 40, 90, config.get('min_score', 60), 5, key="min_score_slider")
-        max_symbols = st.slider("📊 عدد الأسهم", 5, 30, config.get('max_symbols', 15), 5, key="max_symbols_slider")
-        
-        st.session_state.sidebar_config = {
-            'sector': sector,
-            'min_score': min_score,
-            'max_symbols': max_symbols
-        }
-        
-        if st.button("🚀 بدء المسح", type="primary", use_container_width=True, key="scan_btn"):
-            st.session_state.scan_in_progress = True
-            st.session_state.current_page = "scanner"
-            st.rerun()
-        
-        st.markdown("---")
+        # ===== معلومات إضافية =====
         if st.session_state.get('last_scan_time'):
             st.caption(f"⏱️ آخر مسح: {st.session_state.last_scan_time}")
         st.caption(f"🕐 {datetime.now().strftime('%H:%M:%S')}")
+        
+        # عرض حالة محرك الفرص
+        if OPPORTUNITY_AVAILABLE:
+            st.caption("🧠 محرك الفرص: نشط ✅")
+        else:
+            st.caption("🧠 محرك الفرص: غير متوفر ⚠️")
         
         return st.session_state.sidebar_config
 
@@ -411,6 +490,7 @@ def render_dashboard():
     else:
         st.info("💡 لم يتم إجراء مسح بعد. استخدم الشريط الجانبي لبدء تحليل السوق.")
 
+
 def render_scanner():
     st.subheader("🔍 مسح السوق لتتبع الانفجارات السعرية")
     
@@ -439,7 +519,7 @@ def render_scanner():
             
             # إنشاء نتائج وهمية للعرض
             import random
-            symbols = ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'NVDA', 'TSLA', 'META', 'AMD']
+            symbols = ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'NVDA', 'TSLA', 'META', 'AMD', 'NFLX', 'INTC']
             results = []
             for sym in random.sample(symbols, min(len(symbols), 5)):
                 results.append({
@@ -475,6 +555,7 @@ def render_scanner():
         )
     else:
         st.info("💡 اضغط على 'بدء المسح الآن' لبدء تحليل السوق.")
+
 
 def render_analyze():
     st.subheader("📈 تحليل سهم محدد")
@@ -548,6 +629,7 @@ def render_analyze():
                 'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             }
 
+
 def render_market_data():
     st.subheader("📊 بيانات السوق اليومية")
     
@@ -573,6 +655,70 @@ def render_market_data():
     else:
         st.info("لا توجد بيانات حالية. قم بتشغيل المسح من الشريط الجانبي.")
 
+
+# ============================================================================
+# 7.5 صفحة الفرص الجديدة (Opportunity Timeline)
+# ============================================================================
+
+def render_opportunity_page():
+    """عرض صفحة AI Opportunity Timeline"""
+    
+    st.markdown("""
+    <div style="
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        padding: 15px 25px;
+        border-radius: 12px;
+        margin-bottom: 20px;
+        color: white;
+        box-shadow: 0 4px 20px rgba(245,87,108,0.3);
+    ">
+        <div style="display: flex; align-items: center; gap: 15px; justify-content: space-between;">
+            <div>
+                <span style="font-size: 2rem;">🚀</span>
+                <span style="font-size: 1.5rem; font-weight: 800; margin-left: 10px;">
+                    AI Opportunity Timeline
+                </span>
+            </div>
+            <div style="
+                background: rgba(255,255,255,0.2);
+                padding: 4px 15px;
+                border-radius: 20px;
+                font-size: 0.8rem;
+                font-weight: 600;
+            ">
+                🆕 NEW
+            </div>
+        </div>
+        <p style="margin-top: 5px; opacity: 0.9; font-size: 0.95rem;">
+            تحليل الفرص الاستثمارية المتقدم باستخدام الذكاء الاصطناعي
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # التحقق من توفر المحرك
+    if not OPPORTUNITY_AVAILABLE:
+        st.error("❌ محرك الفرص غير متوفر. تأكد من تثبيت جميع المتطلبات.")
+        st.info("""
+        **لتفعيل محرك الفرص، تأكد من وجود الملفات التالية:**
+        - `backend/opportunity/opportunity_engine.py`
+        - `backend/opportunity/models.py`
+        - `backend/opportunity/phase_detector.py`
+        - وغيرها من ملفات المحرك
+        """)
+        return
+    
+    if not OPPORTUNITY_PAGE_AVAILABLE:
+        st.error("❌ صفحة الفرص غير متوفرة. تأكد من وجود `pages/opportunity_timeline.py`")
+        return
+    
+    # استدعاء الصفحة الأصلية
+    try:
+        opportunity_page()
+    except Exception as e:
+        st.error(f"❌ حدث خطأ في صفحة الفرص: {str(e)}")
+        st.exception(e)
+
+
 # ============================================================================
 # 8. التشغيل الرئيسي والتوجيه (Main Router)
 # ============================================================================
@@ -590,8 +736,11 @@ def main():
     # توجيه الصفحات حسب الصفحة الحالية
     page = st.session_state.get('current_page', 'dashboard')
     
+    # عرض الصفحة المختارة
     if page == 'dashboard':
         render_dashboard()
+    elif page == 'opportunity':
+        render_opportunity_page()  # الصفحة الجديدة
     elif page == 'scanner':
         render_scanner()
     elif page == 'analyze':
@@ -600,6 +749,7 @@ def main():
         render_market_data()
     else:
         render_dashboard()
+
 
 if __name__ == "__main__":
     main()
