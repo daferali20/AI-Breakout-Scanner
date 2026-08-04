@@ -92,7 +92,10 @@ if OPPORTUNITY_AVAILABLE:
 
 print(f"🔍 محرك الفرص: {'✅ متوفر' if OPPORTUNITY_AVAILABLE else '❌ غير متوفر'}")
 print(f"🔍 صفحة الفرص: {'✅ متوفرة' if OPPORTUNITY_PAGE_AVAILABLE else '❌ غير متوفرة'}")
-            pass
+
+# ============================================================================
+# تحميل ملف الاستايل
+# ============================================================================
 
 def load_inline_css():
     st.markdown("""
@@ -294,6 +297,10 @@ def load_css():
     else:
         load_inline_css()
 
+# ============================================================================
+# تهيئة حالة الجلسة
+# ============================================================================
+
 def init_session_state():
     defaults = {
         'scan_results': pd.DataFrame(),
@@ -320,116 +327,6 @@ def init_session_state():
             if key not in st.session_state:
                 st.session_state[key] = value
         st.session_state.initialized = True
-
-def get_symbols_by_sector(sector):
-    if sector == 'الكل' or sector is None:
-        if isinstance(STOCK_SYMBOLS, dict):
-            all_symbols = []
-            for syms in STOCK_SYMBOLS.values():
-                if isinstance(syms, list):
-                    all_symbols.extend(syms)
-            return all_symbols
-        return STOCK_SYMBOLS
-    if isinstance(STOCK_SYMBOLS, dict):
-        return STOCK_SYMBOLS.get(sector, [])
-    return STOCK_SYMBOLS
-
-def get_sectors():
-    if isinstance(STOCK_SYMBOLS, dict):
-        return ['الكل'] + [s for s in STOCK_SYMBOLS.keys() if s != 'الكل']
-    return ['الكل']
-
-def render_sidebar():
-    with st.sidebar:
-        st.markdown("""
-        <div style="text-align:center; padding: 5px 0 15px 0;">
-            <div style="font-size:3rem;">🚀</div>
-            <h2 style="color:#667eea; margin:0; font-weight:800;">AI Scanner</h2>
-            <p style="color:rgba(255,255,255,0.4); font-size:0.8rem; margin-top:4px;">
-                اكتشاف الانفجارات السعرية
-            </p>
-        </div>
-        """, unsafe_allow_html=True)
-        st.markdown("---")
-        pages = {
-            "📊 لوحة التحكم": "dashboard",
-            "🚀 AI Opportunity Timeline": "opportunity",
-            "🔍 مسح السوق": "scanner",
-            "📈 تحليل سهم": "analyze",
-            "📊 بيانات السوق": "market_data"
-        }
-        current_page = st.session_state.get('current_page', 'dashboard')
-        current_index = list(pages.values()).index(current_page) if current_page in pages.values() else 0
-        selected = st.radio(
-            "القائمة",
-            list(pages.keys()),
-            index=current_index,
-            key="nav_radio",
-            format_func=lambda x: x + " 🆕" if x == "🚀 AI Opportunity Timeline" else x
-        )
-        new_page = pages[selected]
-        if new_page != current_page:
-            st.session_state.current_page = new_page
-            st.rerun()
-        st.markdown("---")
-        if new_page != "opportunity":
-            st.subheader("⚙️ إعدادات المسح")
-            config = st.session_state.get('sidebar_config', {})
-            sectors = get_sectors()
-            sector_index = 0
-            current_sector = config.get('sector', 'الكل')
-            if current_sector in sectors:
-                sector_index = sectors.index(current_sector)
-            sector = st.selectbox(
-                "🏢 القطاع",
-                sectors,
-                index=sector_index,
-                key="sector_select"
-            )
-            min_score = st.slider(
-                "🎯 الحد الأدنى للدرجة",
-                min_value=40,
-                max_value=90,
-                value=config.get('min_score', 60),
-                step=5,
-                key="min_score_slider"
-            )
-            max_symbols = st.slider(
-                "📊 عدد الأسهم",
-                min_value=5,
-                max_value=30,
-                value=config.get('max_symbols', 15),
-                step=5,
-                key="max_symbols_slider"
-            )
-            st.session_state.sidebar_config = {
-                'sector': sector,
-                'min_score': min_score,
-                'max_symbols': max_symbols
-            }
-            if st.button("🚀 بدء المسح", type="primary", use_container_width=True, key="scan_btn"):
-                st.session_state.scan_in_progress = True
-                st.session_state.current_page = "scanner"
-                st.rerun()
-            st.markdown("---")
-        if st.session_state.get('last_scan_time'):
-            st.caption(f"⏱️ آخر مسح: {st.session_state.last_scan_time}")
-        st.caption(f"🕐 {datetime.now().strftime('%H:%M:%S')}")
-        st.markdown("---")
-        st.caption("🔧 حالة النظام:")
-        if OPPORTUNITY_AVAILABLE:
-            st.markdown("""
-            <div class="engine-status engine-status-active">
-                🧠 محرك الفرص: ✅ نشط
-            </div>
-            """, unsafe_allow_html=True)
-        else:
-            st.markdown("""
-            <div class="engine-status engine-status-inactive">
-                🧠 محرك الفرص: ❌ غير متوفر
-            </div>
-            """, unsafe_allow_html=True)
-        return st.session_state.sidebar_config
 
 def render_analyze():
     st.subheader("📈 تحليل سهم محدد")
