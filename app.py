@@ -1,4 +1,3 @@
-# app.py
 """
 AI Breakout Scanner - التطبيق الرئيسي
 اكتشاف فرص الانفجار السعري باستخدام الذكاء الاصطناعي
@@ -13,7 +12,7 @@ import warnings
 warnings.filterwarnings('ignore')
 
 # ============================================================================
-# إعدادات الصفحة
+# 1. إعدادات الصفحة
 # ============================================================================
 
 st.set_page_config(
@@ -23,13 +22,32 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# إضافة المسارات
-ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
-if ROOT_DIR not in sys.path:
-    sys.path.append(ROOT_DIR)
+# ============================================================================
+# 2. إعداد المسارات بشكل صحيح
+# ============================================================================
+
+# الحصول على المسار المطلق للمشروع
+ROOT_DIR = os.path.dirname(os.path.abspath(__file__))  # frontend/
+PROJECT_ROOT = os.path.dirname(ROOT_DIR)  # AI-Breakout-Scanner/
+BACKEND_DIR = os.path.join(PROJECT_ROOT, "backend")  # backend/
+OPPORTUNITY_DIR = os.path.join(BACKEND_DIR, "opportunity")  # backend/opportunity/
+PAGES_DIR = os.path.join(ROOT_DIR, "pages")  # frontend/pages/
+
+# إضافة جميع المسارات إلى sys.path
+paths_to_add = [
+    ROOT_DIR,  # frontend
+    PROJECT_ROOT,  # المشروع الرئيسي
+    BACKEND_DIR,  # backend
+    OPPORTUNITY_DIR,  # backend/opportunity
+    PAGES_DIR,  # frontend/pages
+]
+
+for path in paths_to_add:
+    if path not in sys.path:
+        sys.path.insert(0, path)
 
 # ============================================================================
-# استيراد المكونات
+# 3. استيراد المكونات
 # ============================================================================
 
 try:
@@ -47,26 +65,70 @@ except ImportError:
     BreakoutScanner = None
 
 # ============================================================================
-# تحميل ملف الاستايل
+# 4. استيراد محرك الفرص (Opportunity Engine)
 # ============================================================================
 
-def load_css():
-    """تحميل ملف الاستايل من frontend/assets/style.css"""
-    css_path = os.path.join(ROOT_DIR, "frontend", "assets", "style.css")
-    
-    if os.path.exists(css_path):
+OPPORTUNITY_AVAILABLE = False
+OPPORTUNITY_PAGE_AVAILABLE = False
+opportunity_page = None
+
+# محاولة استيراد محرك الفرص
+try:
+    # محاولة 1: من backend.opportunity
+    from backend.opportunity import OpportunityEngine, MarketPhase
+    OPPORTUNITY_AVAILABLE = True
+    print("✅ تم استيراد محرك الفرص بنجاح")
+except ImportError:
+    try:
+        # محاولة 2: استيراد مباشر
+        from opportunity import OpportunityEngine, MarketPhase
+        OPPORTUNITY_AVAILABLE = True
+        print("✅ تم استيراد محرك الفرص بنجاح (مباشر)")
+    except ImportError:
         try:
-            with open(css_path, 'r', encoding='utf-8') as f:
-                css_content = f.read()
-                st.markdown(f'<style>{css_content}</style>', unsafe_allow_html=True)
-        except Exception as e:
-            st.warning(f"⚠️ خطأ في تحميل ملف الاستايل: {e}")
-            load_inline_css()
-    else:
-        load_inline_css()
+            # محاولة 3: استخدام importlib
+            import importlib.util
+            init_path = os.path.join(OPPORTUNITY_DIR, "__init__.py")
+            if os.path.exists(init_path):
+                spec = importlib.util.spec_from_file_location("opportunity", init_path)
+                opportunity_module = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(opportunity_module)
+                OpportunityEngine = getattr(opportunity_module, 'OpportunityEngine', None)
+                MarketPhase = getattr(opportunity_module, 'MarketPhase', None)
+                if OpportunityEngine is not None:
+                    OPPORTUNITY_AVAILABLE = True
+                    print("✅ تم استيراد محرك الفرص بنجاح (importlib)")
+        except Exception:
+            pass
+
+# محاولة استيراد صفحة الفرص
+if OPPORTUNITY_AVAILABLE:
+    try:
+        # محاولة استيراد صفحة الفرص
+        from pages.opportunity_timeline import main as opportunity_page
+        OPPORTUNITY_PAGE_AVAILABLE = True
+        print("✅ تم استيراد صفحة الفرص بنجاح")
+    except ImportError:
+        try:
+            # محاولة مع مسار مطلق
+            page_path = os.path.join(PAGES_DIR, "opportunity_timeline.py")
+            if os.path.exists(page_path):
+                import importlib.util
+                spec = importlib.util.spec_from_file_location("opportunity_timeline", page_path)
+                page_module = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(page_module)
+                opportunity_page = page_module.main
+                OPPORTUNITY_PAGE_AVAILABLE = True
+                print("✅ تم استيراد صفحة الفرص بنجاح (importlib)")
+        except Exception:
+            pass
+
+# ============================================================================
+# 5. تحميل ملف الاستايل
+# ============================================================================
 
 def load_inline_css():
-    """استايل مضمن بديل بفكرة Dark Mode فائقة الوضوح"""
+    """استايل مضمن بفكرة Dark Mode فائقة الوضوح"""
     st.markdown("""
     <style>
     /* ===== الإعدادات الأساسية ===== */
@@ -190,7 +252,7 @@ def load_inline_css():
         color: #d0d0d0 !important;
     }
     
-    /* ===== القوائم المنسدلة (Selectbox) - إصلاح النص الداكن والوضوح ===== */
+    /* ===== القوائم المنسدلة ===== */
     div[data-baseweb="select"] > div {
         background-color: #1e1e38 !important;
         border: 1px solid rgba(102, 126, 234, 0.4) !important;
@@ -257,10 +319,62 @@ def load_inline_css():
         border-radius: 12px !important;
         border: 1px solid rgba(255,255,255,0.06) !important;
     }
+    
+    /* ===== حالة المحرك ===== */
+    .engine-status {
+        padding: 8px 12px;
+        border-radius: 8px;
+        margin: 4px 0;
+        font-size: 0.85rem;
+    }
+    
+    .engine-status-active {
+        background: rgba(0, 230, 118, 0.15);
+        border: 1px solid rgba(0, 230, 118, 0.3);
+        color: #00E676;
+    }
+    
+    .engine-status-inactive {
+        background: rgba(255, 82, 82, 0.15);
+        border: 1px solid rgba(255, 82, 82, 0.3);
+        color: #FF5252;
+    }
+    
+    .badge-new {
+        background: #f5576c;
+        color: white;
+        font-size: 0.6rem;
+        padding: 1px 8px;
+        border-radius: 10px;
+        margin-left: 5px;
+        font-weight: 700;
+        animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+        0% { opacity: 1; }
+        50% { opacity: 0.5; }
+        100% { opacity: 1; }
+    }
     </style>
     """, unsafe_allow_html=True)
+
+def load_css():
+    """تحميل ملف الاستايل"""
+    css_path = os.path.join(ROOT_DIR, "assets", "style.css")
+    
+    if os.path.exists(css_path):
+        try:
+            with open(css_path, 'r', encoding='utf-8') as f:
+                css_content = f.read()
+                st.markdown(f'<style>{css_content}</style>', unsafe_allow_html=True)
+        except Exception:
+            load_inline_css()
+    else:
+        load_inline_css()
+
 # ============================================================================
-# تهيئة حالة الجلسة
+# 6. تهيئة حالة الجلسة
 # ============================================================================
 
 def init_session_state():
@@ -278,7 +392,12 @@ def init_session_state():
         },
         'initialized': False,
         'custom_symbols': {},
-        'custom_symbol_input': ''
+        'custom_symbol_input': '',
+        'opportunity_results': {},
+        'debug_info': {
+            'opportunity_available': OPPORTUNITY_AVAILABLE,
+            'opportunity_page_available': OPPORTUNITY_PAGE_AVAILABLE,
+        }
     }
     
     if not st.session_state.get('initialized', False):
@@ -288,13 +407,12 @@ def init_session_state():
         st.session_state.initialized = True
 
 # ============================================================================
-# دوال الحصول على الرموز حسب القطاع
+# 7. دوال الحصول على الرموز حسب القطاع
 # ============================================================================
 
 def get_symbols_by_sector(sector):
     """الحصول على رموز الأسهم حسب القطاع"""
     if sector == 'الكل' or sector is None:
-        # إذا كانت STOCK_SYMBOLS قاموس، نجمع كل الرموز
         if isinstance(STOCK_SYMBOLS, dict):
             all_symbols = []
             for syms in STOCK_SYMBOLS.values():
@@ -314,7 +432,7 @@ def get_sectors():
     return ['الكل']
 
 # ============================================================================
-# الشريط الجانبي
+# 8. الشريط الجانبي
 # ============================================================================
 
 def render_sidebar():
@@ -332,9 +450,10 @@ def render_sidebar():
         
         st.markdown("---")
         
-        # القائمة الرئيسية
+        # القائمة الرئيسية مع إضافة صفحة الفرص الجديدة
         pages = {
             "📊 لوحة التحكم": "dashboard",
+            "🚀 AI Opportunity Timeline": "opportunity",  # الصفحة الجديدة
             "🔍 مسح السوق": "scanner",
             "📈 تحليل سهم": "analyze",
             "📊 بيانات السوق": "market_data"
@@ -343,82 +462,97 @@ def render_sidebar():
         current_page = st.session_state.get('current_page', 'dashboard')
         current_index = list(pages.values()).index(current_page) if current_page in pages.values() else 0
         
+        # عرض القائمة مع علامة NEW بجانب الصفحة الجديدة
         selected = st.radio(
             "القائمة",
             list(pages.keys()),
             index=current_index,
-            key="nav_radio"
+            key="nav_radio",
+            format_func=lambda x: x + " 🆕" if x == "🚀 AI Opportunity Timeline" else x
         )
         
         new_page = pages[selected]
         if new_page != current_page:
             st.session_state.current_page = new_page
-        
-        st.markdown("---")
-        
-        # إعدادات المسح
-        st.subheader("⚙️ إعدادات المسح")
-        
-        # الحصول على الإعدادات الحالية
-        config = st.session_state.get('sidebar_config', {})
-        
-        # اختيار القطاع
-        sectors = get_sectors()
-        sector_index = 0
-        current_sector = config.get('sector', 'الكل')
-        if current_sector in sectors:
-            sector_index = sectors.index(current_sector)
-        
-        sector = st.selectbox(
-            "🏢 القطاع",
-            sectors,
-            index=sector_index,
-            key="sector_select"
-        )
-        
-        min_score = st.slider(
-            "🎯 الحد الأدنى للدرجة",
-            min_value=40,
-            max_value=90,
-            value=config.get('min_score', 60),
-            step=5,
-            key="min_score_slider"
-        )
-        
-        max_symbols = st.slider(
-            "📊 عدد الأسهم",
-            min_value=5,
-            max_value=30,
-            value=config.get('max_symbols', 15),
-            step=5,
-            key="max_symbols_slider"
-        )
-        
-        # تخزين الإعدادات
-        st.session_state.sidebar_config = {
-            'sector': sector,
-            'min_score': min_score,
-            'max_symbols': max_symbols
-        }
-        
-        # زر المسح
-        if st.button("🚀 بدء المسح", type="primary", width="stretch", key="scan_btn"):
-            st.session_state.scan_in_progress = True
-            st.session_state.current_page = "scanner"
             st.rerun()
         
         st.markdown("---")
+        
+        # إعدادات المسح (تظهر في جميع الصفحات ما عدا صفحة الفرص)
+        if new_page != "opportunity":
+            st.subheader("⚙️ إعدادات المسح")
+            
+            config = st.session_state.get('sidebar_config', {})
+            sectors = get_sectors()
+            sector_index = 0
+            current_sector = config.get('sector', 'الكل')
+            if current_sector in sectors:
+                sector_index = sectors.index(current_sector)
+            
+            sector = st.selectbox(
+                "🏢 القطاع",
+                sectors,
+                index=sector_index,
+                key="sector_select"
+            )
+            
+            min_score = st.slider(
+                "🎯 الحد الأدنى للدرجة",
+                min_value=40,
+                max_value=90,
+                value=config.get('min_score', 60),
+                step=5,
+                key="min_score_slider"
+            )
+            
+            max_symbols = st.slider(
+                "📊 عدد الأسهم",
+                min_value=5,
+                max_value=30,
+                value=config.get('max_symbols', 15),
+                step=5,
+                key="max_symbols_slider"
+            )
+            
+            st.session_state.sidebar_config = {
+                'sector': sector,
+                'min_score': min_score,
+                'max_symbols': max_symbols
+            }
+            
+            if st.button("🚀 بدء المسح", type="primary", use_container_width=True, key="scan_btn"):
+                st.session_state.scan_in_progress = True
+                st.session_state.current_page = "scanner"
+                st.rerun()
+            
+            st.markdown("---")
         
         # معلومات النظام
         if st.session_state.get('last_scan_time'):
             st.caption(f"⏱️ آخر مسح: {st.session_state.last_scan_time}")
         st.caption(f"🕐 {datetime.now().strftime('%H:%M:%S')}")
-        st.caption("💡 اضبط الإعدادات وابدأ المسح")
+        
+        # حالة محرك الفرص
+        st.markdown("---")
+        st.caption("🔧 حالة النظام:")
+        
+        if OPPORTUNITY_AVAILABLE:
+            st.markdown("""
+            <div class="engine-status engine-status-active">
+                🧠 محرك الفرص: ✅ نشط
+            </div>
+            """, unsafe_allow_html=True)
+        else:
+            st.markdown("""
+            <div class="engine-status engine-status-inactive">
+                🧠 محرك الفرص: ❌ غير متوفر
+            </div>
+            """, unsafe_allow_html=True)
         
         return st.session_state.sidebar_config
 
 # ============================================================================
-# دوال عرض التحليل
+# 9. دوال عرض التحليل
 # ============================================================================
 
 def render_analyze():
@@ -463,7 +597,6 @@ def render_analyze():
     if 'custom_symbols' in st.session_state:
         MAIN_SYMBOLS.update(st.session_state.custom_symbols)
     
-    # معلومات مساعدة
     st.markdown("""
     <div style="background: rgba(255,255,255,0.02); padding: 12px 16px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.05); margin-bottom: 20px;">
         <p style="margin:0; color: rgba(255,255,255,0.6); font-size: 0.85rem;">
@@ -472,7 +605,6 @@ def render_analyze():
     </div>
     """, unsafe_allow_html=True)
     
-    # إدخال الرمز
     col1, col2, col3 = st.columns([2, 2, 1])
     
     with col1:
@@ -521,11 +653,10 @@ def render_analyze():
         refresh_clicked = st.button(
             "🔄 تحديث",
             type="primary",
-            width="stretch",
+            use_container_width=True,
             key="refresh_analysis_main"
         )
     
-    # عرض التحليل
     if symbol:
         if refresh_clicked:
             st.cache_data.clear()
@@ -550,7 +681,6 @@ def display_stock_analysis(symbol):
             
             info = ticker.info
             
-            # معلومات أساسية
             company_name = info.get('longName', symbol)
             st.markdown(f"""
             <div style="background: linear-gradient(135deg, rgba(102,126,234,0.1), rgba(118,75,162,0.1)); 
@@ -562,7 +692,6 @@ def display_stock_analysis(symbol):
             </div>
             """, unsafe_allow_html=True)
             
-            # بطاقات المؤشرات
             current_price = df['Close'].iloc[-1]
             previous_close = info.get('previousClose', current_price)
             change = current_price - previous_close
@@ -616,7 +745,6 @@ def display_stock_analysis(symbol):
             
             st.markdown("---")
             
-            # رسم بياني
             col1, col2 = st.columns([3, 1])
             
             with col1:
@@ -669,7 +797,6 @@ def display_stock_analysis(symbol):
             with col2:
                 st.markdown("#### 📊 مؤشرات سريعة")
                 
-                # RSI
                 delta = df['Close'].diff()
                 gain = delta.where(delta > 0, 0.0).rolling(14).mean()
                 loss = (-delta.where(delta < 0, 0.0)).rolling(14).mean()
@@ -686,7 +813,6 @@ def display_stock_analysis(symbol):
                 </div>
                 """, unsafe_allow_html=True)
                 
-                # حجم التداول
                 avg_volume = df['Volume'].iloc[-21:-1].mean() if len(df) > 21 else df['Volume'].mean()
                 vol_ratio = df['Volume'].iloc[-1] / avg_volume if avg_volume > 0 else 1
                 vol_color = "#00E676" if vol_ratio > 1.5 else "#FFC107" if vol_ratio > 1 else "#FF5252"
@@ -697,7 +823,6 @@ def display_stock_analysis(symbol):
                 </div>
                 """, unsafe_allow_html=True)
                 
-                # ATR
                 atr = (df['High'] - df['Low']).rolling(14).mean().iloc[-1] or 0
                 atr_percent = (atr / current_price) * 100 if current_price > 0 else 0
                 st.markdown(f"""
@@ -707,7 +832,6 @@ def display_stock_analysis(symbol):
                 </div>
                 """, unsafe_allow_html=True)
                 
-                # PE Ratio
                 pe = info.get('trailingPE', 'N/A')
                 pe_color = "#00E676" if pe != 'N/A' and pe < 25 else "#FFC107" if pe != 'N/A' and pe < 40 else "#FF5252"
                 st.markdown(f"""
@@ -719,7 +843,6 @@ def display_stock_analysis(symbol):
             
             st.markdown("---")
             
-            # أخبار الشركة
             with st.expander("📰 آخر الأخبار", expanded=False):
                 try:
                     news = ticker.news
@@ -743,7 +866,7 @@ def display_stock_analysis(symbol):
             st.info("💡 تأكد من صحة الرمز (مثال: AAPL, MSFT, TSLA)")
 
 # ============================================================================
-# الصفحات الأخرى
+# 10. الصفحات الأخرى
 # ============================================================================
 
 def render_dashboard():
@@ -793,6 +916,25 @@ def render_dashboard():
     
     st.markdown("---")
     
+    # عرض حالة محرك الفرص
+    st.subheader("🧠 حالة محرك الذكاء الاصطناعي")
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        if OPPORTUNITY_AVAILABLE:
+            st.success("✅ محرك الفرص: نشط وجاهز للعمل")
+            st.caption("يمكنك استخدام صفحة 'AI Opportunity Timeline' للتحليل المتقدم")
+        else:
+            st.error("❌ محرك الفرص: غير متوفر")
+    
+    with col2:
+        if OPPORTUNITY_PAGE_AVAILABLE:
+            st.success("✅ صفحة الفرص: متوفرة")
+        else:
+            st.error("❌ صفحة الفرص: غير متوفرة")
+    
+    st.markdown("---")
+    
     if not results.empty:
         st.subheader("📋 أفضل الفرص")
         st.dataframe(
@@ -806,7 +948,7 @@ def render_dashboard():
                 "price": st.column_config.NumberColumn("السعر", format="$%.2f"),
                 "target": st.column_config.NumberColumn("الهدف", format="$%.2f")
             },
-            width='stretch',
+            use_container_width=True,
             hide_index=True
         )
     else:
@@ -816,7 +958,6 @@ def render_scanner():
     """صفحة المسح"""
     st.subheader("🔍 مسح السوق")
     
-    # الحصول على الإعدادات
     config = st.session_state.get('sidebar_config', {})
     
     col1, col2, col3 = st.columns(3)
@@ -829,7 +970,6 @@ def render_scanner():
     
     st.markdown("---")
     
-    # اختيار القطاع
     sectors = get_sectors()
     selected_sector = st.selectbox(
         "🏢 تصفية حسب القطاع",
@@ -838,10 +978,9 @@ def render_scanner():
         key="scanner_sector"
     )
     
-    if st.button("🔄 تحديث النتائج", type="primary", width="stretch"):
+    if st.button("🔄 تحديث النتائج", type="primary", use_container_width=True):
         with st.spinner("🔍 جاري مسح السوق..."):
             try:
-                # الحصول على الرموز حسب القطاع
                 symbols = get_symbols_by_sector(selected_sector)
                 symbols = symbols[:config.get('max_symbols', 15)]
                 
@@ -877,7 +1016,7 @@ def render_scanner():
     results = st.session_state.get('scan_results', pd.DataFrame())
     if not results.empty:
         st.subheader(f"📊 النتائج ({len(results)})")
-        st.dataframe(results, width='stretch', hide_index=True)
+        st.dataframe(results, use_container_width=True, hide_index=True)
         
         csv = results.to_csv(index=False)
         st.download_button(
@@ -885,7 +1024,7 @@ def render_scanner():
             csv,
             f"scan_results_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
             "text/csv",
-            width="stretch"
+            use_container_width=True
         )
 
 def render_market_data():
@@ -898,41 +1037,128 @@ def render_market_data():
         st.info("💡 تأكد من وجود ملف frontend/pages/market_data.py")
 
 # ============================================================================
-# عرض الصفحة المختارة
+# 11. صفحة الفرص الجديدة (Opportunity Timeline)
 # ============================================================================
 
-def render_current_page():
-    """عرض الصفحة المختارة"""
-    page = st.session_state.get('current_page', 'dashboard')
-    
-    pages = {
-        'dashboard': render_dashboard,
-        'scanner': render_scanner,
-        'analyze': render_analyze,
-        'market_data': render_market_data
-    }
-    
-    pages.get(page, render_dashboard)()
-
-# ============================================================================
-# التطبيق الرئيسي
-# ============================================================================
-
-def main():
-    """الدالة الرئيسية"""
-    
-    init_session_state()
-    load_css()
+def render_opportunity_page():
+    """عرض صفحة AI Opportunity Timeline"""
     
     st.markdown("""
-    <div class="main-header">
-        <h1>🚀 AI Breakout Scanner</h1>
-        <p>اكتشاف فرص الانفجار السعري باستخدام الذكاء الاصطناعي ومؤشرات الضغط (Squeeze)</p>
+    <div style="
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        padding: 15px 25px;
+        border-radius: 12px;
+        margin-bottom: 20px;
+        color: white;
+        box-shadow: 0 4px 20px rgba(245,87,108,0.3);
+    ">
+        <div style="display: flex; align-items: center; gap: 15px; justify-content: space-between;">
+            <div>
+                <span style="font-size: 2rem;">🚀</span>
+                <span style="font-size: 1.5rem; font-weight: 800; margin-left: 10px;">
+                    AI Opportunity Timeline
+                </span>
+            </div>
+            <div style="
+                background: rgba(255,255,255,0.2);
+                padding: 4px 15px;
+                border-radius: 20px;
+                font-size: 0.8rem;
+                font-weight: 600;
+            ">
+                🆕 NEW
+            </div>
+        </div>
+        <p style="margin-top: 5px; opacity: 0.9; font-size: 0.95rem;">
+            تحليل الفرص الاستثمارية المتقدم باستخدام الذكاء الاصطناعي
+        </p>
     </div>
     """, unsafe_allow_html=True)
     
-    render_sidebar()
-    render_current_page()
+    # التحقق من توفر المحرك
+    if not OPPORTUNITY_AVAILABLE:
+        st.error("❌ **محرك الفرص غير متوفر**")
+        
+        st.warning("""
+        **الأسباب المحتملة:**
+        
+        1. **الملفات غير موجودة** - تأكد من وجود مجلد `backend/opportunity/` مع جميع الملفات
+        
+        2. **أخطاء في الاستيراد** - قد تكون هناك أخطاء في ملفات المحرك
+        
+        3. **مسار غير صحيح** - تأكد من أن المسار مضاف بشكل صحيح
+        """)
+        
+        st.info("""
+        **لتفعيل محرك الفرص:**
+        
+        1. تأكد من وجود الملفات التالية:
+        
+2. تأكد من أن ملف `__init__.py` يحتوي على الاستيرادات الصحيحة
+
+3. أعد تشغيل التطبيق
+""")
+
+if st.button("🔄 محاولة إعادة تحميل المحرك", type="primary"):
+ st.rerun()
+
+return
+
+if not OPPORTUNITY_PAGE_AVAILABLE:
+st.error("❌ **صفحة الفرص غير متوفرة**")
+st.info("""
+**لتفعيل صفحة الفرص:**
+
+1. تأكد من وجود ملف `frontend/pages/opportunity_timeline.py`
+2. تأكد من أن الملف يحتوي على دالة `main()`
+3. أعد تشغيل التطبيق
+""")
+return
+
+# ✅ كل شيء جاهز - عرض صفحة الفرص
+try:
+opportunity_page()
+except Exception as e:
+st.error(f"❌ حدث خطأ في صفحة الفرص: {str(e)}")
+st.exception(e)
+
+# ============================================================================
+# 12. عرض الصفحة المختارة
+# ============================================================================
+
+def render_current_page():
+"""عرض الصفحة المختارة"""
+page = st.session_state.get('current_page', 'dashboard')
+
+pages = {
+'dashboard': render_dashboard,
+'scanner': render_scanner,
+'analyze': render_analyze,
+'market_data': render_market_data,
+'opportunity': render_opportunity_page,  # الصفحة الجديدة
+}
+
+pages.get(page, render_dashboard)()
+
+# ============================================================================
+# 13. التطبيق الرئيسي
+# ============================================================================
+
+def main():
+"""الدالة الرئيسية"""
+
+init_session_state()
+load_css()
+
+st.markdown("""
+<div class="main-header">
+<h1>🚀 AI Breakout Scanner</h1>
+<p>اكتشاف فرص الانفجار السعري باستخدام الذكاء الاصطناعي ومؤشرات الضغط (Squeeze)</p>
+</div>
+""", unsafe_allow_html=True)
+
+render_sidebar()
+render_current_page()
 
 if __name__ == "__main__":
-    main()
+main()
