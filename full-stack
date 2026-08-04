@@ -1,0 +1,26 @@
+Build a full-stack campaign concept studio for marketing teams using the current OpenAI Responses API.
+
+The app should let a user enter a short campaign brief, target audience, product details, tone, and desired channels. It should generate:
+- a concise campaign concept
+- 3 headline/body copy variants
+- a launch checklist
+- image prompts and generated images for the campaign direction
+
+Requirements:
+- Use the current OpenAI API patterns for the Responses API, not legacy Completions or Chat Completions code.
+- Use text generation and image generation in the flow.
+- Create a clean, production-quality UI with loading, error, and empty states.
+- Keep server-side OpenAI calls off the client and document the client/server boundary.
+- Include OPENAI_API_KEY environment variable setup.
+- Add a README with install, run, and deployment notes.
+- Add a small validation plan and explain where to adjust the model, prompt, and image settings later.
+
+Documentation:
+- If the OpenAI Docs skill is available, use it to verify the latest OpenAI API guidance before implementing.
+- If the OpenAI Docs skill is not available, install the OpenAI Docs skill and use it.
+- If the OpenAI Docs skill cannot be installed or used, use web search to search the latest OpenAI developer documentation on developers.openai.com/api.
+- Reference https://developers.openai.com/api/docs/models for guidance on the latest models to use.
+
+Frontend:
+- If the Frontend skill is installed, use it for frontend implementation and polish.
+- If the Frontend skill is not installed, install the Frontend skill and use it.
