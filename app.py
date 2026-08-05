@@ -106,62 +106,36 @@ def get_breakout_scanner():
 # استيراد محرك الفرص (Opportunity Engine)
 # ============================================================================
 
-OPPORTUNITY_AVAILABLE = False
-OPPORTUNITY_PAGE_AVAILABLE = False
-opportunity_page = None
+# ============================================================================
+# استيراد المحركات
+# ============================================================================
 
+# استيراد محرك الفرص (من الكود العامل)
 try:
-    from opportunity import OpportunityEngine, MarketPhase
-    OPPORTUNITY_AVAILABLE = True
-    print("✅ تم استيراد محرك الفرص")
+    from backend.opportunity.opportunity_engine import OpportunityEngine
+    from backend.opportunity.models import MarketPhase, OpportunityScoreLevel
+    OPPORTUNITY_ENGINE_AVAILABLE = True
 except ImportError:
     try:
-        from backend.opportunity import OpportunityEngine, MarketPhase
-        OPPORTUNITY_AVAILABLE = True
-        print("✅ تم استيراد محرك الفرص (backend)")
+        from opportunity.opportunity_engine import OpportunityEngine
+        from opportunity.models import MarketPhase, OpportunityScoreLevel
+        OPPORTUNITY_ENGINE_AVAILABLE = True
     except ImportError:
-        try:
-            import importlib.util
-            init_file = os.path.join(OPPORTUNITY_DIR, "__init__.py")
-            if os.path.exists(init_file):
-                spec = importlib.util.spec_from_file_location("opportunity", init_file)
-                module = importlib.util.module_from_spec(spec)
-                spec.loader.exec_module(module)
-                OpportunityEngine = getattr(module, "OpportunityEngine", None)
-                MarketPhase = getattr(module, "MarketPhase", None)
-                if OpportunityEngine:
-                    OPPORTUNITY_AVAILABLE = True
-                    print("✅ تم استيراد محرك الفرص (importlib)")
-        except Exception:
-            pass
+        OPPORTUNITY_ENGINE_AVAILABLE = False
+        print("⚠️ محرك الفرص غير متوفر")
 
-if OPPORTUNITY_AVAILABLE:
+# استيراد ماسح الانفجارات (من الكود الأصلي)
+def get_breakout_scanner():
+    """استيراد BreakoutScanner فقط عند الحاجة"""
     try:
-        from opportunity_timeline import main as opportunity_page
-        OPPORTUNITY_PAGE_AVAILABLE = True
-        print("✅ تم استيراد صفحة الفرص")
+        from backend.scanner.breakout_scanner import BreakoutScanner
+        return BreakoutScanner
     except ImportError:
         try:
-            from pages.opportunity_timeline import main as opportunity_page
-            OPPORTUNITY_PAGE_AVAILABLE = True
-            print("✅ تم استيراد صفحة الفرص (pages)")
+            from scanner.breakout_scanner import BreakoutScanner
+            return BreakoutScanner
         except ImportError:
-            try:
-                page_file = os.path.join(PAGES_DIR, "opportunity_timeline.py")
-                if os.path.exists(page_file):
-                    import importlib.util
-                    spec = importlib.util.spec_from_file_location("opportunity_timeline", page_file)
-                    module = importlib.util.module_from_spec(spec)
-                    spec.loader.exec_module(module)
-                    opportunity_page = getattr(module, "main", None)
-                    if opportunity_page:
-                        OPPORTUNITY_PAGE_AVAILABLE = True
-                        print("✅ تم استيراد صفحة الفرص (importlib)")
-            except Exception:
-                pass
-
-print(f"🔍 محرك الفرص: {'✅ متوفر' if OPPORTUNITY_AVAILABLE else '❌ غير متوفر'}")
-print(f"🔍 صفحة الفرص: {'✅ متوفرة' if OPPORTUNITY_PAGE_AVAILABLE else '❌ غير متوفرة'}")
+            return None
 
 # ============================================================================
 # دوال مساعدة
