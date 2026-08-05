@@ -4,22 +4,21 @@ import sys
 import os
 from datetime import datetime
 import warnings
-import frontend.pages.opportunity_timeline as opportunity_timeline
 
-if page == "opportunity_timeline":
-    opportunity_timeline.main()  # 👈 استدعاء الدالة هنا لتعمل الواجهة
-warnings.filterwarnings('ignore')
-
+# ============================================================================
+# إعداد الصفحة الأولي لـ Streamlit
+# ============================================================================
 st.set_page_config(
     page_title="AI Breakout Scanner | ماسح الانفجار السعري",
     page_icon="🚀",
     layout="wide",
     initial_sidebar_state="expanded"
 )
+warnings.filterwarnings('ignore')
+
 # ============================================================================
 # إعداد المسارات
 # ============================================================================
-
 PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
 ROOT_DIR = PROJECT_ROOT
 
@@ -34,7 +33,6 @@ for path in [PROJECT_ROOT, BACKEND_DIR, OPPORTUNITY_DIR, PAGES_DIR]:
 # ============================================================================
 # استيراد المكونات - مع تجنب الـ Deadlock
 # ============================================================================
-
 try:
     from config import STOCK_SYMBOLS, APP_SETTINGS
 except ImportError:
@@ -47,7 +45,6 @@ except ImportError:
 # ============================================================================
 # استيراد BreakoutScanner بشكل متأخر (لتجنب Deadlock)
 # ============================================================================
-
 _BreakoutScanner = None
 
 def get_breakout_scanner():
@@ -78,7 +75,6 @@ def get_breakout_scanner():
 # ============================================================================
 # استيراد محرك الفرص (Opportunity Engine)
 # ============================================================================
-
 OPPORTUNITY_AVAILABLE = False
 OPPORTUNITY_PAGE_AVAILABLE = False
 opportunity_page = None
@@ -120,23 +116,27 @@ if OPPORTUNITY_AVAILABLE:
             print("✅ تم استيراد صفحة الفرص (pages)")
         except ImportError:
             try:
-                page_file = os.path.join(PAGES_DIR, "opportunity_timeline.py")
-                if os.path.exists(page_file):
-                    import importlib.util
-                    spec = importlib.util.spec_from_file_location("opportunity_timeline", page_file)
-                    module = importlib.util.module_from_spec(spec)
-                    spec.loader.exec_module(module)
-                    opportunity_page = getattr(module, "main", None)
-                    if opportunity_page:
-                        OPPORTUNITY_PAGE_AVAILABLE = True
-                        print("✅ تم استيراد صفحة الفرص (importlib)")
-            except Exception:
-                pass
+                from frontend.pages.opportunity_timeline import main as opportunity_page
+                OPPORTUNITY_PAGE_AVAILABLE = True
+                print("✅ تم استيراد صفحة الفرص (frontend.pages)")
+            except ImportError:
+                try:
+                    page_file = os.path.join(PAGES_DIR, "opportunity_timeline.py")
+                    if os.path.exists(page_file):
+                        import importlib.util
+                        spec = importlib.util.spec_from_file_location("opportunity_timeline", page_file)
+                        module = importlib.util.module_from_spec(spec)
+                        spec.loader.exec_module(module)
+                        opportunity_page = getattr(module, "main", None)
+                        if opportunity_page:
+                            OPPORTUNITY_PAGE_AVAILABLE = True
+                            print("✅ تم استيراد صفحة الفرص (importlib)")
+                except Exception:
+                    pass
 
 # ============================================================================
 # دوال مساعدة
 # ============================================================================
-
 def get_symbols_by_sector(sector):
     if sector == 'الكل' or sector is None:
         if isinstance(STOCK_SYMBOLS, dict):
@@ -158,7 +158,6 @@ def get_sectors():
 # ============================================================================
 # تحميل الاستايل
 # ============================================================================
-
 def load_inline_css():
     st.markdown("""
     <style>
@@ -347,7 +346,6 @@ def load_css():
 # ============================================================================
 # تهيئة حالة الجلسة
 # ============================================================================
-
 def init_session_state():
     defaults = {
         'scan_results': pd.DataFrame(),
@@ -378,7 +376,6 @@ def init_session_state():
 # ============================================================================
 # الشريط الجانبي
 # ============================================================================
-
 def render_sidebar():
     with st.sidebar:
         st.markdown("""
@@ -412,7 +409,7 @@ def render_sidebar():
             st.session_state.current_page = new_page
             st.rerun()
         st.markdown("---")
-        if new_page != "opportunity":
+        if new_page != "opportunity_timeline":
             st.subheader("⚙️ إعدادات المسح")
             config = st.session_state.get('sidebar_config', {})
             sectors = get_sectors()
@@ -474,7 +471,6 @@ def render_sidebar():
 # ============================================================================
 # تحليل السهم
 # ============================================================================
-
 def display_stock_analysis(symbol):
     with st.spinner(f"📊 جاري تحليل {symbol}..."):
         try:
@@ -714,7 +710,6 @@ def render_analyze():
 # ============================================================================
 # الصفحات
 # ============================================================================
-
 def render_dashboard():
     st.subheader("📊 نظرة عامة")
     col1, col2, col3, col4 = st.columns(4)
@@ -766,66 +761,72 @@ def render_scanner():
     st.subheader("🔍 مسح الانفجارات السعرية")
     config = st.session_state.get('sidebar_config', {})
     
-    if st.session_state.get('scan_in_progress', False) or st.button("▶️ تشغيل المسح الآن"):
+    if st.session_state.get('scan_in_progress', False) or st.button("▶️ تشغيل المسح الآن", key="run_scan_page_btn"):
         st.session_state.scan_in_progress = False
         symbols = get_symbols_by_sector(config.get('sector', 'الكل'))[:config.get('max_symbols', 15)]
         
-        ScannerClass = get_breakout_scanner()
-        if ScannerClass is None:
-            st.error("❌ يتعذر تشغيل الماسح: لم يتم العثور على وحدة BreakoutScanner.")
-            return
-
-        with st.spinner("🔍 جاري تحليل الأسهم واكتشاف الاختراقات..."):
-            try:
-                scanner = ScannerClass()
-                results_df = scanner.scan_symbols(symbols)
-                st.session_state.scan_results = results_df
-                st.session_state.last_scan_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-                st.success("✅ اكتمل المسح بنجاح!")
-            except Exception as e:
-                st.error(f"❌ خطأ أثناء تنفيذ المسح: {e}")
+        scanner_cls = get_breakout_scanner()
+        if scanner_cls:
+            with st.spinner("🔍 جاري تنفيذ المسح الفني وتحليل الأسهم..."):
+                try:
+                    scanner = scanner_cls()
+                    df_res = scanner.scan_symbols(symbols)
+                    if not df_res.empty and 'score' in df_res.columns:
+                        df_res = df_res[df_res['score'] >= config.get('min_score', 60)]
+                    st.session_state.scan_results = df_res
+                    st.session_state.last_scan_time = datetime.now().strftime('%H:%M:%S')
+                    st.success("✅ اكتمل المسح بنجاح!")
+                except Exception as e:
+                    st.error(f"❌ حدث خطأ أثناء المسح: {e}")
+        else:
+            st.error("❌ تعذر تحميل محرك المسح BreakoutScanner.")
 
     results = st.session_state.get('scan_results', pd.DataFrame())
     if not results.empty:
         st.dataframe(results, use_container_width=True)
     else:
-        st.info("انقر على 'تشغيل المسح الآن' لتبدأ العملية.")
+        st.info("💡 لم يتم العثور على نتائج مسح أو لم يبدأ المسح بعد.")
 
 def render_market_data():
-    st.subheader("📊 بيانات السوق والمؤشرات العامة")
-    st.info("ℹ️ يتم سحب أحدث بيانات المؤشرات والقطاعات الرئيسية هنا.")
+    st.subheader("📊 بيانات السوق وقائمة الأسهم")
+    sector = st.session_state.sidebar_config.get('sector', 'الكل')
+    symbols = get_symbols_by_sector(sector)
+    st.write(f"الأسهم المدرجة تحت قطاع (**{sector}**):")
+    st.write(symbols)
 
 # ============================================================================
-# التطبيق الرئيسي (Main Execution Router)
+# الدالة الرئيسية لتشغيل التطبيق
 # ============================================================================
-
 def main():
     load_css()
     init_session_state()
-    config = render_sidebar()
+    render_sidebar()
 
+    # رأس الصفحة (Header)
     st.markdown("""
     <div class="main-header">
-        <h1>🚀 AI Breakout Scanner | ماسح الانفجار السعري</h1>
-        <p>نظام ذكي لاكتشاف الفرص والاختراقات السعرية باستعمال نماذج التعلم الآلي والتحليل الفني</p>
+        <h1>AI Breakout Scanner 🚀</h1>
+        <p>نظام ذكي لاكتشاف الفرص والانفجارات السعرية في سوق الأسهم</p>
     </div>
     """, unsafe_allow_html=True)
 
     page = st.session_state.get('current_page', 'dashboard')
 
-    if page == 'dashboard':
+    if page == "dashboard":
         render_dashboard()
-    elif page == 'opportunity':
+    elif page == "opportunity_timeline":
         if OPPORTUNITY_PAGE_AVAILABLE and opportunity_page:
             opportunity_page()
         else:
-            st.warning("⚠️ صفحة الفرص غير متاحة حالياً.")
-    elif page == 'scanner':
+            st.warning("⚠️ صفحة الفرص (Opportunity Timeline) غير متوفرة حالياً.")
+    elif page == "scanner":
         render_scanner()
-    elif page == 'analyze':
+    elif page == "analyze":
         render_analyze()
-    elif page == 'market_data':
+    elif page == "market_data":
         render_market_data()
+    else:
+        render_dashboard()
 
 if __name__ == "__main__":
     main()
