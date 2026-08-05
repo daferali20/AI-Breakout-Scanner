@@ -24,6 +24,7 @@ ROOT_DIR = PROJECT_ROOT  # للتطابق مع load_css()
 # تحديد مجلد backend المباشر من الجذر
 BACKEND_DIR = os.path.join(PROJECT_ROOT, "backend")
 OPPORTUNITY_DIR = os.path.join(BACKEND_DIR, "opportunity")
+sys.path.insert(0, OPPORTUNITY_DIR)
 PAGES_DIR = os.path.join(PROJECT_ROOT, "pages")
 
 # إضافة المسارات إلى sys.path
