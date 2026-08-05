@@ -342,57 +342,82 @@ def render_phase_indicators(result: Any, data: Dict[str, Any]):
 # دالة تحسين التنسيق ووضوح النصوص (CSS Customization)
 # ============================================================
 def apply_custom_styles():
-    st.markdown(
-        """
+    st.markdown("""
     <style>
-    /* 1. توحيد وضوح نصوص التطبيق */
+    /* 1. توحيد ألوان النصوص الأساسية */
     .stApp, p, span, label, div {
-        color: #F3F4F6 !important; /* لون أبيض مريح للعين */
-    }
-
-    /* 2. تحسين وضوح عناوين وقيم المكونات الإحصائية (Metrics) */
-    [data-testid="stMetricLabel"] {
-        color: #9CA3AF !important;
-        font-size: 1rem !important;
-        font-weight: 600 !important;
-    }
-    [data-testid="stMetricValue"] {
-        color: #10B981 !important; /* لون أخضر واضح */
-        font-size: 1.8rem !important;
-        font-weight: 800 !important;
-    }
-
-    /* 3. تحسين وضوح البطاقات العائمة */
-    .card-box {
-        background: rgba(31, 41, 55, 0.7);
-        border: 1px solid rgba(75, 85, 99, 0.4);
-        padding: 16px;
-        border-radius: 10px;
-        text-align: center;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-    }
-    .card-title {
-        color: #D1D5DB !important;
-        font-size: 0.95rem;
-        margin-bottom: 6px;
-    }
-    .card-value {
-        font-size: 1.3rem;
-        font-weight: bold;
         color: #FFFFFF !important;
     }
 
-    /* 4. تحسين شريط الجانبي Sidebar */
-    [data-testid="stSidebar"] {
-        background-color: #111827;
+    /* 2. بطاقة متدرجة احترافية (النمط الأساسي) */
+    .gradient-card {
+        background: linear-gradient(135deg, rgba(30, 41, 59, 0.8) 0%, rgba(15, 23, 42, 0.9) 100%);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 16px;
+        padding: 20px;
+        text-align: center;
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+        backdrop-filter: blur(12px);
+        transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
     }
-    [data-testid="stSidebar"] * {
-        color: #E5E7EB !important;
+    
+    .gradient-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 15px 30px -5px rgba(102, 126, 234, 0.3);
+        border-color: rgba(102, 126, 234, 0.4);
     }
+
+    /* 3. تنوع التدرجات حسب نوع الفرصة */
+    
+    /* تدرج بنفسجي/أزرق - ممتاز للمرحلة أو النتيجة العامة */
+    .card-purple-gradient {
+        background: linear-gradient(135deg, rgba(102, 126, 234, 0.25) 0%, rgba(118, 75, 162, 0.25) 100%);
+        border: 1px solid rgba(102, 126, 234, 0.3);
+    }
+
+    /* تدرج زمردي/أخضر - ممتاز للفرص المرتفعة أو الأرباح */
+    .card-green-gradient {
+        background: linear-gradient(135deg, rgba(16, 185, 129, 0.2) 0%, rgba(5, 150, 105, 0.2) 100%);
+        border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
+    /* تدرج ذهبي/برتقالي - ممتاز للتنبيهات أو الأحتمالات عالية الخطورة */
+    .card-gold-gradient {
+        background: linear-gradient(135deg, rgba(245, 158, 11, 0.2) 0%, rgba(217, 119, 6, 0.2) 100%);
+        border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+
+    /* 4. تنسيق عناصر البطاقة الداخلية */
+    .card-header {
+        color: #9CA3AF !important;
+        font-size: 0.85rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 8px;
+    }
+
+    .card-main-value {
+        color: #FFFFFF !important;
+        font-size: 1.8rem;
+        font-weight: 800;
+        margin-bottom: 4px;
+        text-shadow: 0 2px 8px rgba(0,0,0,0.4);
+    }
+
+    .card-badge {
+        display: inline-block;
+        padding: 4px 10px;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 700;
+    }
+
+    .badge-green { background: rgba(16, 185, 129, 0.2); color: #10B981 !important; border: 1px solid rgba(16, 185, 129, 0.4); }
+    .badge-gold { background: rgba(245, 158, 11, 0.2); color: #F59E0B !important; border: 1px solid rgba(245, 158, 11, 0.4); }
+    .badge-purple { background: rgba(102, 126, 234, 0.2); color: #818CF8 !important; border: 1px solid rgba(102, 126, 234, 0.4); }
     </style>
-    """,
-        unsafe_allow_html=True,
-    )
+    """, unsafe_allow_html=True)
 
 
 # ============================================================
