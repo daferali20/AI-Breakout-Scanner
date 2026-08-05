@@ -1,6 +1,7 @@
 """
 🚀 AI Opportunity Timeline
-صفحة التسلسل الزمني للفرص الاستثمارية - الإصدار المتكامل
+الملف: AI-Breakout-Scanner/frontend/pages/opportunity_timeline.py
+وصف: صفحة التسلسل الزمني للفرص الاستثمارية
 """
 
 import sys
@@ -13,11 +14,18 @@ import plotly.graph_objects as go
 import streamlit as st
 from plotly.subplots import make_subplots
 
-# إضافة مسار backend إلى sys.path
-backend_path = Path(__file__).parent.parent.parent / "backend"
-sys.path.append(str(backend_path))
+# ============================================================
+# ضبط مسارات المشروع (استناداً لموقع الملف في frontend/pages/)
+# ============================================================
+current_file_path = Path(__file__).resolve()
+# الرجوع لمجلد الجذر AI-Breakout-Scanner
+project_root = current_file_path.parent.parent.parent
+backend_path = project_root / "backend"
 
-# استيراد وحدات الفرص (تأكد من وجود المجلد والوحدات)
+if str(backend_path) not in sys.path:
+    sys.path.append(str(backend_path))
+
+# استيراد وحدات المحرك والفرص من مجلد backend
 try:
     from opportunity import (
         INDICATOR_WEIGHTS,
@@ -29,20 +37,21 @@ try:
         OpportunityScoreLevel,
         TimelineBuilder,
     )
-except ImportError:
-    st.error("❌ تعذر استيراد وحدة backend/opportunity. تأكد من صحة مسار الملفات.")
+except ImportError as e:
+    st.error(f"❌ تعذر استيراد وحدة backend/opportunity: {e}")
+    st.info("تأكد من تطبيق الهيكلية التالية: AI-Breakout-Scanner/backend/opportunity/")
 
 
 # ============================================================
-# دوال العرض المساعدة
+# دوال العرض المساعدة UI Components
 # ============================================================
 
 def render_phase_badge(phase: Any, size: str = "normal"):
-    """عرض شارة المرحلة مع لون وأيقونة"""
+    """عرض شارة المرحلة مع اللون والأيقونة الخاصين بها"""
     props = PHASE_PROPERTIES.get(phase, {})
     color = props.get('color', '#95a5a6')
     emoji = props.get('emoji', '📊')
-    description = props.get('description', str(phase.value).replace('_', ' ').title())
+    description = props.get('description', str(getattr(phase, 'value', phase)).replace('_', ' ').title())
     
     font_size = "16px" if size == "large" else "14px"
     padding = "8px 20px" if size == "large" else "5px 15px"
@@ -68,17 +77,17 @@ def render_phase_badge(phase: Any, size: str = "normal"):
 
 
 def render_score_bar(score: float, label: str = "", height: int = 12, show_percent: bool = True):
-    """عرض شريط التقدم للدرجة"""
+    """عرض شريط نسبة الدرجة والتقييم"""
     score = max(0.0, min(100.0, float(score)))
     
     if score >= 75:
-        color = "#2ecc71"  # أخضر
+        color = "#2ecc71"
     elif score >= 50:
-        color = "#f39c12"  # برتقالي
+        color = "#f39c12"
     elif score >= 30:
-        color = "#e67e22"  # برتقالي غامق
+        color = "#e67e22"
     else:
-        color = "#e74c3c"  # أحمر
+        color = "#e74c3c"
     
     percent_text = f"{score:.1f}%" if show_percent else ""
     
@@ -112,7 +121,7 @@ def render_score_bar(score: float, label: str = "", height: int = 12, show_perce
 
 def render_metric_card(title: str, value: str, delta: Optional[str] = None, 
                        icon: str = "📊", color: str = "#3498db"):
-    """عرض بطاقة مقياس بتنسيق جميل"""
+    """بطاقة عرض المقاييس النمطية"""
     delta_html = f'<span style="color: {color}; font-size: 14px;">{delta}</span>' if delta else ''
     
     st.markdown(
@@ -141,11 +150,11 @@ def render_metric_card(title: str, value: str, delta: Optional[str] = None,
 
 
 # ============================================================
-# دوال عرض البيانات الرئيسية
+# دوال تحليلات ورسومات الصفحة
 # ============================================================
 
 def render_opportunity_overview(result: Any):
-    """عرض نظرة عامة على الفرصة"""
+    """عرض الكروت السريعة للفرصة"""
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
@@ -195,12 +204,11 @@ def render_opportunity_overview(result: Any):
 
 
 def render_timeline_chart(events: List, current_phase: Any):
-    """عرض التسلسل الزمني التفاعلي باستخدام Plotly"""
+    """عرض الشارت التفاعلي للخط الزمني مع Plotly"""
     if not events:
         st.info("لا توجد بيانات كافية لعرض التسلسل الزمني")
         return
     
-    # تجهيز البيانات
     phases, dates, colors, confidences, descriptions = [], [], [], [], []
     
     for event in events:
@@ -285,7 +293,7 @@ def render_timeline_chart(events: List, current_phase: Any):
 
 
 def render_phase_indicators(result: Any, data: Dict[str, Any]):
-    """عرض المؤشرات الفنية للمرحلة"""
+    """عرض مؤشرات المرحلة الفنية"""
     st.subheader("📊 مؤشرات المرحلة")
     cols = st.columns(4)
     
@@ -329,149 +337,54 @@ def render_phase_indicators(result: Any, data: Dict[str, Any]):
                 )
 
 
-def render_catalysts(catalysts: List[str]):
-    """عرض المحفزات"""
-    st.subheader("🔍 المحفزات")
-    if not catalysts:
-        st.info("لم يتم رصد محفزات واضحة حالياً")
-        return
-    
-    cols = st.columns(2)
-    for i, catalyst in enumerate(catalysts):
-        col = cols[i % 2]
-        with col:
-            st.markdown(
-                f"""
-                <div style="
-                    background: #f0f7ff;
-                    border-radius: 8px;
-                    padding: 10px 15px;
-                    margin: 4px 0;
-                    border: 1px solid #d6e9ff;
-                    font-size: 14px;
-                ">
-                    {catalyst}
-                </div>
-                """,
-                unsafe_allow_html=True
-            )
-
-
-def render_risks(risks: List[str]):
-    """عرض المخاطر"""
-    if not risks:
-        return
-    st.subheader("⚠️ المخاطر المحتملة")
-    for risk in risks:
-        st.warning(risk)
-
-
-def render_reasons(reasons: List[str]):
-    """عرض أسباب التقييم"""
-    if not reasons:
-        return
-    st.subheader("📋 أسباب التقييم")
-    for reason in reasons:
-        st.markdown(f"- {reason}")
-
-
-def render_ai_report(result: Any):
-    """عرض تقرير AI الكامل"""
-    st.subheader("🤖 تقرير AI الشامل")
-    with st.expander("📄 عرض التقرير الكامل", expanded=False):
-        st.markdown(getattr(result, 'ai_decision_report', 'لا يوجد تقرير كافي.'))
-
-
-def render_opportunity_score_breakdown(result: Any):
-    """عرض تفصيل درجة الفرصة"""
-    st.subheader("🎯 تفصيل درجة الفرصة")
-    render_score_bar(result.opportunity_score, "الدرجة الإجمالية", height=20)
-    
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        st.markdown("**مكونات التقييم**")
-        st.caption("جودة المرحلة")
-        render_score_bar(85, "", height=8)
-        st.caption("المحفزات")
-        render_score_bar(70 + min(30, len(result.catalysts) * 4), "", height=8)
-        
-    with col2:
-        st.markdown("**مكونات التقييم**")
-        st.caption("احتمال الانتقال")
-        render_score_bar(result.transition_probability * 100, "", height=8)
-        st.caption("الثقة")
-        render_score_bar(result.confidence, "", height=8)
-        
-    with col3:
-        st.markdown("**مكونات التقييم**")
-        st.caption("الزخم")
-        render_score_bar(65 + min(35, result.opportunity_score * 0.3), "", height=8)
-
-
 # ============================================================
-# الصفحة الرئيسية
+# الصفحة الرئيسية (Main Entry Point)
 # ============================================================
 
 def main():
-    """الصفحة الرئيسية لتسلسل الفرص"""
     st.set_page_config(
-        page_title="🚀 AI Opportunity Timeline",
+        page_title="AI Opportunity Timeline",
         page_icon="🚀",
-        layout="wide",
-        initial_sidebar_state="expanded"
+        layout="wide"
     )
     
     st.title("🚀 AI Opportunity Timeline")
-    st.caption("تحليل الفرص الاستثمارية المتقدم باستخدام الذكاء الاصطناعي")
+    st.caption("مسار الصفحة: frontend/pages/opportunity_timeline.py")
     st.divider()
     
-    # ===== الشريط الجانبي =====
+    # ===== الشريط الجانبي Sidebar =====
     with st.sidebar:
         st.header("⚙️ الإعدادات")
-        symbol = st.text_input("🔍 رمز السهم", value="AAPL", help="أدخل رمز السهم المراد تحليله").upper()
+        symbol = st.text_input("🔍 رمز السهم", value="AAPL").upper()
         
         st.divider()
         st.subheader("📊 خيارات العرض")
         show_indicators = st.checkbox("مؤشرات المرحلة", value=True)
-        show_catalysts = st.checkbox("المحفزات", value=True)
-        show_risks = st.checkbox("المخاطر", value=True)
-        show_reasons = st.checkbox("أسباب التقييم", value=True)
         show_timeline = st.checkbox("التسلسل الزمني", value=True)
-        show_score_breakdown = st.checkbox("تفصيل الدرجة", value=True)
-        show_report = st.checkbox("تقرير AI", value=False)
+        show_report = st.checkbox("تقرير الذكاء الاصطناعي", value=False)
         
-        st.divider()
         if st.button("🔄 تحديث التحليل", type="primary", use_container_width=True):
             st.rerun()
             
-        st.divider()
-        st.caption(f"⏰ آخر تحديث: {datetime.now().strftime('%H:%M:%S')}")
-    
     if not symbol:
         st.warning("⚠️ الرجاء إدخال رمز السهم")
         return
     
-    # ===== التحليل =====
+    # ===== استدعاء المحرك وعرض النتائج =====
     try:
         engine = OpportunityEngine()
         timeline_builder = TimelineBuilder()
         
+        # بيانات تجريبية (يتم تبديلها لاحقاً ببيانات المحرك الحقيقية)
         analysis_data = {
             'bollinger_width': 0.27,
             'atr_ratio': 0.35,
             'volume_trend': 2.4,
-            'trend_strength': 0.75,
-            'rsi': 62,
             'smart_money_flow': 0.68,
             'pattern_score': 0.82,
             'sector_strength': 0.64,
             'market_regime': 0.58,
             'news_sentiment': 0.72,
-            'volatility': 0.28,
-            'price_trend': 0.045,
-            'resistance_break': 1.035,
-            'support_hold': 0.985,
-            'volume_spike': 2.8,
             'ai_score': 0.88,
             'earnings': 0.55,
             'relative_volume': 2.4,
@@ -483,7 +396,7 @@ def main():
         with st.spinner(f"🔄 جاري تحليل {symbol}..."):
             result = engine.analyze(symbol, analysis_data)
         
-        # ===== عرض النتائج =====
+        # عرض الكروت والرسم البياني
         render_opportunity_overview(result)
         st.divider()
         
@@ -504,53 +417,13 @@ def main():
         if show_indicators:
             render_phase_indicators(result, analysis_data)
             st.divider()
-        
-        if show_score_breakdown:
-            render_opportunity_score_breakdown(result)
-            st.divider()
-        
-        if show_catalysts and getattr(result, 'catalysts', None):
-            render_catalysts(result.catalysts)
-            st.divider()
-        
-        if show_risks and getattr(result, 'risks', None):
-            render_risks(result.risks)
-            st.divider()
-        
-        if show_reasons and getattr(result, 'reasons', None):
-            render_reasons(result.reasons)
-            st.divider()
-        
-        if show_report:
-            render_ai_report(result)
-            st.divider()
-        
-        with st.expander("📊 بيانات التحليل الخام", expanded=False):
-            col1, col2 = st.columns(2)
-            with col1:
-                st.json({
-                    'symbol': result.symbol,
-                    'current_phase': result.current_phase.value,
-                    'confidence': result.confidence,
-                    'opportunity_score': result.opportunity_score,
-                    'score_level': result.score_level.value,
-                    'transition_probability': result.transition_probability,
-                })
-            with col2:
-                st.json({
-                    'phase_days': result.current_phase_days,
-                    'expected_days': result.expected_days,
-                    'catalysts_count': len(getattr(result, 'catalysts', [])),
-                    'risks_count': len(getattr(result, 'risks', [])),
-                    'analysis_time': result.analysis_timestamp.strftime('%Y-%m-%d %H:%M:%S'),
-                })
-        
-        st.divider()
-        st.caption(f"✅ تم التحليل بنجاح | {symbol} | {result.analysis_timestamp.strftime('%Y-%m-%d %H:%M:%S')}")
-        
+            
+        if show_report and hasattr(result, 'ai_decision_report'):
+            st.subheader("🤖 تقرير الذكاء الاصطناعي")
+            st.info(result.ai_decision_report)
+            
     except Exception as e:
-        st.error(f"❌ حدث خطأ أثناء التحليل: {str(e)}")
-        st.exception(e)
+        st.error(f"❌ حدث خطأ أثناء تشغيل الصفحة: {str(e)}")
 
 
 if __name__ == "__main__":
