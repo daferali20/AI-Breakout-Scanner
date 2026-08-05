@@ -1,29 +1,13 @@
-streamlit
-streamlit-extras
-streamlit-option-menu
-streamlit-aggrid
-
-# Data Processing
-pandas
-numpy
-yfinance
+# requirements.txt
+streamlit==1.28.0
+starlette==0.27.0
+pandas>=2.0.0
+numpy>=1.24.0
+plotly>=5.14.0
+yfinance>=0.2.0
+scikit-learn>=1.3.0
+joblib>=1.3.0
+scipy
 ta
-pandas-datareader
 
-# Visualization
-plotly
-matplotlib
-seaborn
-altair
 
-# Machine Learning
-scikit-learn
-xgboost
-
-# Utilities
-python-dotenv
-requests
-beautifulsoup4
-nltk
-textblob
-loguru
