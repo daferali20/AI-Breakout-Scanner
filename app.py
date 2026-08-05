@@ -19,25 +19,41 @@ st.set_page_config(
 
 # المسار الرئيسي للمشروع حيث يوجد ملف app.py
 PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
-ROOT_DIR = PROJECT_ROOT  # للتطابق مع load_css()
+ROOT_DIR = PROJECT_ROOT
 
 # تحديد مجلد backend المباشر من الجذر
 BACKEND_DIR = os.path.join(PROJECT_ROOT, "backend")
 OPPORTUNITY_DIR = os.path.join(BACKEND_DIR, "opportunity")
-sys.path.insert(0, OPPORTUNITY_DIR)
 PAGES_DIR = os.path.join(PROJECT_ROOT, "pages")
-# التحقق من وجود كل الملفات المطلوبة
-required_files = [
-    "__init__.py", "opportunity_engine.py", "models.py",
-    "phase_detector.py", "transition_model.py"
-]
-for file in required_files:
-    if not os.path.exists(os.path.join(OPPORTUNITY_DIR, file)):
-        st.error(f"الملف المطلوب مفقود: {file}")
+
 # إضافة المسارات إلى sys.path
 for path in [PROJECT_ROOT, BACKEND_DIR, OPPORTUNITY_DIR, PAGES_DIR]:
     if os.path.exists(path) and path not in sys.path:
         sys.path.insert(0, path)
+
+# التحقق من وجود الملفات المطلوبة (مع رسائل النظام)
+required_files = [
+    "__init__.py", "opportunity_engine.py", "models.py",
+    "phase_detector.py", "transition_model.py", 
+    "catalyst_engine.py", "timeline.py", "confidence.py",
+    "scoring.py", "explanation.py", "probability.py"
+]
+
+missing_files = []
+for file in required_files:
+    file_path = os.path.join(OPPORTUNITY_DIR, file)
+    if not os.path.exists(file_path):
+        missing_files.append(file)
+
+# تخزين حالة الملفات المفقودة للاستخدام لاحقاً
+OPPORTUNITY_MISSING_FILES = missing_files
+OPPORTUNITY_AVAILABLE = len(missing_files) == 0
+
+# طباعة تحذيرات للنظام (وليس للمستخدم)
+if missing_files:
+    print(f"⚠️ الملفات المفقودة في مجلد الفرص: {missing_files}")
+else:
+    print("✅ جميع ملفات محرك الفرص موجودة")
 
 # ============================================================================
 # استيراد المكونات - مع تجنب الـ Deadlock
