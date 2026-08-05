@@ -12,7 +12,11 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 from plotly.subplots import make_subplots
+# إضافة 6 أيام إلى التاريخ الحالي
+future_date = datetime.now() + timedelta(days=6)
 
+# طرح 6 أيام من التاريخ الحالي
+past_date = datetime.now() - timedelta(days=6)
 # ============================================================
 # ضبط مسارات المشروع (استناداً لموقع الملف في frontend/pages/)
 # ============================================================
