@@ -335,95 +335,152 @@ def render_phase_indicators(result: Any, data: Dict[str, Any]):
                     unsafe_allow_html=True
                 )
 
+# ============================================================
+# دالة تحسين التنسيق ووضوح النصوص (CSS Customization)
+# ============================================================
+def apply_custom_styles():
+    st.markdown(
+        """
+    <style>
+    /* 1. توحيد وضوح نصوص التطبيق */
+    .stApp, p, span, label, div {
+        color: #F3F4F6 !important; /* لون أبيض مريح للعين */
+    }
+
+    /* 2. تحسين وضوح عناوين وقيم المكونات الإحصائية (Metrics) */
+    [data-testid="stMetricLabel"] {
+        color: #9CA3AF !important;
+        font-size: 1rem !important;
+        font-weight: 600 !important;
+    }
+    [data-testid="stMetricValue"] {
+        color: #10B981 !important; /* لون أخضر واضح */
+        font-size: 1.8rem !important;
+        font-weight: 800 !important;
+    }
+
+    /* 3. تحسين وضوح البطاقات العائمة */
+    .card-box {
+        background: rgba(31, 41, 55, 0.7);
+        border: 1px solid rgba(75, 85, 99, 0.4);
+        padding: 16px;
+        border-radius: 10px;
+        text-align: center;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+    .card-title {
+        color: #D1D5DB !important;
+        font-size: 0.95rem;
+        margin-bottom: 6px;
+    }
+    .card-value {
+        font-size: 1.3rem;
+        font-weight: bold;
+        color: #FFFFFF !important;
+    }
+
+    /* 4. تحسين شريط الجانبي Sidebar */
+    [data-testid="stSidebar"] {
+        background-color: #111827;
+    }
+    [data-testid="stSidebar"] * {
+        color: #E5E7EB !important;
+    }
+    </style>
+    """,
+        unsafe_allow_html=True,
+    )
+
 
 # ============================================================
 # الصفحة الرئيسية (Main Entry Point)
 # ============================================================
-
 def main():
-    #st.set_page_config(
-     #   page_title="AI Opportunity Timeline",
-      #  page_icon="🚀",
-      #  layout="wide"
-   # )
-    
+    # تطبيق التنسيقات أولاً لضمان وضوح النصوص
+    apply_custom_styles()
+
     st.title("🚀 AI Opportunity Timeline")
     st.caption("مسار الصفحة: frontend/pages/opportunity_timeline.py")
     st.divider()
-    
+
     # ===== الشريط الجانبي Sidebar =====
     with st.sidebar:
         st.header("⚙️ الإعدادات")
         symbol = st.text_input("🔍 رمز السهم", value="AAPL").upper()
-        
+
         st.divider()
         st.subheader("📊 خيارات العرض")
         show_indicators = st.checkbox("مؤشرات المرحلة", value=True)
         show_timeline = st.checkbox("التسلسل الزمني", value=True)
         show_report = st.checkbox("تقرير الذكاء الاصطناعي", value=False)
-        
-        if st.button("🔄 تحديث التحليل", type="primary", use_container_width=True):
+
+        if st.button(
+            "🔄 تحديث التحليل", type="primary", use_container_width=True
+        ):
             st.rerun()
-            
+
     if not symbol:
         st.warning("⚠️ الرجاء إدخال رمز السهم")
         return
-    
+
     # ===== استدعاء المحرك وعرض النتائج =====
     try:
         engine = OpportunityEngine()
         timeline_builder = TimelineBuilder()
-        
+
         # بيانات تجريبية (يتم تبديلها لاحقاً ببيانات المحرك الحقيقية)
         analysis_data = {
-            'bollinger_width': 0.27,
-            'atr_ratio': 0.35,
-            'volume_trend': 2.4,
-            'smart_money_flow': 0.68,
-            'pattern_score': 0.82,
-            'sector_strength': 0.64,
-            'market_regime': 0.58,
-            'news_sentiment': 0.72,
-            'ai_score': 0.88,
-            'earnings': 0.55,
-            'relative_volume': 2.4,
-            'bollinger_squeeze': 0.73,
-            'atr_compression': 0.65,
-            'pattern_detection': 0.82,
+            "bollinger_width": 0.27,
+            "atr_ratio": 0.35,
+            "volume_trend": 2.4,
+            "smart_money_flow": 0.68,
+            "pattern_score": 0.82,
+            "sector_strength": 0.64,
+            "market_regime": 0.58,
+            "news_sentiment": 0.72,
+            "ai_score": 0.88,
+            "earnings": 0.55,
+            "relative_volume": 2.4,
+            "bollinger_squeeze": 0.73,
+            "atr_compression": 0.65,
+            "pattern_detection": 0.82,
         }
-        
+
         with st.spinner(f"🔄 جاري تحليل {symbol}..."):
             result = engine.analyze(symbol, analysis_data)
-        
+
         # عرض الكروت والرسم البياني
         render_opportunity_overview(result)
         st.divider()
-        
-        render_score_bar(result.opportunity_score, "🎯 درجة الفرصة الإجمالية", height=16)
+
+        render_score_bar(
+            result.opportunity_score,
+            "🎯 درجة الفرصة الإجمالية",
+            height=16,
+        )
         st.divider()
-        
+
         if show_timeline:
             events = timeline_builder.build_timeline(
                 result.current_phase,
                 result.next_phase,
                 result.current_phase_days,
                 result.expected_days,
-                analysis_data
+                analysis_data,
             )
             render_timeline_chart(events, result.current_phase)
             st.divider()
-        
+
         if show_indicators:
             render_phase_indicators(result, analysis_data)
             st.divider()
-            
-        if show_report and hasattr(result, 'ai_decision_report'):
+
+        if show_report and hasattr(result, "ai_decision_report"):
             st.subheader("🤖 تقرير الذكاء الاصطناعي")
             st.info(result.ai_decision_report)
-            
+
     except Exception as e:
         st.error(f"❌ حدث خطأ أثناء تشغيل الصفحة: {str(e)}")
-
 
 # ✅ بهذا:
 main()
