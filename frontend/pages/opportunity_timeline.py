@@ -409,7 +409,39 @@ def apply_custom_styles():
     </style>
     """, unsafe_allow_html=True)
 
+# ============================================================
+# 2. رسم شارت التسلسل الزمني بواسطة Plotly
+# ============================================================
+def create_timeline_chart() -> go.Figure:
+    today = datetime.now()
+    dates = [today - timedelta(days=6), today, today + timedelta(days=8)]
+    phases = ["Accumulation", "Current", "Breakout Target"]
+    scores = [65, 82.5, 95]
 
+    fig = go.Figure()
+
+    # خط مسار الفرصة
+    fig.add_trace(go.Scatter(
+        x=dates,
+        y=scores,
+        mode='lines+markers+text',
+        text=["البداية", "اليوم (82.5%)", "الانفجار المتوقع"],
+        textposition="top center",
+        line=dict(color='#818CF8', width=3, dash='dot'),
+        marker=dict(size=12, color=['#6366F1', '#10B981', '#F59E0B']),
+        name="مسار الفرصة"
+    ))
+
+    fig.update_layout(
+        template="plotly_dark",
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(0,0,0,0)',
+        height=320,
+        margin=dict(l=20, r=20, t=30, b=20),
+        xaxis=dict(showgrid=False),
+        yaxis=dict(showgrid=True, gridcolor='rgba(255,255,255,0.05)', title="درجة الفرصة %")
+    )
+    return fig
 # ============================================================
 # الصفحة الرئيسية (Main Entry Point)
 # ============================================================
