@@ -482,5 +482,5 @@ def main():
     except Exception as e:
         st.error(f"❌ حدث خطأ أثناء تشغيل الصفحة: {str(e)}")
 
-# ✅ بهذا:
-main()
+if __name__ == "__main__":
+    main()
