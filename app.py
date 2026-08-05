@@ -388,13 +388,21 @@ def render_sidebar():
         </div>
         """, unsafe_allow_html=True)
         st.markdown("---")
+        # ❌ التعديل المطلوب في القاموس:
         pages = {
             "📊 لوحة التحكم": "dashboard",
-            "🚀 AI Opportunity Timeline": "opportunity",
+            "🚀 AI Opportunity Timeline": "opportunity_timeline",  # 👈 قم بتغييرها هنا لتطابق اسم الملف
             "🔍 مسح السوق": "scanner",
             "📈 تحليل سهم": "analyze",
             "📊 بيانات السوق": "market_data"
         }
+        #pages = {
+          #  "📊 لوحة التحكم": "dashboard",
+           # "🚀 AI Opportunity Timeline": "opportunity",
+          #  "🔍 مسح السوق": "scanner",
+           # "📈 تحليل سهم": "analyze",
+           # "📊 بيانات السوق": "market_data"
+       # }
         current_page = st.session_state.get('current_page', 'dashboard')
         current_index = list(pages.values()).index(current_page) if current_page in pages.values() else 0
         selected = st.radio(
