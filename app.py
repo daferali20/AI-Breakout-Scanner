@@ -26,7 +26,14 @@ BACKEND_DIR = os.path.join(PROJECT_ROOT, "backend")
 OPPORTUNITY_DIR = os.path.join(BACKEND_DIR, "opportunity")
 sys.path.insert(0, OPPORTUNITY_DIR)
 PAGES_DIR = os.path.join(PROJECT_ROOT, "pages")
-
+# التحقق من وجود كل الملفات المطلوبة
+required_files = [
+    "__init__.py", "opportunity_engine.py", "models.py",
+    "phase_detector.py", "transition_model.py"
+]
+for file in required_files:
+    if not os.path.exists(os.path.join(OPPORTUNITY_DIR, file)):
+        st.error(f"الملف المطلوب مفقود: {file}")
 # إضافة المسارات إلى sys.path
 for path in [PROJECT_ROOT, BACKEND_DIR, OPPORTUNITY_DIR, PAGES_DIR]:
     if os.path.exists(path) and path not in sys.path:
