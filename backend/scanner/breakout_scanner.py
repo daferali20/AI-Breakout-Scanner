@@ -127,8 +127,8 @@ class BreakoutScanner:
 
     def scan_symbols(
         self, symbols: List[str], min_score: float = 0
-    ) -> List[Dict]:
-        """الدالة المطلوبة من واجهة المستخدم لاستقبال مصفوفة الأسهم والإرجاع كـ List أو DataFrame"""
+    ) -> pd.DataFrame:
+        """مسح مجموعة أسهم وإعادة البيانات كـ DataFrame"""
         results = []
 
         for symbol in symbols:
@@ -149,7 +149,11 @@ class BreakoutScanner:
                     }
                 )
 
-        return results
+        if results:
+            df = pd.DataFrame(results)
+            return df.sort_values("score", ascending=False)
+
+        return pd.DataFrame()  # إرجاع جدول فارغ في حال عدم وجود نتائج
 
     def scan_market(
         self, symbols: List[str], min_score: float = 60
