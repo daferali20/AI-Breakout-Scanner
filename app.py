@@ -8,23 +8,6 @@ import json
 from io import BytesIO
 import traceback
 
-# تجاهل تحذيرات التوافق
-warnings.filterwarnings('ignore')
-
-# تصحيح مشكلة التوافق مع Streamlit
-if sys.version_info >= (3, 14):
-    # تصحيح مؤقت للـ GZipResponder
-    import streamlit.web.server.starlette.starlette_gzip_middleware as gzip_middleware
-    if hasattr(gzip_middleware, '_MediaAwareGZipResponder'):
-        original_init = gzip_middleware._MediaAwareGZipResponder.__init__
-        def patched_init(self, app, minimum_size, compresslevel=9, thread_minimum_size=512):
-            return original_init(self, app, minimum_size, compresslevel=compresslevel)
-        gzip_middleware._MediaAwareGZipResponder.__init__ = patched_init
-# قراءة المفتاح
-#api_key = st.secrets["OPENAI_API_KEY"]
-# أو
-#api_key = st.secrets.get("OPENAI_API_KEY", "default_value_if_not_found")
-
 warnings.filterwarnings('ignore')
 
 st.set_page_config(
@@ -227,9 +210,6 @@ if OPPORTUNITY_AVAILABLE:
             except Exception:
                 pass
 
-print(f"🔍 محرك الفرص: {'✅ متوفر' if OPPORTUNITY_AVAILABLE else '❌ غير متوفر'}")
-print(f"🔍 صفحة الفرص: {'✅ متوفرة' if OPPORTUNITY_PAGE_AVAILABLE else '❌ غير متوفرة'}")
-
 # ============================================================================
 # دوال مساعدة محسّنة
 # ============================================================================
@@ -241,7 +221,6 @@ def get_symbols_by_sector(sector):
             for syms in STOCK_SYMBOLS.values():
                 if isinstance(syms, list):
                     all_symbols.extend(syms)
-            # إزالة التكرارات
             return list(set(all_symbols))
         return STOCK_SYMBOLS
     if isinstance(STOCK_SYMBOLS, dict):
@@ -253,7 +232,6 @@ def get_sectors():
         return ['الكل'] + [s for s in STOCK_SYMBOLS.keys() if s != 'الكل']
     return ['الكل']
 
-# ديكور لمعالجة الأخطاء
 def safe_execute(func):
     def wrapper(*args, **kwargs):
         try:
@@ -470,22 +448,6 @@ def load_inline_css(theme='dark'):
         border-radius: 10px;
         margin: 5px 0;
     }}
-    .alert-box.info {{
-        background: rgba(41, 182, 246, 0.1);
-        border-color: rgba(41, 182, 246, 0.3);
-    }}
-    .alert-box.success {{
-        background: rgba(0, 230, 118, 0.1);
-        border-color: rgba(0, 230, 118, 0.3);
-    }}
-    .alert-box.warning {{
-        background: rgba(255, 193, 7, 0.1);
-        border-color: rgba(255, 193, 7, 0.3);
-    }}
-    .alert-box.danger {{
-        background: rgba(255, 82, 82, 0.1);
-        border-color: rgba(255, 82, 82, 0.3);
-    }}
     </style>
     """, unsafe_allow_html=True)
 
@@ -529,9 +491,9 @@ def init_session_state():
         },
         'theme': 'dark',
         'debug_mode': False,
-        'results_history': [],  # تاريخ النتائج
-        'favorites': [],  # الأسهم المفضلة
-        'alerts': [],  # التنبيهات
+        'results_history': [],
+        'favorites': [],
+        'alerts': [],
         'last_alert_check': None
     }
     if not st.session_state.get('initialized', False):
@@ -539,63 +501,6 @@ def init_session_state():
             if key not in st.session_state:
                 st.session_state[key] = value
         st.session_state.initialized = True
-
-# ============================================================================
-# دوال إدارة النتائج والتنبيهات
-# ============================================================================
-
-def save_scan_result(results):
-    """حفظ نتائج المسح في التاريخ"""
-    if results is not None and not results.empty:
-        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        st.session_state.results_history.append({
-            'timestamp': timestamp,
-            'results': results.copy(),
-            'config': st.session_state.sidebar_config.copy()
-        })
-        # الاحتفاظ بآخر 20 نتيجة فقط
-        if len(st.session_state.results_history) > 20:
-            st.session_state.results_history.pop(0)
-
-def check_alerts(results):
-    """فحص التنبيهات بناءً على النتائج"""
-    alerts = []
-    if results is not None and not results.empty:
-        for _, row in results.iterrows():
-            symbol = row.get('symbol', '')
-            score = row.get('score', 0)
-            squeeze = row.get('squeeze', 0)
-            
-            if score >= 80:
-                alerts.append(f"🔔 **{symbol}**: فرصة قوية جداً ({score}%)")
-            elif score >= 70:
-                alerts.append(f"📈 **{symbol}**: فرصة جيدة ({score}%)")
-            
-            if squeeze >= 85:
-                alerts.append(f"📊 **{symbol}**: ضغط عالي - استعداد للانفجار")
-            
-            # تنبيهات المخاطرة
-            risk = row.get('risk', '')
-            if risk == 'مرتفع' and score >= 70:
-                alerts.append(f"⚠️ **{symbol}**: فرصة عالية المخاطرة")
-    
-    return alerts
-
-def export_results(results, format='csv'):
-    """تصدير النتائج بتنسيقات متعددة"""
-    if results is None or results.empty:
-        return None
-    
-    if format == 'csv':
-        return results.to_csv(index=False)
-    elif format == 'json':
-        return results.to_json(orient='records', date_format='iso')
-    elif format == 'excel':
-        output = BytesIO()
-        with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-            results.to_excel(writer, index=False, sheet_name='Scan Results')
-        return output.getvalue()
-    return None
 
 def toggle_theme():
     """تبديل الثيم"""
@@ -621,14 +526,12 @@ def render_sidebar():
         
         st.markdown("---")
         
-        # تبديل الثيم
         theme_icon = "☀️" if st.session_state.theme == 'dark' else "🌙"
         if st.button(f"{theme_icon} تبديل الثيم", use_container_width=True):
             toggle_theme()
         
         st.markdown("---")
         
-        # قائمة الصفحات
         pages = {
             "📊 لوحة التحكم": "dashboard",
             "🚀 AI Opportunity Timeline": "opportunity",
@@ -655,7 +558,6 @@ def render_sidebar():
         
         st.markdown("---")
         
-        # إعدادات المسح (للصفحات غير opportunity)
         if new_page != "opportunity":
             st.subheader("⚙️ إعدادات المسح")
             config = st.session_state.get('sidebar_config', {})
@@ -704,13 +606,11 @@ def render_sidebar():
             
             st.markdown("---")
         
-        # عرض المفضلة
         if st.session_state.get('favorites'):
             st.subheader("⭐ المفضلة")
             for fav in st.session_state.favorites[:5]:
                 st.caption(f"• {fav}")
         
-        # معلومات إضافية
         if st.session_state.get('last_scan_time'):
             st.caption(f"⏱️ آخر مسح: {st.session_state.last_scan_time}")
         
@@ -718,7 +618,6 @@ def render_sidebar():
         
         st.markdown("---")
         
-        # حالة النظام
         st.caption("🔧 حالة النظام:")
         if OPPORTUNITY_AVAILABLE:
             st.markdown("""
@@ -733,7 +632,6 @@ def render_sidebar():
             </div>
             """, unsafe_allow_html=True)
         
-        # وضع التطوير
         debug_mode = st.checkbox(
             "🐛 وضع التطوير",
             value=st.session_state.get('debug_mode', False),
@@ -774,7 +672,6 @@ def display_stock_analysis(symbol):
             </div>
             """, unsafe_allow_html=True)
             
-            # عرض المؤشرات الرئيسية
             current_price = df['Close'].iloc[-1]
             previous_close = info.get('previousClose', current_price)
             change = current_price - previous_close
@@ -828,7 +725,6 @@ def display_stock_analysis(symbol):
             
             st.markdown("---")
             
-            # الرسم البياني
             col1, col2 = st.columns([3, 1])
             
             with col1:
@@ -879,7 +775,7 @@ def display_stock_analysis(symbol):
             with col2:
                 st.markdown("#### 📊 مؤشرات سريعة")
                 
-                # RSI
+                # حساب RSI
                 delta = df['Close'].diff()
                 gain = delta.where(delta > 0, 0.0).rolling(14).mean()
                 loss = (-delta.where(delta < 0, 0.0)).rolling(14).mean()
@@ -890,468 +786,182 @@ def display_stock_analysis(symbol):
                 rsi_color = "#00E676" if 40 <= current_rsi <= 70 else "#FF5252" if current_rsi > 70 else "#FFC107"
                 
                 st.markdown(f"""
-                <div style="background: rgba(255,255,255,0.03); padding: 10px; border-radius: 8px; margin-bottom: 8px;">
-                    <div style="color: rgba(255,255,255,0.5); font-size: 0.8rem;">RSI (14)</div>
+                <div style="background: rgba(255,255,255,0.03); padding: 12px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.06); margin-bottom: 10px;">
+                    <div style="color: rgba(255,255,255,0.6); font-size: 0.8rem;">RSI (14)</div>
                     <div style="font-size: 1.4rem; font-weight: 700; color: {rsi_color};">{current_rsi:.1f}</div>
                 </div>
                 """, unsafe_allow_html=True)
-                
-                # نسبة الحجم
-                avg_volume = df['Volume'].iloc[-21:-1].mean() if len(df) > 21 else df['Volume'].mean()
-                vol_ratio = df['Volume'].iloc[-1] / avg_volume if avg_volume > 0 else 1
-                vol_color = "#00E676" if vol_ratio > 1.5 else "#FFC107" if vol_ratio > 1 else "#FF5252"
-                
-                st.markdown(f"""
-                <div style="background: rgba(255,255,255,0.03); padding: 10px; border-radius: 8px; margin-bottom: 8px;">
-                    <div style="color: rgba(255,255,255,0.5); font-size: 0.8rem;">نسبة الحجم</div>
-                    <div style="font-size: 1.4rem; font-weight: 700; color: {vol_color};">{vol_ratio:.2f}x</div>
-                </div>
-                """, unsafe_allow_html=True)
-                
-                # ATR
-                atr = (df['High'] - df['Low']).rolling(14).mean().iloc[-1] or 0
-                atr_percent = (atr / current_price) * 100 if current_price > 0 else 0
-                
-                st.markdown(f"""
-                <div style="background: rgba(255,255,255,0.03); padding: 10px; border-radius: 8px; margin-bottom: 8px;">
-                    <div style="color: rgba(255,255,255,0.5); font-size: 0.8rem;">ATR</div>
-                    <div style="font-size: 1.4rem; font-weight: 700; color: #29B6F6;">${atr:.2f} ({atr_percent:.1f}%)</div>
-                </div>
-                """, unsafe_allow_html=True)
-                
-                # PE Ratio
-                pe = info.get('trailingPE', 'N/A')
-                pe_color = "#00E676" if pe != 'N/A' and pe < 25 else "#FFC107" if pe != 'N/A' and pe < 40 else "#FF5252"
-                
-                st.markdown(f"""
-                <div style="background: rgba(255,255,255,0.03); padding: 10px; border-radius: 8px;">
-                    <div style="color: rgba(255,255,255,0.5); font-size: 0.8rem;">نسبة PE</div>
-                    <div style="font-size: 1.4rem; font-weight: 700; color: {pe_color};">{f"{pe:.2f}" if pe != 'N/A' else 'N/A'}</div>
-                </div>
-                """, unsafe_allow_html=True)
-            
-            st.markdown("---")
-            
-            # الأخبار
-            with st.expander("📰 آخر الأخبار", expanded=False):
-                try:
-                    news = ticker.news
-                    if news:
-                        for item in news[:3]:
-                            title = item.get('title', 'عنوان غير معروف')
-                            publisher = item.get('publisher', 'مصدر غير معروف')
-                            st.markdown(f"""
-                            <div style="background: rgba(255,255,255,0.02); padding: 10px 15px; border-radius: 10px; margin-bottom: 8px; border-right: 3px solid #667eea;">
-                                <div style="font-weight: 600;">📰 {title}</div>
-                                <div style="color: rgba(255,255,255,0.4); font-size: 0.8rem;">{publisher}</div>
-                            </div>
-                            """, unsafe_allow_html=True)
-                    else:
-                        st.info("📰 لا توجد أخبار حديثة")
-                except:
-                    st.info("📰 لا توجد أخبار متاحة")
-                    
-        except Exception as e:
-            show_user_friendly_error('unknown', str(e), e)
 
-def render_analyze():
-    st.subheader("📈 تحليل سهم محدد")
-    
-    MAIN_SYMBOLS = {
-        'AAPL': 'Apple Inc.', 'MSFT': 'Microsoft Corp.', 'GOOGL': 'Alphabet Inc.',
-        'AMZN': 'Amazon.com Inc.', 'NVDA': 'NVIDIA Corp.', 'META': 'Meta Platforms',
-        'TSLA': 'Tesla Inc.', 'AMD': 'Advanced Micro Devices', 'INTC': 'Intel Corp.',
-        'NFLX': 'Netflix Inc.', 'PYPL': 'PayPal Holdings', 'ADBE': 'Adobe Inc.',
-        'CRM': 'Salesforce Inc.', 'ORCL': 'Oracle Corp.', 'IBM': 'IBM Corp.',
-        'CSCO': 'Cisco Systems', 'QCOM': 'Qualcomm Inc.', 'TXN': 'Texas Instruments',
-        'JPM': 'JPMorgan Chase', 'BAC': 'Bank of America', 'WFC': 'Wells Fargo',
-        'JNJ': 'Johnson & Johnson', 'UNH': 'UnitedHealth', 'PFE': 'Pfizer Inc.',
-        'WMT': 'Walmart Inc.', 'PG': 'Procter & Gamble', 'KO': 'Coca-Cola Co.',
-        'XOM': 'Exxon Mobil', 'CVX': 'Chevron Corp.', 'V': 'Visa Inc.', 'MA': 'Mastercard Inc.'
-    }
-    
-    if 'custom_symbols' in st.session_state:
-        MAIN_SYMBOLS.update(st.session_state.custom_symbols)
-    
+                if st.button("⭐ إضافة للمفضلة", use_container_width=True):
+                    if symbol not in st.session_state.favorites:
+                        st.session_state.favorites.append(symbol)
+                        st.success(f"تمت إضافة {symbol} للمفضلة")
+                        st.rerun()
+
+        except Exception as e:
+            show_user_friendly_error('unknown', details=str(e), exception=e)
+
+# ============================================================================
+# صفحات التطبيق
+# ============================================================================
+
+def render_dashboard_page():
     st.markdown("""
-    <div style="background: rgba(255,255,255,0.02); padding: 12px 16px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.05); margin-bottom: 20px;">
-        <p style="margin:0; color: rgba(255,255,255,0.6); font-size: 0.85rem;">
-            💡 اختر من الرموز الرئيسية أو اكتب رمزاً مخصصاً
-        </p>
+    <div class="main-header">
+        <h1>📊 لوحة التحكم الرئيسية</h1>
+        <p>مرحباً بك في ماسح الانفجار السعري المدعوم بالذكاء الاصطناعي</p>
     </div>
     """, unsafe_allow_html=True)
-    
-    col1, col2, col3 = st.columns([2, 2, 1])
-    
-    with col1:
-        symbol_options = ["-- اختر رمزاً --"] + list(MAIN_SYMBOLS.keys()) + ["✏️ إدخال مخصص"]
-        selected_option = st.selectbox("اختر رمز السهم:", options=symbol_options, index=0, key="symbol_select_main")
-        
-        if selected_option == "✏️ إدخال مخصص":
-            symbol = st.text_input(
-                "أدخل رمز السهم:",
-                value=st.session_state.get('custom_symbol_input', ''),
-                placeholder="مثال: AAPL, MSFT, TSLA...",
-                key="custom_symbol_input_main"
-            ).upper().strip()
-            
-            if symbol and symbol not in MAIN_SYMBOLS:
-                if st.button("➕ إضافة", key="add_symbol_main"):
-                    st.session_state.custom_symbols[symbol] = symbol
-                    st.session_state.custom_symbol_input = symbol
-                    st.success(f"✅ تم إضافة {symbol}")
-                    st.rerun()
-        elif selected_option != "-- اختر رمزاً --":
-            symbol = selected_option
-            st.session_state.custom_symbol_input = symbol
-        else:
-            symbol = ""
-    
-    with col2:
-        if symbol and symbol in MAIN_SYMBOLS:
-            st.markdown(f"""
-            <div style="background: rgba(255,255,255,0.03); padding: 10px; border-radius: 10px; margin-top: 25px; border: 1px solid rgba(255,255,255,0.05);">
-                <div style="color: rgba(255,255,255,0.4); font-size: 0.8rem;">🏢 الشركة</div>
-                <div style="font-weight: 600; font-size: 1rem;">{MAIN_SYMBOLS[symbol]}</div>
-            </div>
-            """, unsafe_allow_html=True)
-    
-    with col3:
-        st.markdown("<br>", unsafe_allow_html=True)
-        refresh_clicked = st.button("🔄 تحديث", type="primary", use_container_width=True, key="refresh_analysis_main")
-    
-    if symbol:
-        if refresh_clicked:
-            st.cache_data.clear()
-        display_stock_analysis(symbol)
-    else:
-        st.info("🔍 اختر أو اكتب رمز سهم للبدء")
-
-# ============================================================================
-# الصفحات المحسّنة
-# ============================================================================
-
-def render_dashboard():
-    st.subheader("📊 نظرة عامة")
     
     col1, col2, col3, col4 = st.columns(4)
-    
     with col1:
         st.markdown("""
         <div class="metric-card">
-            <div class="icon">📈</div>
-            <div class="value">150+</div>
-            <div class="label">أسهم متاحة</div>
+            <div class="icon">🚀</div>
+            <div class="value">AI Scanner</div>
+            <div class="label">محرك التحليل الذكي</div>
         </div>
         """, unsafe_allow_html=True)
-    
     with col2:
-        results = st.session_state.get('scan_results', pd.DataFrame())
-        count = len(results) if not results.empty else 0
-        color = "#00E676" if count > 0 else "#FF5252"
         st.markdown(f"""
         <div class="metric-card">
-            <div class="icon">🔥</div>
-            <div class="value" style="color:{color};">{count}</div>
-            <div class="label">فرص مكتشفة</div>
+            <div class="icon">🏢</div>
+            <div class="value">{len(get_sectors())}</div>
+            <div class="label">القطاعات المتاحة</div>
         </div>
         """, unsafe_allow_html=True)
-    
     with col3:
-        st.markdown("""
+        st.markdown(f"""
         <div class="metric-card">
-            <div class="icon">🎯</div>
-            <div class="value" style="color:#FFD700;">84%</div>
-            <div class="label">دقة النموذج</div>
+            <div class="icon">⭐</div>
+            <div class="value">{len(st.session_state.favorites)}</div>
+            <div class="label">الأسهم المفضلة</div>
         </div>
         """, unsafe_allow_html=True)
-    
     with col4:
-        # عدد التنبيهات النشطة
-        alerts = st.session_state.get('alerts', [])
-        alert_count = len(alerts)
-        alert_color = "#FF5252" if alert_count > 0 else "#29B6F6"
         st.markdown(f"""
         <div class="metric-card">
-            <div class="icon">🔔</div>
-            <div class="value" style="color:{alert_color};">{alert_count}</div>
-            <div class="label">تنبيهات نشطة</div>
+            <div class="icon">⏱️</div>
+            <div class="value">{'نشط' if st.session_state.last_scan_time else 'جاهز'}</div>
+            <div class="label">حالة الماسح</div>
         </div>
         """, unsafe_allow_html=True)
     
-    st.markdown("---")
-    
-    # عرض التنبيهات
-    alerts = st.session_state.get('alerts', [])
-    if alerts:
-        st.subheader("🔔 التنبيهات")
-        for alert in alerts[:5]:
-            if '🔔' in alert or '📈' in alert:
-                st.success(alert)
-            elif '⚠️' in alert:
-                st.warning(alert)
-            else:
-                st.info(alert)
-        if len(alerts) > 5:
-            st.caption(f"... و {len(alerts) - 5} تنبيهات إضافية")
-    
-    st.markdown("---")
-    
-    # حالة المحرك
-    st.subheader("🧠 حالة محرك الذكاء الاصطناعي")
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        if OPPORTUNITY_AVAILABLE:
-            st.success("✅ محرك الفرص: نشط وجاهز للعمل")
-            st.caption("يمكنك استخدام صفحة 'AI Opportunity Timeline' للتحليل المتقدم")
-        else:
-            st.error("❌ محرك الفرص: غير متوفر")
-    
-    with col2:
-        if OPPORTUNITY_PAGE_AVAILABLE:
-            st.success("✅ صفحة الفرص: متوفرة")
-        else:
-            st.error("❌ صفحة الفرص: غير متوفرة")
-    
-    st.markdown("---")
-    
-    # عرض آخر النتائج
-    results = st.session_state.get('scan_results', pd.DataFrame())
-    if not results.empty:
-        st.subheader("📋 أفضل الفرص")
-        st.dataframe(
-            results.head(10),
-            column_config={
-                "symbol": "الرمز",
-                "score": st.column_config.ProgressColumn("الدرجة", format="%.0f/100", min_value=0, max_value=100),
-                "squeeze": st.column_config.ProgressColumn("الانضغاط", format="%.0f/100", min_value=0, max_value=100),
-                "recommendation": "التوصية",
-                "risk": "المخاطرة",
-                "price": st.column_config.NumberColumn("السعر", format="$%.2f"),
-                "target": st.column_config.NumberColumn("الهدف", format="$%.2f")
-            },
-            use_container_width=True,
-            hide_index=True
-        )
-    else:
-        st.info("🔍 اضغط 'بدء المسح' في الشريط الجانبي للبدء")
-    
-    # عرض تاريخ النتائج
-    if st.session_state.get('results_history'):
-        with st.expander("📜 تاريخ التحليلات السابقة"):
-            history = st.session_state.results_history[-5:]  # آخر 5 تحليلات
-            for item in reversed(history):
-                st.caption(f"🕐 {item['timestamp']}")
-                st.dataframe(
-                    item['results'].head(3),
-                    use_container_width=True,
-                    hide_index=True
-                )
-                st.markdown("---")
+    st.markdown("### 🎯 البدء السريع")
+    col_a, col_b = st.columns(2)
+    with col_a:
+        if st.button("🚀 إجراء مسح شمول للسوق", use_container_width=True, type="primary"):
+            st.session_state.scan_in_progress = True
+            st.session_state.current_page = "scanner"
+            st.rerun()
+    with col_b:
+        if st.button("🧠 استعراض خط فرَص الذكاء الاصطناعي", use_container_width=True):
+            st.session_state.current_page = "opportunity"
+            st.rerun()
 
-# دالة مسح السوق المحسّنة
-@st.cache_data(ttl=300)  # تخزين مؤقت لمدة 5 دقائق
-def cached_scan_market(_symbols, min_score):
-    """مسح السوق مع تخزين مؤقت"""
-    scanner = get_breakout_scanner()
-    if scanner:
-        try:
-            return scanner().scan_market(_symbols, min_score=min_score)
-        except Exception as e:
-            print(f"خطأ في المسح: {e}")
-            return pd.DataFrame()
-    return pd.DataFrame()
-
-def render_scanner():
-    st.subheader("🔍 مسح السوق")
-    
-    config = st.session_state.get('sidebar_config', {})
-    
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        st.metric("🎯 الحد الأدنى للدرجة", f"{config.get('min_score', 60)}/100")
-    with col2:
-        st.metric("📊 عدد الأسهم", f"{config.get('max_symbols', 15)}")
-    with col3:
-        st.metric("🤖 النموذج", "Random Forest")
-    
-    st.markdown("---")
-    
-    sectors = get_sectors()
-    selected_sector = st.selectbox("🏢 تصفية حسب القطاع", sectors, index=0, key="scanner_sector")
-    
-    col1, col2 = st.columns([2, 1])
-    with col1:
-        scan_clicked = st.button("🔄 تحديث النتائج", type="primary", use_container_width=True)
-    with col2:
-        export_format = st.selectbox("📥 تنسيق التصدير", ['csv', 'json', 'excel'], key="export_format")
-    
-    if scan_clicked:
-        with st.spinner("🔍 جاري مسح السوق..."):
-            try:
-                symbols = get_symbols_by_sector(selected_sector)
-                symbols = symbols[:config.get('max_symbols', 15)]
-                
-                # استخدام المسح المخزن مؤقتاً
-                results = cached_scan_market(tuple(symbols), config.get('min_score', 60))
-                
-                if results is not None and not results.empty:
-                    st.session_state.scan_results = results
-                    st.session_state.last_scan_time = datetime.now().strftime('%H:%M:%S')
-                    
-                    # حفظ النتائج
-                    save_scan_result(results)
-                    
-                    # فحص التنبيهات
-                    alerts = check_alerts(results)
-                    if alerts:
-                        st.session_state.alerts = alerts
-                        st.session_state.last_alert_check = datetime.now()
-                        
-                        # عرض التنبيهات
-                        st.warning("⚠️ **تنبيهات مكتشفة:**")
-                        for alert in alerts[:3]:
-                            st.info(f"• {alert}")
-                        if len(alerts) > 3:
-                            st.caption(f"... و {len(alerts) - 3} تنبيهات إضافية")
-                    
-                    st.success(f"✅ تم العثور على {len(results)} فرصة!")
-                else:
-                    st.warning("⚠️ لا توجد نتائج مطابقة للمعايير")
-                    st.session_state.scan_results = pd.DataFrame()
-                    
-            except Exception as e:
-                show_user_friendly_error('unknown', str(e), e)
-    
-    results = st.session_state.get('scan_results', pd.DataFrame())
-    
-    if not results.empty:
-        st.subheader(f"📊 النتائج ({len(results)})")
-        st.dataframe(results, use_container_width=True, hide_index=True)
-        
-        # زر التصدير
-        export_data = export_results(results, export_format)
-        if export_data:
-            file_ext = 'csv' if export_format == 'csv' else 'json' if export_format == 'json' else 'xlsx'
-            mime_type = 'text/csv' if export_format == 'csv' else 'application/json' if export_format == 'json' else 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-            st.download_button(
-                f"📥 تحميل {export_format.upper()}",
-                export_data,
-                f"scan_results_{datetime.now().strftime('%Y%m%d_%H%M')}.{file_ext}",
-                mime_type,
-                use_container_width=True
-            )
-        
-        # عرض إحصائيات سريعة
-        st.markdown("---")
-        st.subheader("📊 إحصائيات سريعة")
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            avg_score = results['score'].mean() if 'score' in results.columns else 0
-            st.metric("متوسط الدرجة", f"{avg_score:.1f}/100")
-        with col2:
-            high_score = len(results[results['score'] >= 80]) if 'score' in results.columns else 0
-            st.metric("فرص قوية (≥80%)", high_score)
-        with col3:
-            low_risk = len(results[results.get('risk', '') == 'منخفض']) if 'risk' in results.columns else 0
-            st.metric("فرص منخفضة المخاطرة", low_risk)
-
-def render_market_data():
-    try:
-        from frontend.pages.market_data import render as render_market_data_page
-        render_market_data_page()
-    except ImportError:
-        st.warning("⚠️ صفحة بيانات السوق غير متوفرة حالياً")
-        st.info("💡 تأكد من وجود ملف frontend/pages/market_data.py")
-
-def render_opportunity_page():
+def render_scanner_page():
     st.markdown("""
-    <div style="
-        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-        padding: 15px 25px;
-        border-radius: 12px;
-        margin-bottom: 20px;
-        color: white;
-        box-shadow: 0 4px 20px rgba(245,87,108,0.3);
-    ">
-        <div style="display: flex; align-items: center; gap: 15px; justify-content: space-between;">
-            <div>
-                <span style="font-size: 2rem;">🚀</span>
-                <span style="font-size: 1.5rem; font-weight: 800; margin-left: 10px;">
-                    AI Opportunity Timeline
-                </span>
-            </div>
-            <div style="background: rgba(255,255,255,0.2); padding: 4px 15px; border-radius: 20px; font-size: 0.8rem; font-weight: 600;">
-                🆕 NEW
-            </div>
-        </div>
-        <p style="margin-top: 5px; opacity: 0.9; font-size: 0.95rem;">
-            تحليل الفرص الاستثمارية المتقدم باستخدام الذكاء الاصطناعي
-        </p>
+    <div class="main-header">
+        <h1>🔍 ماسح الانفجار السعري</h1>
+        <p>تحليل وتقييم فرص الاختراق الفني والزخم</p>
     </div>
     """, unsafe_allow_html=True)
     
-    if not OPPORTUNITY_AVAILABLE:
-        st.error("❌ **محرك الفرص غير متوفر**")
-        st.warning("""
-        **الأسباب المحتملة:**
-        1. **الملفات غير موجودة** - تأكد من وجود مجلد `backend/opportunity/` مع جميع الملفات
-        2. **أخطاء في الاستيراد** - قد تكون هناك أخطاء في ملفات المحرك
-        3. **مسار غير صحيح** - تأكد من أن المسار مضاف بشكل صحيح
-        """)
-        
-        if st.button("🔄 محاولة إعادة تحميل المحرك", type="primary"):
-            st.rerun()
-        return
+    config = st.session_state.sidebar_config
+    symbols = get_symbols_by_sector(config.get('sector', 'الكل'))[:config.get('max_symbols', 15)]
     
-    if not OPPORTUNITY_PAGE_AVAILABLE:
-        st.error("❌ **صفحة الفرص غير متوفرة**")
-        st.info("""
-        **لتفعيل صفحة الفرص:**
-        1. تأكد من وجود ملف `frontend/pages/opportunity_timeline.py`
-        2. تأكد من أن الملف يحتوي على دالة `main()`
-        3. أعد تشغيل التطبيق
-        """)
-        return
-    
-    try:
+    if st.session_state.get('scan_in_progress', False) or st.button("تشغيل المسح الآن"):
+        st.session_state.scan_in_progress = False
+        with st.spinner("جاري مسح الأسهم المحددة..."):
+            import yfinance as yf
+            results = []
+            for sym in symbols:
+                try:
+                    t = yf.Ticker(sym)
+                    hist = t.history(period="1mo")
+                    if not hist.empty:
+                        last_price = hist['Close'].iloc[-1]
+                        prev_price = hist['Close'].iloc[-2] if len(hist) > 1 else last_price
+                        pct_change = ((last_price - prev_price) / prev_price) * 100
+                        score = int(min(100, max(30, 50 + pct_change * 5)))
+                        results.append({
+                            'symbol': sym,
+                            'price': round(last_price, 2),
+                            'change_%': round(pct_change, 2),
+                            'score': score,
+                            'squeeze': int(score * 0.9),
+                            'risk': 'مرتفع' if pct_change > 3 else 'متوسط'
+                        })
+                except Exception:
+                    continue
+            
+            df_res = pd.DataFrame(results)
+            st.session_state.scan_results = df_res
+            st.session_state.last_scan_time = datetime.now().strftime('%H:%M:%S')
+
+    if not st.session_state.scan_results.empty:
+        st.dataframe(st.session_state.scan_results, use_container_width=True)
+    else:
+        st.info("اضغط على 'بدء المسح' من الشريط الجانبي أو الزر أعلاه للحصول على النتائج.")
+
+def render_opportunity_page():
+    if OPPORTUNITY_PAGE_AVAILABLE and opportunity_page:
         opportunity_page()
-    except Exception as e:
-        show_user_friendly_error('unknown', str(e), e)
+    else:
+        st.markdown("""
+        <div class="main-header">
+            <h1>🚀 AI Opportunity Timeline</h1>
+            <p>الجدول الزمني التفاعلي لالتقاط الفرص السعرية</p>
+        </div>
+        """, unsafe_allow_html=True)
+        st.warning("⚠️ وحدة الجدول الزمني للفرص غير متصلة بالنظام أو يتعذر تحميلها.")
+
+def render_analyze_page():
+    st.markdown("""
+    <div class="main-header">
+        <h1>📈 تحليل سهم مخصص</h1>
+        <p>فحص المؤشرات الفنية والهيكلية لرمز محدد</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    symbol_input = st.text_input("أدخل رمز السهم (مثال: AAPL, NVDA, TSLA):", value="AAPL").upper().strip()
+    if symbol_input:
+        display_stock_analysis(symbol_input)
+
+def render_market_data_page():
+    st.markdown("""
+    <div class="main-header">
+        <h1>📊 بيانات السوق والقطاعات</h1>
+        <p>استعراض قائمة الأسهم المتاحة حسب القطاع</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    sector = st.selectbox("اختر القطاع لعرض رموزه:", get_sectors())
+    symbols = get_symbols_by_sector(sector)
+    st.write(f"الأسهم المدرجة في قطاع **{sector}** ({len(symbols)} سهم):")
+    st.json(symbols)
 
 # ============================================================================
-# عرض الصفحة المختارة
-# ============================================================================
-
-def render_current_page():
-    page = st.session_state.get('current_page', 'dashboard')
-    pages = {
-        'dashboard': render_dashboard,
-        'scanner': render_scanner,
-        'analyze': render_analyze,
-        'market_data': render_market_data,
-        'opportunity': render_opportunity_page,
-    }
-    pages.get(page, render_dashboard)()
-
-# ============================================================================
-# التشغيل الرئيسي
+# التطبيق الرئيسي
 # ============================================================================
 
 def main():
     init_session_state()
     load_css()
-    
-    st.markdown("""
-    <div class="main-header">
-        <h1>🚀 AI Breakout Scanner</h1>
-        <p>اكتشاف فرص الانفجار السعري باستخدام الذكاء الاصطناعي ومؤشرات الضغط (Squeeze)</p>
-    </div>
-    """, unsafe_allow_html=True)
-    
     render_sidebar()
-    render_current_page()
+    
+    page = st.session_state.get('current_page', 'dashboard')
+    
+    if page == 'dashboard':
+        render_dashboard_page()
+    elif page == 'opportunity':
+        render_opportunity_page()
+    elif page == 'scanner':
+        render_scanner_page()
+    elif page == 'analyze':
+        render_analyze_page()
+    elif page == 'market_data':
+        render_market_data_page()
 
 if __name__ == "__main__":
     main()
