@@ -1,5 +1,6 @@
 # requirements.txt
-streamlit>=1.28.0
+streamlit==1.28.0
+starlette==0.27.0
 pandas>=2.0.0
 numpy>=1.24.0
 plotly>=5.14.0
