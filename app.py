@@ -17,43 +17,16 @@ st.set_page_config(
 # إعداد المسارات
 # ============================================================================
 
-# المسار الرئيسي للمشروع حيث يوجد ملف app.py
 PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
 ROOT_DIR = PROJECT_ROOT
 
-# تحديد مجلد backend المباشر من الجذر
 BACKEND_DIR = os.path.join(PROJECT_ROOT, "backend")
 OPPORTUNITY_DIR = os.path.join(BACKEND_DIR, "opportunity")
 PAGES_DIR = os.path.join(PROJECT_ROOT, "pages")
 
-# إضافة المسارات إلى sys.path
 for path in [PROJECT_ROOT, BACKEND_DIR, OPPORTUNITY_DIR, PAGES_DIR]:
     if os.path.exists(path) and path not in sys.path:
         sys.path.insert(0, path)
-
-# التحقق من وجود الملفات المطلوبة (مع رسائل النظام)
-required_files = [
-    "__init__.py", "opportunity_engine.py", "models.py",
-    "phase_detector.py", "transition_model.py", 
-    "catalyst_engine.py", "timeline.py", "confidence.py",
-    "scoring.py", "explanation.py", "probability.py"
-]
-
-missing_files = []
-for file in required_files:
-    file_path = os.path.join(OPPORTUNITY_DIR, file)
-    if not os.path.exists(file_path):
-        missing_files.append(file)
-
-# تخزين حالة الملفات المفقودة للاستخدام لاحقاً
-OPPORTUNITY_MISSING_FILES = missing_files
-OPPORTUNITY_AVAILABLE = len(missing_files) == 0
-
-# طباعة تحذيرات للنظام (وليس للمستخدم)
-if missing_files:
-    print(f"⚠️ الملفات المفقودة في مجلد الفرص: {missing_files}")
-else:
-    print("✅ جميع ملفات محرك الفرص موجودة")
 
 # ============================================================================
 # استيراد المكونات - مع تجنب الـ Deadlock
@@ -79,16 +52,13 @@ def get_breakout_scanner():
     global _BreakoutScanner
     if _BreakoutScanner is None:
         try:
-            # محاولة استيراد مباشر
             from backend.scanner.breakout_scanner import BreakoutScanner
             _BreakoutScanner = BreakoutScanner
             print("✅ تم استيراد BreakoutScanner")
         except ImportError as e:
             print(f"⚠️ فشل استيراد BreakoutScanner: {e}")
             try:
-                # محاولة بديلة
                 import importlib.util
-                import os
                 scanner_path = os.path.join(BACKEND_DIR, "scanner", "breakout_scanner.py")
                 if os.path.exists(scanner_path):
                     spec = importlib.util.spec_from_file_location("breakout_scanner", scanner_path)
@@ -106,36 +76,59 @@ def get_breakout_scanner():
 # استيراد محرك الفرص (Opportunity Engine)
 # ============================================================================
 
-# ============================================================================
-# استيراد المحركات
-# ============================================================================
+OPPORTUNITY_AVAILABLE = False
+OPPORTUNITY_PAGE_AVAILABLE = False
+opportunity_page = None
 
-# استيراد محرك الفرص (من الكود العامل)
 try:
-    from backend.opportunity.opportunity_engine import OpportunityEngine
-    from backend.opportunity.models import MarketPhase, OpportunityScoreLevel
-    OPPORTUNITY_ENGINE_AVAILABLE = True
+    from opportunity import OpportunityEngine, MarketPhase
+    OPPORTUNITY_AVAILABLE = True
+    print("✅ تم استيراد محرك الفرص")
 except ImportError:
     try:
-        from opportunity.opportunity_engine import OpportunityEngine
-        from opportunity.models import MarketPhase, OpportunityScoreLevel
-        OPPORTUNITY_ENGINE_AVAILABLE = True
-    except ImportError:
-        OPPORTUNITY_ENGINE_AVAILABLE = False
-        print("⚠️ محرك الفرص غير متوفر")
-
-# استيراد ماسح الانفجارات (من الكود الأصلي)
-def get_breakout_scanner():
-    """استيراد BreakoutScanner فقط عند الحاجة"""
-    try:
-        from backend.scanner.breakout_scanner import BreakoutScanner
-        return BreakoutScanner
+        from backend.opportunity import OpportunityEngine, MarketPhase
+        OPPORTUNITY_AVAILABLE = True
+        print("✅ تم استيراد محرك الفرص (backend)")
     except ImportError:
         try:
-            from scanner.breakout_scanner import BreakoutScanner
-            return BreakoutScanner
+            import importlib.util
+            init_file = os.path.join(OPPORTUNITY_DIR, "__init__.py")
+            if os.path.exists(init_file):
+                spec = importlib.util.spec_from_file_location("opportunity", init_file)
+                module = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(module)
+                OpportunityEngine = getattr(module, "OpportunityEngine", None)
+                MarketPhase = getattr(module, "MarketPhase", None)
+                if OpportunityEngine:
+                    OPPORTUNITY_AVAILABLE = True
+                    print("✅ تم استيراد محرك الفرص (importlib)")
+        except Exception:
+            pass
+
+if OPPORTUNITY_AVAILABLE:
+    try:
+        from opportunity_timeline import main as opportunity_page
+        OPPORTUNITY_PAGE_AVAILABLE = True
+        print("✅ تم استيراد صفحة الفرص")
+    except ImportError:
+        try:
+            from pages.opportunity_timeline import main as opportunity_page
+            OPPORTUNITY_PAGE_AVAILABLE = True
+            print("✅ تم استيراد صفحة الفرص (pages)")
         except ImportError:
-            return None
+            try:
+                page_file = os.path.join(PAGES_DIR, "opportunity_timeline.py")
+                if os.path.exists(page_file):
+                    import importlib.util
+                    spec = importlib.util.spec_from_file_location("opportunity_timeline", page_file)
+                    module = importlib.util.module_from_spec(spec)
+                    spec.loader.exec_module(module)
+                    opportunity_page = getattr(module, "main", None)
+                    if opportunity_page:
+                        OPPORTUNITY_PAGE_AVAILABLE = True
+                        print("✅ تم استيراد صفحة الفرص (importlib)")
+            except Exception:
+                pass
 
 # ============================================================================
 # دوال مساعدة
@@ -148,7 +141,7 @@ def get_symbols_by_sector(sector):
             for syms in STOCK_SYMBOLS.values():
                 if isinstance(syms, list):
                     all_symbols.extend(syms)
-            return all_symbols
+            return list(set(all_symbols))
         return STOCK_SYMBOLS
     if isinstance(STOCK_SYMBOLS, dict):
         return STOCK_SYMBOLS.get(sector, [])
@@ -333,26 +326,10 @@ def load_inline_css():
         border: 1px solid rgba(255, 82, 82, 0.3);
         color: #FF5252;
     }
-    .badge-new {
-        background: #f5576c;
-        color: white;
-        font-size: 0.6rem;
-        padding: 1px 8px;
-        border-radius: 10px;
-        margin-left: 5px;
-        font-weight: 700;
-        animation: pulse 2s infinite;
-    }
-    @keyframes pulse {
-        0% { opacity: 1; }
-        50% { opacity: 0.5; }
-        100% { opacity: 1; }
-    }
     </style>
     """, unsafe_allow_html=True)
 
 def load_css():
-    # استخدم PROJECT_ROOT بدلاً من ROOT_DIR
     css_path = os.path.join(PROJECT_ROOT, "assets", "style.css")
     if os.path.exists(css_path):
         try:
@@ -661,7 +638,7 @@ def display_stock_analysis(symbol):
                             """, unsafe_allow_html=True)
                     else:
                         st.info("📰 لا توجد أخبار حديثة")
-                except:
+                except Exception:
                     st.info("📰 لا توجد أخبار متاحة")
         except Exception as e:
             st.error(f"❌ خطأ في التحليل: {str(e)}")
@@ -773,206 +750,79 @@ def render_dashboard():
             <div class="label">ذكاء اصطناعي</div>
         </div>
         """, unsafe_allow_html=True)
+    
     st.markdown("---")
-    st.subheader("🧠 حالة محرك الذكاء الاصطناعي")
-    col1, col2 = st.columns(2)
-    with col1:
-        if OPPORTUNITY_AVAILABLE:
-            st.success("✅ محرك الفرص: نشط وجاهز للعمل")
-            st.caption("يمكنك استخدام صفحة 'AI Opportunity Timeline' للتحليل المتقدم")
-        else:
-            st.error("❌ محرك الفرص: غير متوفر")
-    with col2:
-        if OPPORTUNITY_PAGE_AVAILABLE:
-            st.success("✅ صفحة الفرص: متوفرة")
-        else:
-            st.error("❌ صفحة الفرص: غير متوفرة")
-    st.markdown("---")
+    st.subheader("🎯 أحدث الانفجارات السعرية")
+    
     if not results.empty:
-        st.subheader("📋 أفضل الفرص")
-        st.dataframe(
-            results,
-            column_config={
-                "symbol": "الرمز",
-                "score": st.column_config.ProgressColumn("الدرجة", format="%.0f/100", min_value=0, max_value=100),
-                "squeeze": st.column_config.ProgressColumn("الانضغاط", format="%.0f/100", min_value=0, max_value=100),
-                "recommendation": "التوصية",
-                "risk": "المخاطرة",
-                "price": st.column_config.NumberColumn("السعر", format="$%.2f"),
-                "target": st.column_config.NumberColumn("الهدف", format="$%.2f")
-            },
-            use_container_width=True,
-            hide_index=True
-        )
+        st.dataframe(results, use_container_width=True)
     else:
-        st.info("🔍 اضغط 'بدء المسح' في الشريط الجانبي للبدء")
+        st.info("💡 قم بتشغيل المسح من الشريط الجانبي لعرض نتائج الفرص المتاحة حالياً.")
 
 def render_scanner():
-    st.subheader("🔍 مسح السوق")
+    st.subheader("🔍 مسح الانفجارات السعرية")
     config = st.session_state.get('sidebar_config', {})
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        st.metric("🎯 الحد الأدنى للدرجة", f"{config.get('min_score', 60)}/100")
-    with col2:
-        st.metric("📊 عدد الأسهم", f"{config.get('max_symbols', 15)}")
-    with col3:
-        st.metric("🤖 النموذج", "Random Forest")
-    st.markdown("---")
-    sectors = get_sectors()
-    selected_sector = st.selectbox("🏢 تصفية حسب القطاع", sectors, index=0, key="scanner_sector")
-    if st.button("🔄 تحديث النتائج", type="primary", use_container_width=True):
-        with st.spinner("🔍 جاري مسح السوق..."):
+    
+    if st.session_state.get('scan_in_progress', False) or st.button("▶️ تشغيل المسح الآن"):
+        st.session_state.scan_in_progress = False
+        symbols = get_symbols_by_sector(config.get('sector', 'الكل'))[:config.get('max_symbols', 15)]
+        
+        ScannerClass = get_breakout_scanner()
+        if ScannerClass is None:
+            st.error("❌ يتعذر تشغيل الماسح: لم يتم العثور على وحدة BreakoutScanner.")
+            return
+
+        with st.spinner("🔍 جاري تحليل الأسهم واكتشاف الاختراقات..."):
             try:
-                symbols = get_symbols_by_sector(selected_sector)
-                symbols = symbols[:config.get('max_symbols', 15)]
-                
-                # استيراد BreakoutScanner فقط عند الحاجة
-                Scanner = get_breakout_scanner()
-                
-                if Scanner is None:
-                    sample_data = pd.DataFrame({
-                        'symbol': ['AAPL', 'MSFT', 'NVDA', 'AMD', 'TSLA'],
-                        'score': [75, 68, 82, 71, 65],
-                        'squeeze': [70, 55, 85, 60, 50],
-                        'recommendation': ['🟡 شراء', '🔍 مراقبة', '🟢 شراء قوي', '🔍 مراقبة', '🔴 تجنب'],
-                        'risk': ['متوسط', 'متوسط', 'منخفض', 'متوسط', 'مرتفع'],
-                        'price': [175.34, 378.91, 895.32, 165.42, 245.68],
-                        'target': [195.00, 410.00, 980.00, 185.00, 270.00]
-                    })
-                    st.session_state.scan_results = sample_data
-                    st.session_state.last_scan_time = datetime.now().strftime('%H:%M:%S')
-                    st.success("✅ تم عرض بيانات نموذجية")
-                else:
-                    scanner = Scanner()
-                    results = scanner.scan_market(symbols, min_score=config.get('min_score', 60))
-                    if not results.empty:
-                        st.session_state.scan_results = results
-                        st.session_state.last_scan_time = datetime.now().strftime('%H:%M:%S')
-                        st.success(f"✅ تم العثور على {len(results)} فرصة!")
-                    else:
-                        st.warning("⚠️ لا توجد نتائج مطابقة للمعايير")
+                scanner = ScannerClass()
+                results_df = scanner.scan_symbols(symbols)
+                st.session_state.scan_results = results_df
+                st.session_state.last_scan_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                st.success("✅ اكتمل المسح بنجاح!")
             except Exception as e:
-                st.error(f"❌ خطأ في المسح: {str(e)}")
+                st.error(f"❌ خطأ أثناء تنفيذ المسح: {e}")
+
     results = st.session_state.get('scan_results', pd.DataFrame())
     if not results.empty:
-        st.subheader(f"📊 النتائج ({len(results)})")
-        st.dataframe(results, use_container_width=True, hide_index=True)
-        csv = results.to_csv(index=False)
-        st.download_button(
-            "📥 تحميل CSV",
-            csv,
-            f"scan_results_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
-            "text/csv",
-            use_container_width=True
-        )
+        st.dataframe(results, use_container_width=True)
+    else:
+        st.info("انقر على 'تشغيل المسح الآن' لتبدأ العملية.")
 
 def render_market_data():
-    try:
-        from frontend.pages.market_data import render as render_market_data_page
-        render_market_data_page()
-    except ImportError:
-        st.warning("⚠️ صفحة بيانات السوق غير متوفرة حالياً")
-        st.info("💡 تأكد من وجود ملف frontend/pages/market_data.py")
-
-def render_opportunity_page():
-    st.markdown("""
-    <div style="
-        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-        padding: 15px 25px;
-        border-radius: 12px;
-        margin-bottom: 20px;
-        color: white;
-        box-shadow: 0 4px 20px rgba(245,87,108,0.3);
-    ">
-        <div style="display: flex; align-items: center; gap: 15px; justify-content: space-between;">
-            <div>
-                <span style="font-size: 2rem;">🚀</span>
-                <span style="font-size: 1.5rem; font-weight: 800; margin-left: 10px;">
-                    AI Opportunity Timeline
-                </span>
-            </div>
-            <div style="background: rgba(255,255,255,0.2); padding: 4px 15px; border-radius: 20px; font-size: 0.8rem; font-weight: 600;">
-                🆕 NEW
-            </div>
-        </div>
-        <p style="margin-top: 5px; opacity: 0.9; font-size: 0.95rem;">
-            تحليل الفرص الاستثمارية المتقدم باستخدام الذكاء الاصطناعي
-        </p>
-    </div>
-    """, unsafe_allow_html=True)
-    if not OPPORTUNITY_AVAILABLE:
-        st.error("❌ **محرك الفرص غير متوفر**")
-        st.warning("""
-        **الأسباب المحتملة:**
-        1. **الملفات غير موجودة** - تأكد من وجود مجلد `backend/opportunity/` مع جميع الملفات
-        2. **أخطاء في الاستيراد** - قد تكون هناك أخطاء في ملفات المحرك
-        3. **مسار غير صحيح** - تأكد من أن المسار مضاف بشكل صحيح
-        """)
-        st.info("""
-        **لتفعيل محرك الفرص:**
-        1. تأكد من وجود الملفات التالية:
-        backend/opportunity/__init__.py
-        backend/opportunity/opportunity_engine.py
-        backend/opportunity/models.py
-        backend/opportunity/phase_detector.py
-        backend/opportunity/transition_model.py
-        backend/opportunity/catalyst_engine.py
-        backend/opportunity/timeline.py
-        backend/opportunity/confidence.py
-        backend/opportunity/scoring.py
-        backend/opportunity/explanation.py
-        backend/opportunity/probability.py
-        2. تأكد من أن ملف `__init__.py` يحتوي على الاستيرادات الصحيحة
-        3. أعد تشغيل التطبيق
-        """)
-        if st.button("🔄 محاولة إعادة تحميل المحرك", type="primary"):
-            st.rerun()
-        return
-    if not OPPORTUNITY_PAGE_AVAILABLE:
-        st.error("❌ **صفحة الفرص غير متوفرة**")
-        st.info("""
-        **لتفعيل صفحة الفرص:**
-        1. تأكد من وجود ملف `frontend/pages/opportunity_timeline.py`
-        2. تأكد من أن الملف يحتوي على دالة `main()`
-        3. أعد تشغيل التطبيق
-        """)
-        return
-    try:
-        opportunity_page()
-    except Exception as e:
-        st.error(f"❌ حدث خطأ في صفحة الفرص: {str(e)}")
-        st.exception(e)
+    st.subheader("📊 بيانات السوق والمؤشرات العامة")
+    st.info("ℹ️ يتم سحب أحدث بيانات المؤشرات والقطاعات الرئيسية هنا.")
 
 # ============================================================================
-# عرض الصفحة المختارة
-# ============================================================================
-
-def render_current_page():
-    page = st.session_state.get('current_page', 'dashboard')
-    pages = {
-        'dashboard': render_dashboard,
-        'scanner': render_scanner,
-        'analyze': render_analyze,
-        'market_data': render_market_data,
-        'opportunity': render_opportunity_page,
-    }
-    pages.get(page, render_dashboard)()
-
-# ============================================================================
-# التشغيل الرئيسي
+# التطبيق الرئيسي (Main Execution Router)
 # ============================================================================
 
 def main():
-    init_session_state()
     load_css()
+    init_session_state()
+    config = render_sidebar()
+
     st.markdown("""
     <div class="main-header">
-        <h1>🚀 AI Breakout Scanner</h1>
-        <p>اكتشاف فرص الانفجار السعري باستخدام الذكاء الاصطناعي ومؤشرات الضغط (Squeeze)</p>
+        <h1>🚀 AI Breakout Scanner | ماسح الانفجار السعري</h1>
+        <p>نظام ذكي لاكتشاف الفرص والاختراقات السعرية باستعمال نماذج التعلم الآلي والتحليل الفني</p>
     </div>
     """, unsafe_allow_html=True)
-    render_sidebar()
-    render_current_page()
+
+    page = st.session_state.get('current_page', 'dashboard')
+
+    if page == 'dashboard':
+        render_dashboard()
+    elif page == 'opportunity':
+        if OPPORTUNITY_PAGE_AVAILABLE and opportunity_page:
+            opportunity_page()
+        else:
+            st.warning("⚠️ صفحة الفرص غير متاحة حالياً.")
+    elif page == 'scanner':
+        render_scanner()
+    elif page == 'analyze':
+        render_analyze()
+    elif page == 'market_data':
+        render_market_data()
 
 if __name__ == "__main__":
     main()
