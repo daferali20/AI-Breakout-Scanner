@@ -342,11 +342,11 @@ def render_phase_indicators(result: Any, data: Dict[str, Any]):
 # ============================================================
 
 def main():
-    st.set_page_config(
-        page_title="AI Opportunity Timeline",
-        page_icon="🚀",
-        layout="wide"
-    )
+    #st.set_page_config(
+     #   page_title="AI Opportunity Timeline",
+      #  page_icon="🚀",
+      #  layout="wide"
+   # )
     
     st.title("🚀 AI Opportunity Timeline")
     st.caption("مسار الصفحة: frontend/pages/opportunity_timeline.py")
