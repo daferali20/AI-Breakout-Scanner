@@ -335,6 +335,9 @@ def render_phase_indicators(result: Any, data: Dict[str, Any]):
                     unsafe_allow_html=True
                 )
 
+#from datetime import datetime, timedelta  # 👈 إصلاح خطأ timedelta وإتاحته لجميع الدوال
+#import streamlit as st
+
 # ============================================================
 # دالة تحسين التنسيق ووضوح النصوص (CSS Customization)
 # ============================================================
@@ -481,6 +484,7 @@ def main():
 
     except Exception as e:
         st.error(f"❌ حدث خطأ أثناء تشغيل الصفحة: {str(e)}")
+
 
 if __name__ == "__main__":
     main()
