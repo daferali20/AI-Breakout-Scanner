@@ -443,95 +443,32 @@ def create_timeline_chart() -> go.Figure:
     )
     return fig
 # ============================================================
-# الصفحة الرئيسية (Main Entry Point)
+# 3. العرض الرئيسي (Main App Layout)
 # ============================================================
 def main():
-    # تطبيق التنسيقات أولاً لضمان وضوح النصوص
     apply_custom_styles()
 
     st.title("🚀 AI Opportunity Timeline")
     st.caption("مسار الصفحة: frontend/pages/opportunity_timeline.py")
     st.divider()
 
-    # ===== الشريط الجانبي Sidebar =====
-    with st.sidebar:
-        st.header("⚙️ الإعدادات")
-        symbol = st.text_input("🔍 رمز السهم", value="AAPL").upper()
+    # عرض البطاقات المتدرجة
+    c1, c2, c3, c4 = st.columns(4)
+    with c1:
+        st.markdown('<div class="gradient-card card-purple"><div class="card-title">🔋 المرحلة الحالية</div><div class="card-value">Accumulation</div><div class="card-sub sub-purple">تجميع</div></div>', unsafe_allow_html=True)
+    with c2:
+        st.markdown('<div class="gradient-card"><div class="card-title">📅 المدة في المرحلة</div><div class="card-value">6 أيام</div><div class="card-sub sub-green">ثقة 88%</div></div>', unsafe_allow_html=True)
+    with c3:
+        st.markdown('<div class="gradient-card card-gold"><div class="card-title">🚀 المرحلة القادمة</div><div class="card-value">Breakout</div><div class="card-sub sub-gold">احتمال 78%</div></div>', unsafe_allow_html=True)
+    with c4:
+        st.markdown('<div class="gradient-card card-green"><div class="card-title">🌟 درجة الفرصة</div><div class="card-value">82.5%</div><div class="card-sub sub-green">فرصة مرتفعة</div></div>', unsafe_allow_html=True)
 
-        st.divider()
-        st.subheader("📊 خيارات العرض")
-        show_indicators = st.checkbox("مؤشرات المرحلة", value=True)
-        show_timeline = st.checkbox("التسلسل الزمني", value=True)
-        show_report = st.checkbox("تقرير الذكاء الاصطناعي", value=False)
+    st.divider()
 
-        if st.button(
-            "🔄 تحديث التحليل", type="primary", use_container_width=True
-        ):
-            st.rerun()
-
-    if not symbol:
-        st.warning("⚠️ الرجاء إدخال رمز السهم")
-        return
-
-    # ===== استدعاء المحرك وعرض النتائج =====
-    try:
-        engine = OpportunityEngine()
-        timeline_builder = TimelineBuilder()
-
-        # بيانات تجريبية (يتم تبديلها لاحقاً ببيانات المحرك الحقيقية)
-        analysis_data = {
-            "bollinger_width": 0.27,
-            "atr_ratio": 0.35,
-            "volume_trend": 2.4,
-            "smart_money_flow": 0.68,
-            "pattern_score": 0.82,
-            "sector_strength": 0.64,
-            "market_regime": 0.58,
-            "news_sentiment": 0.72,
-            "ai_score": 0.88,
-            "earnings": 0.55,
-            "relative_volume": 2.4,
-            "bollinger_squeeze": 0.73,
-            "atr_compression": 0.65,
-            "pattern_detection": 0.82,
-        }
-
-        with st.spinner(f"🔄 جاري تحليل {symbol}..."):
-            result = engine.analyze(symbol, analysis_data)
-
-        # عرض الكروت والرسم البياني
-        render_opportunity_overview(result)
-        st.divider()
-
-        render_score_bar(
-            result.opportunity_score,
-            "🎯 درجة الفرصة الإجمالية",
-            height=16,
-        )
-        st.divider()
-
-        if show_timeline:
-            events = timeline_builder.build_timeline(
-                result.current_phase,
-                result.next_phase,
-                result.current_phase_days,
-                result.expected_days,
-                analysis_data,
-            )
-            render_timeline_chart(events, result.current_phase)
-            st.divider()
-
-        if show_indicators:
-            render_phase_indicators(result, analysis_data)
-            st.divider()
-
-        if show_report and hasattr(result, "ai_decision_report"):
-            st.subheader("🤖 تقرير الذكاء الاصطناعي")
-            st.info(result.ai_decision_report)
-
-    except Exception as e:
-        st.error(f"❌ حدث خطأ أثناء تشغيل الصفحة: {str(e)}")
-
+    # عرض رسم Plotly البياني
+    st.subheader("📈 مسار التطور الزمني للفرصة")
+    fig = create_timeline_chart()
+    st.plotly_chart(fig, use_container_width=True)
 
 if __name__ == "__main__":
     main()
