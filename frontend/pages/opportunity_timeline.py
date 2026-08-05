@@ -8,7 +8,6 @@ import sys
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional
-
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
