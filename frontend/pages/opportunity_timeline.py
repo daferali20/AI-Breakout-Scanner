@@ -426,5 +426,5 @@ def main():
         st.error(f"❌ حدث خطأ أثناء تشغيل الصفحة: {str(e)}")
 
 
-if __name__ == "__main__":
-    main()
+# ✅ بهذا:
+main()
