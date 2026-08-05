@@ -8,6 +8,18 @@ import json
 from io import BytesIO
 import traceback
 
+# تجاهل تحذيرات التوافق
+warnings.filterwarnings('ignore')
+
+# تصحيح مشكلة التوافق مع Streamlit
+if sys.version_info >= (3, 14):
+    # تصحيح مؤقت للـ GZipResponder
+    import streamlit.web.server.starlette.starlette_gzip_middleware as gzip_middleware
+    if hasattr(gzip_middleware, '_MediaAwareGZipResponder'):
+        original_init = gzip_middleware._MediaAwareGZipResponder.__init__
+        def patched_init(self, app, minimum_size, compresslevel=9, thread_minimum_size=512):
+            return original_init(self, app, minimum_size, compresslevel=compresslevel)
+        gzip_middleware._MediaAwareGZipResponder.__init__ = patched_init
 # قراءة المفتاح
 #api_key = st.secrets["OPENAI_API_KEY"]
 # أو
