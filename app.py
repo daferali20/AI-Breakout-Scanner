@@ -12,7 +12,10 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded"
 )
+import frontend.pages.opportunity_timeline as opportunity_timeline
 
+if page == "opportunity_timeline":
+    opportunity_timeline.main()  # 👈 استدعاء الدالة هنا لتعمل الواجهة
 # ============================================================================
 # إعداد المسارات
 # ============================================================================
