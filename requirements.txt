@@ -1,7 +1,29 @@
 streamlit
-plotly
+streamlit-extras
+streamlit-option-menu
+streamlit-aggrid
+
+# Data Processing
 pandas
+numpy
 yfinance
-xlsxwriter
-starlette
-uvicorn
+ta
+pandas-datareader
+
+# Visualization
+plotly
+matplotlib
+seaborn
+altair
+
+# Machine Learning
+scikit-learn
+xgboost
+
+# Utilities
+python-dotenv
+requests
+beautifulsoup4
+nltk
+textblob
+loguru
