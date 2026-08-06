@@ -78,37 +78,10 @@ POPULAR_STOCKS = {
 # ============================================================================
 def apply_custom_styles():
     st.markdown(
-        f"""
+        """
     <style>
-    /* 1. ضبط خلفية التطبيق العامة من ملف الإعدادات */
-    .stApp {{
-        background-color: {COLORS['dark']};
-        color: #FFFFFF;
-    }}
-    
-    /* 2. إصلاح مربعات الإدخال والقوائم المنسدلة للثيم الداكن */
-    div[data-baseweb="input"] > div, 
-    div[data-baseweb="select"] > div,
-    input, select {{
-        background-color: #16213e !important;
-        color: #FFFFFF !important;
-        border: 1px solid rgba(255, 255, 255, 0.2) !important;
-        border-radius: 8px !important;
-    }}
-
-    /* 3. إصلاح النصوص داخل حقول الإدخال وقوائم الخيارات */
-    div[data-baseweb="select"] *, 
-    div[data-baseweb="popover"] * {{
-        background-color: #16213e !important;
-        color: #FFFFFF !important;
-    }}
-
-    input::placeholder {{
-        color: #9CA3AF !important;
-    }}
-
-    /* 4. البطاقات المتدرجة المعرفة في التطبيق */
-    .gradient-card {{
+    /* بطاقات العرض التفاعلية */
+    .gradient-card {
         background: linear-gradient(135deg, rgba(30, 41, 59, 0.85) 0%, rgba(15, 23, 42, 0.95) 100%);
         border: 1px solid rgba(255, 255, 255, 0.12);
         border-radius: 16px;
@@ -117,21 +90,38 @@ def apply_custom_styles():
         box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
         backdrop-filter: blur(10px);
         transition: transform 0.2s ease, border-color 0.2s ease;
-    }}
+    }
     
-    .gradient-card:hover {{
+    .gradient-card:hover {
         transform: translateY(-3px);
-        border-color: {COLORS['primary']};
-    }}
+        border-color: #667eea;
+    }
 
-    .card-title {{ color: #9CA3AF !important; font-size: 0.85rem; font-weight: 600; margin-bottom: 6px; }}
-    .card-value {{ color: #FFFFFF !important; font-size: 1.6rem; font-weight: 800; }}
-    .card-sub {{ font-size: 0.8rem; font-weight: 700; margin-top: 4px; display: inline-block; padding: 2px 8px; border-radius: 12px; }}
+    .card-title { 
+        color: #9CA3AF !important; 
+        font-size: 0.85rem; 
+        font-weight: 600; 
+        margin-bottom: 6px; 
+    }
+    
+    .card-value { 
+        color: #FFFFFF !important; 
+        font-size: 1.6rem; 
+        font-weight: 800; 
+    }
+    
+    .card-sub { 
+        font-size: 0.8rem; 
+        font-weight: 700; 
+        margin-top: 4px; 
+        display: inline-block; 
+        padding: 2px 8px; 
+        border-radius: 12px; 
+    }
     </style>
     """,
         unsafe_allow_html=True,
     )
-
 
 # ============================================================================
 # دوال جلب البيانات
