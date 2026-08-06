@@ -78,42 +78,37 @@ POPULAR_STOCKS = {
 # ============================================================================
 def apply_custom_styles():
     st.markdown(
-        """
+        f"""
     <style>
-    /* 1. التنسيق العام للتطبيق */
-    .stApp {
-        background-color: #0F172A;
+    /* 1. ضبط خلفية التطبيق العامة من ملف الإعدادات */
+    .stApp {{
+        background-color: {COLORS['dark']};
         color: #FFFFFF;
-    }
+    }}
     
-    /* 2. إصلاح مربعات الإدخال والقوائم المنسدلة (تغميق الخلفية وإظهار النص) */
+    /* 2. إصلاح مربعات الإدخال والقوائم المنسدلة للثيم الداكن */
     div[data-baseweb="input"] > div, 
     div[data-baseweb="select"] > div,
-    input {
-        background-color: #1E293B !important;
+    input, select {{
+        background-color: #16213e !important;
         color: #FFFFFF !important;
         border: 1px solid rgba(255, 255, 255, 0.2) !important;
         border-radius: 8px !important;
-    }
+    }}
 
-    /* 3. إصلاح نص الإدخال والعناصر داخل المربعات */
-    input::placeholder {
+    /* 3. إصلاح النصوص داخل حقول الإدخال وقوائم الخيارات */
+    div[data-baseweb="select"] *, 
+    div[data-baseweb="popover"] * {{
+        background-color: #16213e !important;
+        color: #FFFFFF !important;
+    }}
+
+    input::placeholder {{
         color: #9CA3AF !important;
-    }
-    
-    div[data-baseweb="select"] span {
-        color: #FFFFFF !important;
-    }
+    }}
 
-    /* 4. إصلاح خيارات القائمة المنسدلة (Dropdown Menu) */
-    ul[role="listbox"], 
-    div[data-baseweb="popover"] div {
-        background-color: #1E293B !important;
-        color: #FFFFFF !important;
-    }
-
-    /* 5. بطاقات التنسيق المتدرج */
-    .gradient-card {
+    /* 4. البطاقات المتدرجة المعرفة في التطبيق */
+    .gradient-card {{
         background: linear-gradient(135deg, rgba(30, 41, 59, 0.85) 0%, rgba(15, 23, 42, 0.95) 100%);
         border: 1px solid rgba(255, 255, 255, 0.12);
         border-radius: 16px;
@@ -122,24 +117,16 @@ def apply_custom_styles():
         box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
         backdrop-filter: blur(10px);
         transition: transform 0.2s ease, border-color 0.2s ease;
-    }
+    }}
     
-    .gradient-card:hover {
+    .gradient-card:hover {{
         transform: translateY(-3px);
-        border-color: rgba(99, 102, 241, 0.5);
-    }
+        border-color: {COLORS['primary']};
+    }}
 
-    .card-purple { background: linear-gradient(135deg, rgba(99, 102, 241, 0.2) 0%, rgba(168, 85, 247, 0.2) 100%); border-color: rgba(168, 85, 247, 0.4); }
-    .card-green { background: linear-gradient(135deg, rgba(16, 185, 129, 0.2) 0%, rgba(5, 150, 105, 0.2) 100%); border-color: rgba(16, 185, 129, 0.4); }
-    .card-gold { background: linear-gradient(135deg, rgba(245, 158, 11, 0.2) 0%, rgba(217, 119, 6, 0.2) 100%); border-color: rgba(245, 158, 11, 0.4); }
-
-    .card-title { color: #9CA3AF !important; font-size: 0.85rem; font-weight: 600; margin-bottom: 6px; }
-    .card-value { color: #FFFFFF !important; font-size: 1.6rem; font-weight: 800; }
-    .card-sub { font-size: 0.8rem; font-weight: 700; margin-top: 4px; display: inline-block; padding: 2px 8px; border-radius: 12px; }
-    
-    .sub-green { background: rgba(16, 185, 129, 0.25); color: #10B981 !important; }
-    .sub-gold { background: rgba(245, 158, 11, 0.25); color: #F59E0B !important; }
-    .sub-purple { background: rgba(168, 85, 247, 0.25); color: #C084FC !important; }
+    .card-title {{ color: #9CA3AF !important; font-size: 0.85rem; font-weight: 600; margin-bottom: 6px; }}
+    .card-value {{ color: #FFFFFF !important; font-size: 1.6rem; font-weight: 800; }}
+    .card-sub {{ font-size: 0.8rem; font-weight: 700; margin-top: 4px; display: inline-block; padding: 2px 8px; border-radius: 12px; }}
     </style>
     """,
         unsafe_allow_html=True,
