@@ -80,10 +80,39 @@ def apply_custom_styles():
     st.markdown(
         """
     <style>
-    .stApp, p, span, label, div {
-        color: #FFFFFF !important;
+    /* 1. التنسيق العام للتطبيق */
+    .stApp {
+        background-color: #0F172A;
+        color: #FFFFFF;
     }
     
+    /* 2. إصلاح مربعات الإدخال والقوائم المنسدلة (تغميق الخلفية وإظهار النص) */
+    div[data-baseweb="input"] > div, 
+    div[data-baseweb="select"] > div,
+    input {
+        background-color: #1E293B !important;
+        color: #FFFFFF !important;
+        border: 1px solid rgba(255, 255, 255, 0.2) !important;
+        border-radius: 8px !important;
+    }
+
+    /* 3. إصلاح نص الإدخال والعناصر داخل المربعات */
+    input::placeholder {
+        color: #9CA3AF !important;
+    }
+    
+    div[data-baseweb="select"] span {
+        color: #FFFFFF !important;
+    }
+
+    /* 4. إصلاح خيارات القائمة المنسدلة (Dropdown Menu) */
+    ul[role="listbox"], 
+    div[data-baseweb="popover"] div {
+        background-color: #1E293B !important;
+        color: #FFFFFF !important;
+    }
+
+    /* 5. بطاقات التنسيق المتدرج */
     .gradient-card {
         background: linear-gradient(135deg, rgba(30, 41, 59, 0.85) 0%, rgba(15, 23, 42, 0.95) 100%);
         border: 1px solid rgba(255, 255, 255, 0.12);
