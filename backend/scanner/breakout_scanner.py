@@ -1,4 +1,4 @@
-"""Main breakout scanner with pre-breakout and confirmation scoring."""
+"""Main breakout scanner with pre-breakout, confirmation and ML scoring."""
 
 from typing import Dict, List, Optional
 
@@ -8,14 +8,17 @@ import yfinance as yf
 
 from backend.analysis.indicators import TechnicalIndicators
 from backend.analysis.squeeze_detector import SqueezeDetector
+from backend.ml.breakout_model import BreakoutProbabilityModel, FEATURES
+from backend.ml.model_registry import ModelRegistry
 
 
 class BreakoutScanner:
     """Detect compression, breakout-ready setups and confirmed breakouts."""
 
-    def __init__(self) -> None:
+    def __init__(self, model_path: str = "models/breakout_model.joblib") -> None:
         self.squeeze = SqueezeDetector()
         self.indicators = TechnicalIndicators()
+        self.model = ModelRegistry(model_path).load() or BreakoutProbabilityModel()
 
     def scan_stock(self, symbol: str, df: Optional[pd.DataFrame] = None) -> Dict:
         if df is None:
@@ -34,17 +37,26 @@ class BreakoutScanner:
                 return squeeze_result
 
             indicators = self.indicators.calculate_all(df)
-            features = {**squeeze_result, **indicators, "current_price": float(df["Close"].iloc[-1])}
+            features = {
+                **squeeze_result,
+                **indicators,
+                "current_price": float(df["Close"].iloc[-1]),
+            }
             score = self._calculate_score(features)
             phase = self._classify_phase(features)
             levels = self._calculate_levels(df)
             risk = self._false_breakout_risk(features)
+            ml_result = self.model.predict(self._model_features(features))
+            probability = ml_result["breakout_probability"]
 
             return {
                 "symbol": symbol.upper(),
                 "score": score,
                 "phase": phase,
-                "breakout_probability": round(self._breakout_probability(features), 2),
+                "breakout_probability": probability,
+                "model_type": ml_result["model_type"],
+                "model_trained": ml_result["trained"],
+                "model_metrics": ml_result["metrics"],
                 "false_breakout_risk": round(risk, 2),
                 "breakout_confirmed": bool(features.get("breakout_confirmed", False)),
                 "squeeze": squeeze_result,
@@ -54,6 +66,10 @@ class BreakoutScanner:
             }
         except Exception as exc:
             return {"error": str(exc)}
+
+    def _model_features(self, x: Dict) -> Dict:
+        """Map scanner output to the stable ML feature contract."""
+        return {name: x.get(name, 0.0) for name in FEATURES}
 
     def _calculate_score(self, x: Dict) -> float:
         """Weighted setup score. It rewards confirmation, not volatility alone."""
@@ -92,28 +108,24 @@ class BreakoutScanner:
         return "WATCH"
 
     @staticmethod
-    def _breakout_probability(x: Dict) -> float:
-        score = float(x.get("breakout_score", 50))
-        trend = float(x.get("trend_strength", 0.5)) * 100
-        rvol = float(x.get("relative_volume", 1.0))
-        distance = float(x.get("resistance_distance", 1.0))
-        probability = 0.50 * score + 0.20 * trend + 0.20 * np.clip(rvol / 2.5, 0, 1) * 100
-        probability += 0.10 * np.clip(1 - distance / 0.08, 0, 1) * 100
-        return float(np.clip(probability, 0, 100))
-
-    @staticmethod
     def _false_breakout_risk(x: Dict) -> float:
         rvol = float(x.get("relative_volume", 1.0))
         trend = float(x.get("trend_strength", 0.5))
         rsi = float(x.get("rsi", 50))
         momentum = float(x.get("momentum_5d", 0.0))
         risk = 45.0
-        if rvol < 1.2: risk += 20
-        elif rvol >= 2.0: risk -= 12
-        if trend < 0.35: risk += 18
-        elif trend > 0.70: risk -= 10
-        if rsi > 78: risk += 12
-        if momentum < 0: risk += 15
+        if rvol < 1.2:
+            risk += 20
+        elif rvol >= 2.0:
+            risk -= 12
+        if trend < 0.35:
+            risk += 18
+        elif trend > 0.70:
+            risk -= 10
+        if rsi > 78:
+            risk += 12
+        if momentum < 0:
+            risk += 15
         return float(np.clip(risk, 0, 100))
 
     @staticmethod
@@ -164,6 +176,7 @@ class BreakoutScanner:
                     "phase": result["phase"],
                     "breakout_probability": result["breakout_probability"],
                     "false_breakout_risk": result["false_breakout_risk"],
+                    "model_type": result["model_type"],
                     "squeeze": result["squeeze"].get("squeeze_score", 0),
                     "rvol": result["indicators"].get("relative_volume", 1),
                     "recommendation": result["recommendation"]["action"],
