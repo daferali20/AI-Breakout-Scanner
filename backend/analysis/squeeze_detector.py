@@ -1,77 +1,61 @@
-# backend/analysis/squeeze_detector.py
-"""
-كاشف الانضغاط السعري (Squeeze Detector)
-"""
+"""Squeeze detector using Bollinger Bands and Keltner Channels."""
 
-import pandas as pd
-import numpy as np
 from typing import Dict
 
+import numpy as np
+import pandas as pd
+
+
 class SqueezeDetector:
-    """كشف انضغاط السعر باستخدام Bollinger Bands و Keltner Channels"""
-    
-    def __init__(self, bb_period=20, bb_std=2.0, kc_period=20, kc_atr_multiplier=1.5):
+    """Detect volatility compression from OHLC data."""
+
+    def __init__(self, bb_period: int = 20, bb_std: float = 2.0, kc_period: int = 20, kc_atr_multiplier: float = 1.5):
         self.bb_period = bb_period
         self.bb_std = bb_std
         self.kc_period = kc_period
         self.kc_atr_multiplier = kc_atr_multiplier
-    
+
     def detect(self, df: pd.DataFrame) -> Dict:
-        """كشف الانضغاط في البيانات"""
-        if df.empty or len(df) < self.bb_period:
-            return {'error': 'بيانات غير كافية'}
-        
+        if df is None or df.empty or len(df) < max(self.bb_period, 20):
+            return {"error": "بيانات غير كافية"}
         try:
-            close = df['Close']
-            high = df['High']
-            low = df['Low']
-            
-            # Bollinger Bands
+            close = pd.to_numeric(df["Close"], errors="coerce")
+            high = pd.to_numeric(df["High"], errors="coerce")
+            low = pd.to_numeric(df["Low"], errors="coerce")
+            clean = pd.DataFrame({"Close": close, "High": high, "Low": low}).dropna()
+            if len(clean) < self.bb_period:
+                return {"error": "بيانات غير كافية"}
+
+            close, high, low = clean["Close"], clean["High"], clean["Low"]
             bb_middle = close.rolling(self.bb_period).mean()
             bb_std = close.rolling(self.bb_period).std()
-            bb_upper = bb_middle + (bb_std * self.bb_std)
-            bb_lower = bb_middle - (bb_std * self.bb_std)
-            bb_width = (bb_upper - bb_lower) / bb_middle
-            
-            # Keltner Channels
-            typical_price = (high + low + close) / 3
-            kc_middle = typical_price.rolling(self.kc_period).mean()
-            
-            # ATR
-            high_low = high - low
-            high_close = abs(high - close.shift())
-            low_close = abs(low - close.shift())
-            ranges = pd.concat([high_low, high_close, low_close], axis=1)
-            true_range = np.max(ranges, axis=1)
-            atr = true_range.rolling(14).mean()
-            
-            kc_upper = kc_middle + (atr * self.kc_atr_multiplier)
-            kc_lower = kc_middle - (atr * self.kc_atr_multiplier)
-            kc_width = (kc_upper - kc_lower) / kc_middle
-            
-            current_bb_width = bb_width.iloc[-1]
-            current_kc_width = kc_width.iloc[-1]
-            ratio = current_bb_width / current_kc_width
-            
-            # درجة الانضغاط
-            if ratio < 0.7:
-                squeeze_score = 90 + (1 - ratio) * 33
-            elif ratio < 0.9:
-                squeeze_score = 60 + (0.9 - ratio) * 200
-            elif ratio < 1.1:
-                squeeze_score = 40 + (1.1 - ratio) * 200
-            else:
-                squeeze_score = max(0, 40 - (ratio - 1.1) * 100)
-            
-            squeeze_score = min(100, max(0, squeeze_score))
-            
+            bb_upper = bb_middle + bb_std * self.bb_std
+            bb_lower = bb_middle - bb_std * self.bb_std
+            bb_width = (bb_upper - bb_lower) / bb_middle.replace(0, np.nan)
+
+            prev_close = close.shift(1)
+            true_range = pd.concat(
+                [high - low, (high - prev_close).abs(), (low - prev_close).abs()], axis=1
+            ).max(axis=1)
+            atr = true_range.ewm(alpha=1 / 14, adjust=False).mean()
+            kc_middle = close.rolling(self.kc_period).mean()
+            kc_upper = kc_middle + atr * self.kc_atr_multiplier
+            kc_lower = kc_middle - atr * self.kc_atr_multiplier
+            kc_width = (kc_upper - kc_lower) / kc_middle.replace(0, np.nan)
+
+            bb = float(bb_width.iloc[-1])
+            kc = float(kc_width.iloc[-1])
+            if not np.isfinite(bb) or not np.isfinite(kc) or kc <= 0:
+                return {"error": "تعذر حساب الانضغاط"}
+
+            ratio = bb / kc
+            squeeze_score = np.clip(100 - ratio * 70, 0, 100)
             return {
-                'is_squeeze': current_bb_width < current_kc_width,
-                'squeeze_score': round(squeeze_score, 2),
-                'bb_width': round(current_bb_width, 4),
-                'kc_width': round(current_kc_width, 4),
-                'ratio': round(ratio, 3)
+                "is_squeeze": bool(bb < kc),
+                "squeeze_score": round(float(squeeze_score), 2),
+                "bb_width": round(bb, 5),
+                "kc_width": round(kc, 5),
+                "ratio": round(ratio, 3),
             }
-            
-        except Exception as e:
-            return {'error': str(e)}
+        except Exception as exc:
+            return {"error": str(exc)}
