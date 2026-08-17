@@ -2,36 +2,20 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, Iterable, Optional
+from typing import Any, Dict, Iterable
 
 import numpy as np
 import pandas as pd
 
 FEATURES = [
-    "rsi",
-    "relative_volume",
-    "volume_trend",
-    "smart_money_score",
-    "trend_strength",
-    "price_position",
-    "resistance_distance",
-    "resistance_break",
-    "bollinger_width",
-    "atr_ratio",
-    "price_change",
-    "price_momentum",
-    "compression_level",
+    "rsi", "relative_volume", "volume_trend", "smart_money_score",
+    "trend_strength", "price_position", "resistance_distance",
+    "resistance_break", "bollinger_width", "atr_ratio", "price_change",
+    "price_momentum", "compression_level",
 ]
 
 
 class BreakoutProbabilityModel:
-    """Predict breakout success after fitting on historical labeled examples.
-
-    The model deliberately supports a deterministic fallback so the application
-    remains usable before a trained artifact exists. The fallback is a score,
-    not a claimed statistical probability.
-    """
-
     def __init__(self) -> None:
         self.model: Any = None
         self.fitted = False
@@ -42,7 +26,6 @@ class BreakoutProbabilityModel:
         return FEATURES.copy()
 
     def fit(self, X: pd.DataFrame, y: Iterable[int]) -> Dict[str, float]:
-        """Fit HistGradientBoosting when scikit-learn is available."""
         from sklearn.ensemble import HistGradientBoostingClassifier
         from sklearn.metrics import accuracy_score, roc_auc_score
 
@@ -50,30 +33,20 @@ class BreakoutProbabilityModel:
         target = pd.Series(list(y), index=frame.index).astype(int)
         if len(frame) < 50 or target.nunique() < 2:
             raise ValueError("At least 50 labeled rows with both classes are required")
-
         split = max(int(len(frame) * 0.8), 1)
-        if split >= len(frame):
-            split = len(frame) - 1
+        split = min(split, len(frame) - 1)
         train_x, test_x = frame.iloc[:split], frame.iloc[split:]
         train_y, test_y = target.iloc[:split], target.iloc[split:]
-
         self.model = HistGradientBoostingClassifier(
-            max_iter=180,
-            learning_rate=0.05,
-            max_leaf_nodes=15,
-            l2_regularization=1.0,
-            random_state=42,
+            max_iter=180, learning_rate=0.05, max_leaf_nodes=15,
+            l2_regularization=1.0, random_state=42,
         )
         self.model.fit(train_x, train_y)
         self.fitted = True
-
         probability = self.model.predict_proba(test_x)[:, 1]
         prediction = (probability >= 0.5).astype(int)
         metrics = {"accuracy": float(accuracy_score(test_y, prediction))}
-        if test_y.nunique() == 2:
-            metrics["roc_auc"] = float(roc_auc_score(test_y, probability))
-        else:
-            metrics["roc_auc"] = float("nan")
+        metrics["roc_auc"] = float(roc_auc_score(test_y, probability)) if test_y.nunique() == 2 else float("nan")
         self.metrics = metrics
         return metrics
 
