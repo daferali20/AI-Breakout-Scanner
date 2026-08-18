@@ -1,4 +1,4 @@
-"""Opportunity phase detection and scoring primitives."""
+"""Opportunity phase detection, catalyst analysis and scoring primitives."""
 
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
@@ -41,6 +41,41 @@ class Catalysts:
     SMART_MONEY_INFLOW = "تدفق سيولة من المؤسسات (Smart Money)"
     PATTERN_COMPLETION = "اكتمال نمط الفني إيجابي"
     RESISTANCE_BREAK = "اختراق قمة سابقة"
+    POSITIVE_NEWS = "أخبار إيجابية"
+    SOCIAL_MOMENTUM = "زخم ملحوظ في التفاعل الاجتماعي"
+
+
+class CatalystEngine:
+    """Convert normalized news/social signals into explainable catalyst labels."""
+
+    def analyze_catalysts(self, data: Optional[Dict[str, Any]] = None) -> List[str]:
+        data = data or {}
+        catalysts: List[str] = []
+        news = self._num(data.get("news_sentiment", 0.5), 0.5)
+        social = self._num(data.get("social_score", 0.0), 0.0)
+        volume = self._num(data.get("relative_volume", 1.0), 1.0)
+        smart_money = self._num(data.get("smart_money_score", 50.0), 50.0)
+        if news >= 0.65:
+            catalysts.append(Catalysts.POSITIVE_NEWS)
+        if social >= 0.50:
+            catalysts.append(Catalysts.SOCIAL_MOMENTUM)
+        if volume >= 1.50:
+            catalysts.append(Catalysts.VOLUME_SPIKE)
+        if smart_money >= 60:
+            catalysts.append(Catalysts.SMART_MONEY_INFLOW)
+        return catalysts
+
+    def get_catalyst_summary(self, catalysts: Optional[List[str]] = None) -> str:
+        catalysts = catalysts or []
+        return "، ".join(catalysts) if catalysts else "لا توجد محفزات واضحة حاليًا"
+
+    @staticmethod
+    def _num(value: Any, default: float) -> float:
+        try:
+            value = float(value)
+            return value if value == value else default
+        except (TypeError, ValueError):
+            return default
 
 
 @dataclass
@@ -128,3 +163,10 @@ class OpportunityEngine:
             reasons=["تجميع سيولة", "انخفاض التذبذب", "دعم من حركة السيولة الذكية"],
             ai_decision_report="### 🤖 تقرير الذكاء الاصطناعي\nمراقبة الاختراق مع إدارة المخاطر.",
         )
+
+
+__all__ = [
+    "MarketPhase", "OpportunityScoreLevel", "PHASE_PROPERTIES", "INDICATOR_WEIGHTS",
+    "Catalysts", "CatalystEngine", "PhaseMetrics", "PhaseDetector", "OpportunityResult",
+    "TimelineEvent", "TimelineBuilder", "OpportunityEngine",
+]
