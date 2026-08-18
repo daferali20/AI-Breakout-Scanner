@@ -14,14 +14,26 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Environment diagnostics
+        run: |
+          echo "runner=$RUNNER_OS"
+          pwd
+          python3 --version
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+      - name: Python diagnostics
+        run: |
+          python --version
+          python -m pip --version
       - name: Upgrade packaging tools
         run: python -m pip install --upgrade pip setuptools wheel
       - name: Install test dependencies
         run: python -m pip install pytest pandas numpy scikit-learn
+      - name: Verify installed tools
+        run: |
+          python -c "import pytest, pandas, numpy, sklearn; print('DEPENDENCIES OK')"
       - name: Compile core Python sources
         run: python -m compileall -q backend tests
       - name: Import core modules
