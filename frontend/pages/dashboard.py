@@ -1,18 +1,13 @@
 """لوحة واحدة: اكتشاف السوق + المسح + أفضل الفرص."""
 
-from concurrent.futures import ThreadPoolExecutor, as_completed
-
 import pandas as pd
 import plotly.express as px
 import streamlit as st
-import yfinance as yf
 
 from backend.results_store import get_scan, save_scan
+from backend.data.yahoo_universe import DEFAULT_UNIVERSE, download_batches, rank_discovery_candidates
 
-DEFAULT_SYMBOLS = [
-    "AAPL", "MSFT", "NVDA", "AMD", "AMZN", "META", "GOOGL", "TSLA",
-    "PLTR", "AVGO", "NFLX", "CRM", "ORCL", "COIN", "SMCI",
-]
+DEFAULT_SYMBOLS = list(DEFAULT_UNIVERSE)
 
 
 @st.cache_data(ttl=3600, show_spinner=False)
@@ -35,7 +30,19 @@ def load_market_universe():
         pass
     symbols.extend(DEFAULT_SYMBOLS)
     symbols = list(dict.fromkeys(s.strip().upper() for s in symbols if s and s.strip()))
-    return symbols, " + ".join(sources) if sources else "القائمة الافتراضية"
+    return symbols, " + ".join(sources) if sources else "القائمة الافتراضية الموسعة"
+
+
+@st.cache_data(ttl=300, show_spinner=False)
+def _load_yahoo_frames(symbols_tuple):
+    return download_batches(
+        symbols_tuple,
+        period="6mo",
+        interval="1d",
+        batch_size=40,
+        pause_seconds=1.0,
+        max_retries=2,
+    )
 
 
 def _snapshot():
@@ -64,7 +71,7 @@ def render(auto_run=False):
 
     c1, c2, c3 = st.columns([2, 1, 1])
     with c1:
-        st.info("🤖 المسح الذكي: اكتشاف السوق أولًا، ثم تحليل المرشحين الأقوى بعمق.")
+        st.info("🤖 المسح الذكي: جلب دفعات من Yahoo، فلترة سريعة، ثم تحليل عميق لأقوى المرشحين.")
     with c2:
         top_n = st.number_input("أفضل النتائج", min_value=5, max_value=20, value=10, step=1)
     with c3:
@@ -86,63 +93,6 @@ def render(auto_run=False):
     display_activity(snapshot)
 
 
-def _discovery_score(frame):
-    if frame is None or frame.empty or len(frame) < 25:
-        return 0.0
-    close = pd.to_numeric(frame["Close"], errors="coerce").dropna()
-    volume = pd.to_numeric(frame["Volume"], errors="coerce").dropna()
-    if len(close) < 25 or len(volume) < 20:
-        return 0.0
-    last = float(close.iloc[-1])
-    avg20 = float(close.rolling(20).mean().iloc[-1])
-    avg_vol = float(volume.rolling(20).mean().iloc[-1])
-    change5 = ((last / float(close.iloc[-6])) - 1) * 100 if float(close.iloc[-6]) else 0
-    rvol = float(volume.iloc[-1] / avg_vol) if avg_vol > 0 else 0
-    resistance = float(close.rolling(20).max().iloc[-2])
-    distance = max(0.0, ((resistance / last) - 1) * 100) if last > 0 else 100
-    trend = 100 if last > avg20 else 30
-    momentum = min(100, max(0, 50 + change5 * 8))
-    volume_score = min(100, max(0, rvol * 35))
-    proximity = min(100, max(0, 100 - distance * 12))
-    return float(0.35 * momentum + 0.30 * volume_score + 0.20 * proximity + 0.15 * trend)
-
-
-def _discover_candidates(symbols, candidate_limit):
-    if not symbols:
-        return [], pd.DataFrame()
-    try:
-        data = yf.download(
-            tickers=symbols,
-            period="2mo",
-            interval="1d",
-            group_by="ticker",
-            auto_adjust=False,
-            threads=True,
-            progress=False,
-        )
-    except Exception:
-        return symbols[:candidate_limit], pd.DataFrame()
-
-    rows = []
-    if isinstance(data.columns, pd.MultiIndex):
-        available = set(data.columns.get_level_values(0))
-        for symbol in symbols:
-            if symbol not in available:
-                continue
-            frame = data[symbol].dropna(how="all")
-            score = _discovery_score(frame)
-            if score > 0:
-                rows.append({"symbol": symbol, "discovery_score": round(score, 2)})
-    elif len(symbols) == 1 and not data.empty:
-        rows.append({"symbol": symbols[0], "discovery_score": round(_discovery_score(data), 2)})
-
-    ranking = pd.DataFrame(rows)
-    if ranking.empty:
-        return symbols[:candidate_limit], ranking
-    ranking = ranking.sort_values("discovery_score", ascending=False).reset_index(drop=True)
-    return ranking.head(candidate_limit)["symbol"].tolist(), ranking
-
-
 def _run_scan(symbols, source, min_score, top_n, max_symbols):
     try:
         from backend.scanner.breakout_scanner import BreakoutScanner
@@ -155,30 +105,38 @@ def _run_scan(symbols, source, min_score, top_n, max_symbols):
         st.warning("لم يتم اكتشاف أسهم للمسح.")
         return
 
-    candidate_limit = max(20, min(int(max_symbols), len(symbols)))
-    with st.spinner(f"🤖 يبحث النظام عن أفضل {candidate_limit} مرشحًا من {len(symbols)} سهمًا..."):
-        candidates, _ = _discover_candidates(symbols, candidate_limit)
-    st.success(f"🔎 تم اكتشاف {len(candidates)} مرشحًا قويًا من أصل {len(symbols)} سهمًا — يبدأ التحليل العميق الآن.")
+    # نضع سقفًا للمرحلة العميقة حتى لا نضغط Yahoo بطلبات إضافية.
+    candidate_limit = max(20, min(int(max_symbols), 40, len(symbols)))
+    normalized = tuple(symbols)
+
+    with st.spinner(f"📡 يجلب النظام بيانات السوق على دفعات آمنة من Yahoo Finance..."):
+        frames = _load_yahoo_frames(normalized)
+
+    if not frames:
+        st.warning("تعذر الحصول على بيانات Yahoo في هذه الجولة. سيتم الاحتفاظ بالنتائج السابقة إن وجدت.")
+        return
+
+    ranking = rank_discovery_candidates(frames, limit=candidate_limit)
+    if ranking.empty:
+        st.warning("لم يتم العثور على مرشحين صالحين من البيانات المتاحة.")
+        return
+
+    candidates = ranking["symbol"].tolist()
+    st.success(f"🔎 اكتشف النظام {len(candidates)} مرشحًا من {len(symbols)} سهمًا، دون طلب منفصل لكل سهم.")
 
     scanner = BreakoutScanner()
     rows, errors, regime_frames = [], [], []
     progress = st.progress(0)
     status = st.empty()
 
-    def analyze(symbol):
+    for index, symbol in enumerate(candidates, 1):
+        status.caption(f"🤖 تحليل عميق {symbol} ({index}/{len(candidates)})")
+        frame = frames.get(symbol)
         try:
-            return symbol, scanner.scan_stock(symbol), None
-        except Exception as exc:
-            return symbol, None, str(exc)
-
-    workers = min(6, max(2, len(candidates)))
-    with ThreadPoolExecutor(max_workers=workers) as executor:
-        futures = [executor.submit(analyze, symbol) for symbol in candidates]
-        for index, future in enumerate(as_completed(futures), 1):
-            symbol, result, error = future.result()
-            status.caption(f"🔎 تحليل عميق {symbol} ({index}/{len(candidates)})")
-            if error or not result or "error" in result:
-                errors.append({"symbol": symbol, "error": error or result.get("error", "Unknown error")})
+            # نمرر البيانات التي جلبناها بالفعل؛ لا يعيد Scanner طلب Yahoo.
+            result = scanner.scan_stock(symbol, df=frame)
+            if not result or "error" in result:
+                errors.append({"symbol": symbol, "error": (result or {}).get("error", "Unknown error")})
             else:
                 indicators = result.get("indicators", {})
                 rows.append({
@@ -198,20 +156,19 @@ def _run_scan(symbols, source, min_score, top_n, max_symbols):
                     "target": result.get("levels", {}).get("target_1", 0),
                     "recommendation": result.get("recommendation", {}).get("action", ""),
                 })
-                try:
-                    frame = yf.Ticker(symbol).history(period="3mo", auto_adjust=False)
-                    if not frame.empty:
-                        regime_frames.append(frame)
-                except Exception:
-                    pass
-            progress.progress(index / len(candidates))
+                regime_frames.append(frame)
+        except Exception as exc:
+            errors.append({"symbol": symbol, "error": str(exc)})
+        progress.progress(index / len(candidates))
 
     progress.empty()
     status.empty()
+
     ranked_all = rank_opportunities(rows, top_n=max(top_n, len(rows)))
     if ranked_all.empty:
         st.warning("لم يتم العثور على فرص قابلة للتحليل في هذه الجولة.")
         return
+
     ranked = ranked_all[ranked_all["setup_score"] >= min_score].head(top_n).reset_index(drop=True)
     if ranked.empty:
         ranked = ranked_all.head(top_n).reset_index(drop=True)
@@ -226,14 +183,26 @@ def _run_scan(symbols, source, min_score, top_n, max_symbols):
 
     now = pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S")
     errors_df = pd.DataFrame(errors)
-    discovery_source = f"{source} → اكتشاف تلقائي {len(symbols)} → تحليل عميق {len(candidates)}"
-    save_scan(scan_results=ranked, scan_results_all=ranked_all, scan_errors=errors_df,
-              scan_symbols_count=len(symbols), scan_success_count=len(rows),
-              last_scan_time=now, scan_universe_source=discovery_source, market_regime=regime)
+    discovery_source = f"{source} → Yahoo Batch Discovery {len(symbols)} → Deep Analysis {len(candidates)}"
+    save_scan(
+        scan_results=ranked,
+        scan_results_all=ranked_all,
+        scan_errors=errors_df,
+        scan_symbols_count=len(symbols),
+        scan_success_count=len(rows),
+        last_scan_time=now,
+        scan_universe_source=discovery_source,
+        market_regime=regime,
+    )
     st.session_state.update({
-        "scan_results": ranked.copy(), "scan_results_all": ranked_all.copy(), "scan_errors": errors_df,
-        "scan_symbols_count": len(symbols), "scan_success_count": len(rows), "last_scan_time": now,
-        "scan_universe_source": discovery_source, "market_regime": regime,
+        "scan_results": ranked.copy(),
+        "scan_results_all": ranked_all.copy(),
+        "scan_errors": errors_df,
+        "scan_symbols_count": len(symbols),
+        "scan_success_count": len(rows),
+        "last_scan_time": now,
+        "scan_universe_source": discovery_source,
+        "market_regime": regime,
     })
     st.success(f"✅ اكتمل المسح الذكي: تم تحليل {len(rows)} مرشحًا وعرض أفضل {len(ranked)} فرص.")
 
@@ -311,7 +280,7 @@ def display_top_opportunities(snapshot=None):
             if row.get("explanation", ""):
                 st.info(f"💡 {row.get('explanation')}")
             if row.get("recommendation", ""):
-                st.markdown(f"**التوصية:** {row.get('recommendation')}")
+                st.markdown(f"**التوصية:** {row.get('recommendation')}" )
 
 
 def display_activity(snapshot=None):
