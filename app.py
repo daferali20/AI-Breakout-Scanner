@@ -12,9 +12,6 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# -----------------------------------------------------------------------------
-# Global styling (keep the existing frontend design)
-# -----------------------------------------------------------------------------
 PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
 CSS_PATH = os.path.join(PROJECT_ROOT, "frontend", "assets", "style.css")
 if os.path.isfile(CSS_PATH):
@@ -24,23 +21,15 @@ if os.path.isfile(CSS_PATH):
     except OSError:
         pass
 
-# -----------------------------------------------------------------------------
-# Session state
-# -----------------------------------------------------------------------------
 if "current_page" not in st.session_state:
     st.session_state.current_page = "dashboard"
 if "last_scan_time" not in st.session_state:
     st.session_state.last_scan_time = None
 
-# -----------------------------------------------------------------------------
-# Sidebar and existing dashboard UI
-# -----------------------------------------------------------------------------
 try:
     from frontend.components.sidebar import render_sidebar
     render_sidebar()
 except Exception as exc:
-    # The dashboard must remain usable even if an optional frontend component
-    # fails. Do not import the backend here: that belongs to the scan pages.
     st.sidebar.warning(f"تعذر تحميل الشريط الجانبي: {exc}")
 
 current_page = st.session_state.get("current_page", "dashboard")
@@ -53,19 +42,10 @@ if current_page == "dashboard":
         st.title("🚀 AI Breakout Scanner")
         st.error(f"تعذر تحميل لوحة التحكم: {exc}")
 
-elif current_page == "market_data":
-    st.title("🌐 بيانات السوق")
-    st.info("صفحة بيانات السوق متاحة من خلال صفحة التحليل/المسح المتخصصة.")
-
-elif current_page == "scanner":
-    st.title("🔍 مسح السوق")
-    st.info("استخدم صفحة AI Opportunity Ranking لتشغيل محرك الفرص المتقدم.")
-    st.page_link("pages/AI_Opportunity_Ranking.py", label="🏆 فتح AI Opportunity Ranking")
-
-elif current_page == "analyze":
-    st.title("📈 تحليل سهم")
-    st.info("استخدم AI Opportunity Ranking لتحليل الأسهم وترتيب الفرص.")
-    st.page_link("pages/AI_Opportunity_Ranking.py", label="🏆 فتح AI Opportunity Ranking")
+elif current_page in {"scanner", "analyze", "market_data"}:
+    # Keep the existing UI and use the specialized scanner page as the
+    # single entry point for market scanning, analysis and market data.
+    st.switch_page("pages/AI_Opportunity_Ranking.py")
 
 else:
     st.session_state.current_page = "dashboard"
