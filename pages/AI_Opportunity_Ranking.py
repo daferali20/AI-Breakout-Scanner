@@ -9,7 +9,6 @@ from backend.market.regime import detect_market_regime
 
 st.set_page_config(page_title="AI Opportunity Ranking", page_icon="🏆", layout="wide")
 
-# Keep the existing page design, but provide an explicit route back to app.py.
 with st.sidebar:
     st.page_link("app.py", label="🏠 العودة إلى لوحة التحكم", icon="🏠")
     st.markdown("---")
@@ -22,12 +21,56 @@ DEFAULT_SYMBOLS = [
     "PLTR", "AVGO", "NFLX", "CRM", "ORCL", "COIN", "SMCI"
 ]
 
-symbols_text = st.text_input("الأسهم المراد فحصها", value=", ".join(DEFAULT_SYMBOLS))
+@st.cache_data(ttl=3600, show_spinner=False)
+def load_market_universe():
+    """Build a fresh scan universe from major US indexes, with safe fallbacks."""
+    symbols = []
+    sources = []
+
+    # S&P 500 is a broad, liquid US universe and is refreshed periodically.
+    try:
+        sp500 = pd.read_html("https://en.wikipedia.org/wiki/List_of_S%26P_500_companies")[0]
+        if "Symbol" in sp500.columns:
+            symbols.extend(sp500["Symbol"].astype(str).str.replace(".", "-", regex=False).tolist())
+            sources.append(f"S&P 500: {len(sp500)}")
+    except Exception:
+        pass
+
+    # Nasdaq-100 adds growth/technology names that may not be captured by a fallback.
+    try:
+        nasdaq100 = pd.read_html("https://en.wikipedia.org/wiki/Nasdaq-100")[4]
+        col = "Ticker" if "Ticker" in nasdaq100.columns else None
+        if col:
+            symbols.extend(nasdaq100[col].astype(str).tolist())
+            sources.append(f"Nasdaq-100: {len(nasdaq100)}")
+    except Exception:
+        pass
+
+    # Always keep a working fallback if an external index page is unavailable.
+    symbols.extend(DEFAULT_SYMBOLS)
+    symbols = list(dict.fromkeys(s.strip().upper() for s in symbols if s and s.strip()))
+    return symbols, " + ".join(sources) if sources else "القائمة الافتراضية"
+
+scan_mode = st.radio(
+    "مصدر الأسهم",
+    ["🔎 مسح تلقائي للسوق", "✍️ أسهم محددة"],
+    horizontal=True,
+    help="المسح التلقائي يجلب قائمة محدثة من S&P 500 وNasdaq-100 ثم يحلل الأسهم بدل الاكتفاء بالقائمة المكتوبة."
+)
+
+if scan_mode == "🔎 مسح تلقائي للسوق":
+    universe, universe_source = load_market_universe()
+    scan_count = st.slider("عدد الأسهم التي سيتم فحصها", 10, min(250, len(universe)), 50, step=10)
+    symbols = universe[:scan_count]
+    st.caption(f"📡 المصدر: {universe_source} — سيتم فحص {len(symbols)} سهمًا تلقائيًا.")
+else:
+    symbols_text = st.text_input("الأسهم المراد فحصها", value=", ".join(DEFAULT_SYMBOLS))
+    symbols = list(dict.fromkeys(s.strip().upper() for s in symbols_text.split(",") if s.strip()))
+
 min_score = st.slider("الحد الأدنى لدرجة الإعداد", 0, 100, 40)
 top_n = st.slider("عدد أفضل الفرص", 5, 20, 10)
 
 if st.button("🚀 تشغيل الفحص", type="primary", width="stretch"):
-    symbols = list(dict.fromkeys(s.strip().upper() for s in symbols_text.split(",") if s.strip()))
     scanner = BreakoutScanner()
     rows = []
     errors = []
@@ -122,4 +165,4 @@ if st.button("🚀 تشغيل الفحص", type="primary", width="stretch"):
                 st.write(f"**مخاطر الاختراق الكاذب:** {row['false_breakout_risk']:.1f}%")
                 st.write(f"**السعر:** ${row['price']:.2f} | **الهدف الأول:** ${row['target']:.2f}")
 else:
-    st.info("اختر الأسهم ثم اضغط تشغيل الفحص لعرض أفضل فرص الاختراق.")
+    st.info("اختر المسح التلقائي للسوق أو أدخل أسهمًا محددة، ثم اضغط تشغيل الفحص.")
