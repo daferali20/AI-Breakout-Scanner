@@ -1,4 +1,4 @@
-"""AI Breakout Scanner - Streamlit entry point."""
+"""AI Breakout Scanner - single-page Streamlit application."""
 
 import os
 from datetime import datetime
@@ -21,10 +21,10 @@ if os.path.isfile(CSS_PATH):
     except OSError:
         pass
 
-if "current_page" not in st.session_state:
-    st.session_state.current_page = "dashboard"
 if "last_scan_time" not in st.session_state:
     st.session_state.last_scan_time = None
+if "scan_requested" not in st.session_state:
+    st.session_state.scan_requested = False
 
 try:
     from frontend.components.sidebar import render_sidebar
@@ -32,23 +32,11 @@ try:
 except Exception as exc:
     st.sidebar.warning(f"تعذر تحميل الشريط الجانبي: {exc}")
 
-current_page = st.session_state.get("current_page", "dashboard")
+try:
+    from frontend.pages.dashboard import render
+    render(auto_run=st.session_state.pop("scan_requested", False))
+except Exception as exc:
+    st.title("🚀 AI Breakout Scanner")
+    st.error(f"تعذر تحميل لوحة التحكم: {exc}")
 
-if current_page == "dashboard":
-    try:
-        from frontend.pages.dashboard import render
-        render()
-    except Exception as exc:
-        st.title("🚀 AI Breakout Scanner")
-        st.error(f"تعذر تحميل لوحة التحكم: {exc}")
-
-elif current_page in {"scanner", "analyze", "market_data"}:
-    # Keep the existing UI and use the specialized scanner page as the
-    # single entry point for market scanning, analysis and market data.
-    st.switch_page("pages/AI_Opportunity_Ranking.py")
-
-else:
-    st.session_state.current_page = "dashboard"
-    st.rerun()
-
-st.caption(f"آخر تحديث: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+st.caption(f"آخر تحديث للواجهة: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
