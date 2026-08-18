@@ -1,60 +1,55 @@
-"""
-AI Score - تحليل متقدم باستخدام الذكاء الاصطناعي
-"""
+"""Explainable AI-style opportunity scoring built from live market features."""
 
-from typing import Dict, Any
+from typing import Any, Dict
+
 import numpy as np
 
-# إضافة استيراد المحرك الجديد
 from backend.opportunity import OpportunityEngine
 
 
 class AIScoreAnalyzer:
-    """محلل درجات الذكاء الاصطناعي"""
-    
-    def __init__(self):
+    """Produce explainable scores from live features and the opportunity engine."""
+
+    def __init__(self) -> None:
         self.opportunity_engine = OpportunityEngine()
-    
+
     def analyze(self, symbol: str, data: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        تحليل شامل باستخدام AI
-        
-        Returns:
-            Dict[str, Any]: النتائج المحسنة مع تحليل الفرصة
-        """
-        # التحليل التقليدي
-        base_analysis = self._traditional_analysis(data)
-        
-        # تحليل الفرصة المتقدم
-        opportunity_result = self.opportunity_engine.analyze(symbol, data)
-        
-        # دمج النتائج
+        base = self._feature_analysis(data)
+        opportunity = self.opportunity_engine.analyze(symbol, data)
+        combined = float(np.clip(0.65 * opportunity.opportunity_score + 0.35 * base["technical_score"] * 100, 0, 100))
         return {
-            **base_analysis,
-            'opportunity': opportunity_result,
-            'ai_confidence': opportunity_result.confidence,
-            'ai_score': opportunity_result.opportunity_score,
-            'recommendation': self._get_recommendation(opportunity_result),
+            **base,
+            "opportunity": opportunity,
+            "ai_confidence": round(float(opportunity.confidence), 2),
+            "ai_score": round(combined, 2),
+            "recommendation": self._get_recommendation(combined),
+            "score_type": "explainable_rule_based_baseline",
         }
-    
-    def _traditional_analysis(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        """التحليل التقليدي (مستمر)"""
-        # محاكاة - سيتم استبدالها بالتحليل الفعلي
+
+    @staticmethod
+    def _feature_analysis(data: Dict[str, Any]) -> Dict[str, float]:
+        rsi = float(data.get("rsi", 50) or 50)
+        rvol = float(data.get("relative_volume", data.get("volume_trend", 1)) or 1)
+        trend = float(data.get("trend_strength", 0.5) or 0.5)
+        squeeze = float(data.get("squeeze_score", 50) or 50) / 100
+        momentum = float(data.get("price_trend", 0) or 0)
+        technical = (
+            0.25 * np.clip(1 - abs(rsi - 60) / 40, 0, 1)
+            + 0.25 * np.clip(rvol / 2.5, 0, 1)
+            + 0.25 * np.clip(trend, 0, 1)
+            + 0.15 * squeeze
+            + 0.10 * np.clip((momentum + 0.05) / 0.10, 0, 1)
+        )
         return {
-            'technical_score': 0.78,
-            'fundamental_score': 0.65,
-            'sentiment_score': 0.72,
+            "technical_score": round(float(np.clip(technical, 0, 1)), 4),
+            "fundamental_score": float(np.clip(data.get("fundamental_score", 0.5), 0, 1)),
+            "sentiment_score": float(np.clip(data.get("sentiment_score", 0.5), 0, 1)),
         }
-    
-    def _get_recommendation(self, result) -> str:
-        """الحصول على توصية بناءً على تحليل الفرصة"""
-        score = result.opportunity_score
-        
-        if score >= 75:
-            return "قوي"
-        elif score >= 60:
-            return "إيجابي"
-        elif score >= 40:
-            return "محايد"
-        else:
-            return "تجنب"
+
+    @staticmethod
+    def _get_recommendation(score: float) -> str:
+        if score >= 80: return "قوي جداً"
+        if score >= 70: return "قوي"
+        if score >= 60: return "إيجابي"
+        if score >= 45: return "محايد"
+        return "تجنب"
