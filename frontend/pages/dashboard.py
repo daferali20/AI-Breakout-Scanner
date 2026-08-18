@@ -60,7 +60,6 @@ def render(auto_run=False):
     min_score = config.get("min_score", 40)
     max_symbols = config.get("max_symbols", 50)
 
-    # The dashboard owns the scan controls. The sidebar button only requests a run.
     control1, control2, control3 = st.columns([2, 1, 1])
     with control1:
         scan_mode = st.radio(
@@ -82,8 +81,7 @@ def render(auto_run=False):
     else:
         source = "أسهم محددة"
         text = st.text_input("الأسهم المراد فحصها", value=", ".join(DEFAULT_SYMBOLS))
-        symbols = list(dict.fromkeys(x.strip().upper() for x in text.split(",") if x.strip()))
-        symbols = symbols[:max_symbols]
+        symbols = list(dict.fromkeys(x.strip().upper() for x in text.split(",") if x.strip()))[:max_symbols]
         st.caption(f"سيتم فحص {len(symbols)} سهمًا.")
 
     if auto_run or run_here:
@@ -100,7 +98,6 @@ def render(auto_run=False):
 
 
 def _run_scan(symbols, source, min_score, top_n):
-    # Lazy imports prevent the dashboard from failing before a scan is requested.
     try:
         import yfinance as yf
         from backend.scanner.breakout_scanner import BreakoutScanner
@@ -140,6 +137,9 @@ def _run_scan(symbols, source, min_score, top_n):
                 "trend_score": float(indicators.get("trend_strength", 0)) * 100,
                 "relative_volume": indicators.get("relative_volume", 1),
                 "phase": result.get("phase", "WATCH"),
+                "signal": result.get("signal", "👀 WATCH"),
+                "confirmation_score": result.get("confirmation_score", 0),
+                "explanation": result.get("explanation", ""),
                 "price": result.get("levels", {}).get("current", 0),
                 "target": result.get("levels", {}).get("target_1", 0),
                 "recommendation": result.get("recommendation", {}).get("action", ""),
@@ -181,14 +181,9 @@ def _run_scan(symbols, source, min_score, top_n):
         market_regime=regime,
     )
     st.session_state.update({
-        "scan_results": ranked.copy(),
-        "scan_results_all": ranked_all.copy(),
-        "scan_errors": errors_df,
-        "scan_symbols_count": len(symbols),
-        "scan_success_count": len(rows),
-        "last_scan_time": now,
-        "scan_universe_source": source,
-        "market_regime": regime,
+        "scan_results": ranked.copy(), "scan_results_all": ranked_all.copy(), "scan_errors": errors_df,
+        "scan_symbols_count": len(symbols), "scan_success_count": len(rows), "last_scan_time": now,
+        "scan_universe_source": source, "market_regime": regime,
     })
     st.success(f"✅ اكتمل المسح: تم تحليل {len(rows)} من {len(symbols)} سهمًا — {len(ranked)} فرصة معروضة.")
 
@@ -228,33 +223,56 @@ def display_market_status(snapshot=None):
         st.info("🔎 لم يتم تنفيذ مسح بعد. استخدم زر المسح من اليمين أو القائمة الجانبية.")
 
 
+def _fmt(value, suffix="", decimals=1):
+    try:
+        return f"{float(value):.{decimals}f}{suffix}"
+    except (TypeError, ValueError):
+        return "—"
+
+
 def display_top_opportunities(snapshot=None):
     results = _results(snapshot or _snapshot())
     st.subheader("🔥 أفضل الفرص الآن")
     if results.empty:
         st.info("ستظهر الأسهم هنا فور اكتمال أول مسح.")
         return
-    preferred = ["rank", "symbol", "price", "opportunity_score", "signal_quality", "breakout_probability", "false_breakout_risk", "relative_volume", "phase", "recommendation"]
+
+    preferred = [
+        "rank", "symbol", "price", "opportunity_score", "signal_class", "signal_quality",
+        "signal", "confirmation_score", "breakout_probability", "false_breakout_risk",
+        "relative_volume", "phase", "recommendation",
+    ]
     cols = [c for c in preferred if c in results.columns]
     display = results[cols].head(10).copy()
     display = display.rename(columns={
         "rank": "#", "symbol": "السهم", "price": "السعر", "opportunity_score": "الفرصة",
-        "signal_quality": "الجودة", "breakout_probability": "احتمال الاختراق",
+        "signal_class": "التصنيف", "signal_quality": "الجودة", "signal": "الإشارة",
+        "confirmation_score": "التأكيد", "breakout_probability": "احتمال الاختراق",
         "false_breakout_risk": "خطر الاختراق الكاذب", "relative_volume": "Relative Volume",
-        "phase": "المرحلة", "recommendation": "الإشارة",
+        "phase": "المرحلة", "recommendation": "التوصية",
     })
-    st.dataframe(display, width="stretch", hide_index=True, height=min(430, 100 + len(display) * 35))
+    st.dataframe(display, width="stretch", hide_index=True, height=min(460, 110 + len(display) * 38))
 
-    st.subheader("🔎 تفاصيل سريعة")
+    st.subheader("🎯 تفاصيل أفضل الفرص")
     for _, row in results.head(5).iterrows():
         symbol = row.get("symbol", "-")
         score = float(row.get("opportunity_score", 0))
-        with st.expander(f"🔥 {symbol} — Opportunity Score {score:.1f}"):
-            c1, c2, c3, c4 = st.columns(4)
+        signal = row.get("signal", row.get("signal_class", "👀 WATCH"))
+        phase = row.get("phase", "WATCH")
+        with st.expander(f"{signal}  {symbol} — Opportunity Score {score:.1f}"):
+            c1, c2, c3, c4, c5 = st.columns(5)
             c1.metric("السعر", f"${float(row.get('price', 0)):.2f}")
-            c2.metric("احتمال الاختراق", f"{float(row.get('breakout_probability', 0)):.1f}%")
-            c3.metric("الخطر", f"{float(row.get('false_breakout_risk', 0)):.1f}%")
-            c4.metric("Relative Volume", f"{float(row.get('relative_volume', 1)):.2f}x")
+            c2.metric("التأكيد", _fmt(row.get("confirmation_score", 0), "/100"))
+            c3.metric("AI / الاختراق", _fmt(row.get("breakout_probability", 0), "%"))
+            c4.metric("الخطر", _fmt(row.get("false_breakout_risk", 0), "%"))
+            c5.metric("Relative Volume", _fmt(row.get("relative_volume", 1), "x", 2))
+            st.markdown(f"**المرحلة:** `{phase}`")
+            explanation = row.get("explanation", "")
+            if explanation:
+                st.info(f"💡 {explanation}")
+            recommendation = row.get("recommendation", "")
+            if recommendation:
+                st.markdown(f"**التوصية:** {recommendation}")
 
 
 def display_activity(snapshot=None):
