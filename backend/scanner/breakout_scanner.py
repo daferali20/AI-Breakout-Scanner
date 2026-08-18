@@ -37,22 +37,23 @@ class BreakoutScanner:
                 return squeeze_result
 
             indicators = self.indicators.calculate_all(df)
-            features = {
-                **squeeze_result,
-                **indicators,
-                "current_price": float(df["Close"].iloc[-1]),
-            }
+            features = {**squeeze_result, **indicators, "current_price": float(df["Close"].iloc[-1])}
             score = self._calculate_score(features)
             phase = self._classify_phase(features)
             levels = self._calculate_levels(df)
             risk = self._false_breakout_risk(features)
             ml_result = self.model.predict(self._model_features(features))
-            probability = ml_result["breakout_probability"]
+            probability = float(ml_result["breakout_probability"])
+            confirmation = self._confirmation_score(features)
+            signal = self._signal_label(phase, score, confirmation, risk)
+            explanation = self._explain(features, phase, confirmation, risk)
 
             return {
                 "symbol": symbol.upper(),
                 "score": score,
                 "phase": phase,
+                "signal": signal,
+                "confirmation_score": confirmation,
                 "breakout_probability": probability,
                 "model_type": ml_result["model_type"],
                 "model_trained": ml_result["trained"],
@@ -62,17 +63,16 @@ class BreakoutScanner:
                 "squeeze": squeeze_result,
                 "indicators": indicators,
                 "levels": levels,
+                "explanation": explanation,
                 "recommendation": self._get_recommendation(score, phase, risk),
             }
         except Exception as exc:
             return {"error": str(exc)}
 
     def _model_features(self, x: Dict) -> Dict:
-        """Map scanner output to the stable ML feature contract."""
         return {name: x.get(name, 0.0) for name in FEATURES}
 
     def _calculate_score(self, x: Dict) -> float:
-        """Weighted setup score. It rewards confirmation, not volatility alone."""
         squeeze = float(x.get("squeeze_score", 50))
         volume = float(x.get("volume_score", 40))
         rsi = float(x.get("rsi_score", 50))
@@ -80,17 +80,64 @@ class BreakoutScanner:
         breakout = float(x.get("breakout_score", 50))
         position = float(x.get("price_position", 0.5)) * 100
         risk = self._false_breakout_risk(x)
-
         score = (
-            squeeze * 0.18
-            + volume * 0.18
-            + rsi * 0.10
-            + trend * 0.14
-            + breakout * 0.25
-            + position * 0.10
-            + (100 - risk) * 0.05
+            squeeze * 0.18 + volume * 0.18 + rsi * 0.10 + trend * 0.14
+            + breakout * 0.25 + position * 0.10 + (100 - risk) * 0.05
         )
         return round(float(np.clip(score, 0, 100)), 2)
+
+    @staticmethod
+    def _confirmation_score(x: Dict) -> float:
+        """Independent price/volume confirmation score; ML cannot mask weak confirmation."""
+        rvol = float(x.get("relative_volume", x.get("volume_ratio", 1.0)))
+        momentum = float(x.get("momentum_5d", 0.0))
+        distance = float(x.get("resistance_distance", 1.0))
+        confirmed = bool(x.get("breakout_confirmed", False))
+        trend = float(x.get("trend_strength", 0.5))
+        volume_score = np.clip((rvol - 0.8) / 1.7 * 100, 0, 100)
+        momentum_score = np.clip(50 + momentum * 10, 0, 100)
+        proximity_score = np.clip((1 - distance / 0.08) * 100, 0, 100)
+        trend_score = np.clip(trend * 100, 0, 100)
+        bonus = 20 if confirmed else 0
+        return round(float(np.clip(
+            volume_score * 0.35 + momentum_score * 0.20 + proximity_score * 0.20
+            + trend_score * 0.15 + bonus, 0, 100
+        )), 2)
+
+    @staticmethod
+    def _signal_label(phase: str, score: float, confirmation: float, risk: float) -> str:
+        if phase == "BREAKOUT_CONFIRMED" and confirmation >= 70 and risk < 50:
+            return "🔥 BREAKOUT_CONFIRMED"
+        if phase == "BREAKOUT_READY" and confirmation >= 65 and score >= 65 and risk < 55:
+            return "🎯 BREAKOUT_READY"
+        if phase == "BUILDING" and confirmation >= 55:
+            return "🏗️ BUILDING"
+        return "👀 WATCH"
+
+    @staticmethod
+    def _explain(x: Dict, phase: str, confirmation: float, risk: float) -> str:
+        reasons = []
+        rvol = float(x.get("relative_volume", x.get("volume_ratio", 1.0)))
+        momentum = float(x.get("momentum_5d", 0.0))
+        distance = float(x.get("resistance_distance", 1.0))
+        trend = float(x.get("trend_strength", 0.5))
+        if rvol >= 2:
+            reasons.append(f"حجم تداول مرتفع ({rvol:.1f}x)")
+        elif rvol >= 1.5:
+            reasons.append(f"حجم داعم ({rvol:.1f}x)")
+        if distance <= 0.02:
+            reasons.append("قريب جدًا من المقاومة")
+        if momentum > 2:
+            reasons.append("زخم صاعد")
+        if trend >= 0.7:
+            reasons.append("اتجاه صاعد قوي")
+        if phase == "BREAKOUT_CONFIRMED":
+            reasons.append("تم تأكيد الاختراق")
+        if risk >= 65:
+            reasons.append("مخاطرة اختراق كاذب مرتفعة")
+        if not reasons:
+            reasons.append("لا توجد إشارة اختراق قوية حاليًا")
+        return " + ".join(reasons) + f" | تأكيد {confirmation:.0f}/100"
 
     @staticmethod
     def _classify_phase(x: Dict) -> str:
@@ -143,14 +190,9 @@ class BreakoutScanner:
         entry = resistance + 0.10 * atr
         stop = min(current - 1.5 * atr, resistance - 1.0 * atr)
         return {
-            "current": round(current, 2),
-            "resistance": round(resistance, 2),
-            "support": round(support, 2),
-            "entry": round(entry, 2),
-            "stop_loss": round(max(0, stop), 2),
-            "target_1": round(current + 2 * atr, 2),
-            "target_2": round(current + 3.5 * atr, 2),
-            "atr": round(atr, 2),
+            "current": round(current, 2), "resistance": round(resistance, 2), "support": round(support, 2),
+            "entry": round(entry, 2), "stop_loss": round(max(0, stop), 2),
+            "target_1": round(current + 2 * atr, 2), "target_2": round(current + 3.5 * atr, 2), "atr": round(atr, 2),
         }
 
     @staticmethod
@@ -171,21 +213,16 @@ class BreakoutScanner:
             result = self.scan_stock(symbol)
             if "error" not in result and result.get("score", 0) >= min_score:
                 results.append({
-                    "symbol": symbol.upper(),
-                    "score": result["score"],
-                    "phase": result["phase"],
-                    "breakout_probability": result["breakout_probability"],
-                    "false_breakout_risk": result["false_breakout_risk"],
-                    "model_type": result["model_type"],
-                    "squeeze": result["squeeze"].get("squeeze_score", 0),
+                    "symbol": symbol.upper(), "score": result["score"], "phase": result["phase"],
+                    "signal": result["signal"], "confirmation_score": result["confirmation_score"],
+                    "breakout_probability": result["breakout_probability"], "false_breakout_risk": result["false_breakout_risk"],
+                    "model_type": result["model_type"], "squeeze": result["squeeze"].get("squeeze_score", 0),
                     "rvol": result["indicators"].get("relative_volume", 1),
-                    "recommendation": result["recommendation"]["action"],
-                    "risk": result["recommendation"]["risk"],
-                    "price": result["levels"]["current"],
-                    "target": result["levels"]["target_1"],
+                    "recommendation": result["recommendation"]["action"], "risk": result["recommendation"]["risk"],
+                    "price": result["levels"]["current"], "target": result["levels"]["target_1"],
+                    "explanation": result["explanation"],
                 })
         return pd.DataFrame(results).sort_values("score", ascending=False) if results else pd.DataFrame()
 
     def scan_market(self, symbols: List[str], min_score: float = 60) -> pd.DataFrame:
-        """Backward-compatible market scan without DataFrame truth-value errors."""
         return self.scan_symbols(symbols, min_score=min_score)
