@@ -19,20 +19,26 @@ DEFAULT_SYMBOLS = [
 ]
 
 symbols_text = st.text_input("الأسهم المراد فحصها", value=", ".join(DEFAULT_SYMBOLS))
-min_score = st.slider("الحد الأدنى لدرجة الإعداد", 0, 100, 50)
+min_score = st.slider("الحد الأدنى لدرجة الإعداد", 0, 100, 40)
 top_n = st.slider("عدد أفضل الفرص", 5, 20, 10)
 
-if st.button("🚀 تشغيل الفحص", type="primary", use_container_width=True):
-    symbols = [s.strip().upper() for s in symbols_text.split(",") if s.strip()]
+if st.button("🚀 تشغيل الفحص", type="primary", width="stretch"):
+    symbols = list(dict.fromkeys(s.strip().upper() for s in symbols_text.split(",") if s.strip()))
     scanner = BreakoutScanner()
     rows = []
+    errors = []
     regime_frames = []
     progress = st.progress(0)
+    status = st.empty()
 
-    for index, symbol in enumerate(dict.fromkeys(symbols)):
+    for index, symbol in enumerate(symbols):
+        status.caption(f"🔎 تحليل {symbol} ({index + 1}/{len(symbols)})")
         result = scanner.scan_stock(symbol)
         if "error" in result:
+            errors.append({"symbol": symbol, "error": result["error"]})
+            progress.progress((index + 1) / max(len(symbols), 1))
             continue
+
         indicators = result.get("indicators", {})
         row = {
             "symbol": symbol,
@@ -49,6 +55,7 @@ if st.button("🚀 تشغيل الفحص", type="primary", use_container_width=T
             "recommendation": result.get("recommendation", {}).get("action", ""),
         }
         rows.append(row)
+
         try:
             regime_df = yf.Ticker(symbol).history(period="3mo", auto_adjust=False)
             if not regime_df.empty:
@@ -58,8 +65,25 @@ if st.button("🚀 تشغيل الفحص", type="primary", use_container_width=T
         progress.progress((index + 1) / max(len(symbols), 1))
 
     progress.empty()
-    ranked = rank_opportunities(rows, top_n=top_n)
-    ranked = ranked[ranked["setup_score"] >= min_score].reset_index(drop=True)
+    status.empty()
+
+    if errors:
+        with st.expander(f"⚠️ تعذر تحليل {len(errors)} سهم", expanded=False):
+            st.dataframe(pd.DataFrame(errors), hide_index=True, width="stretch")
+
+    ranked_all = rank_opportunities(rows, top_n=max(top_n, len(rows)))
+    ranked = ranked_all[ranked_all["setup_score"] >= min_score].head(top_n).reset_index(drop=True)
+
+    # لا نخفي أفضل النتائج إذا كان الحد الأدنى صارمًا جدًا.
+    # نعرض أفضل المرشحين مع تنبيه واضح بدل صفحة فارغة.
+    using_fallback = ranked.empty and not ranked_all.empty
+    if using_fallback:
+        ranked = ranked_all.head(top_n).reset_index(drop=True)
+        st.warning(
+            f"لم توجد فرص بدرجة إعداد ≥ {min_score}. "
+            "نعرض أفضل المرشحين المتاحين بدل ترك الصفحة فارغة. "
+            "يمكنك خفض الحد الأدنى للحصول على فرص أكثر."
+        )
 
     if regime_frames:
         market_df = pd.concat(regime_frames).sort_index()
@@ -70,7 +94,7 @@ if st.button("🚀 تشغيل الفحص", type="primary", use_container_width=T
         c3.metric("Volatility", f"{regime['volatility_score']:.1f}")
 
     if ranked.empty:
-        st.warning("لم يتم العثور على فرص مطابقة للشروط الحالية.")
+        st.warning("لم يتم الحصول على نتائج صالحة من بيانات السوق. تحقق من اتصال Yahoo Finance وحاول مرة أخرى.")
     else:
         st.subheader("أفضل الفرص")
         display = ranked[[
@@ -81,7 +105,7 @@ if st.button("🚀 تشغيل الفحص", type="primary", use_container_width=T
             "الترتيب", "السهم", "الفرصة", "الجودة", "احتمال الاختراق",
             "خطر الاختراق الكاذب", "المرحلة", "السعر", "الهدف"
         ]
-        st.dataframe(display, use_container_width=True, hide_index=True)
+        st.dataframe(display, width="stretch", hide_index=True)
 
         st.subheader("لماذا هذه الأسهم؟")
         for _, row in ranked.iterrows():
