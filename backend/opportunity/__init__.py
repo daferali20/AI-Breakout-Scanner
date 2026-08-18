@@ -1,10 +1,11 @@
+"""Opportunity phase detection and scoring primitives."""
+
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
 
-# 1. تعريف المراحل ومستويات الدرجات
 class MarketPhase(Enum):
     ACCUMULATION = "accumulation"
     BREAKOUT = "breakout"
@@ -20,46 +21,18 @@ class OpportunityScoreLevel(Enum):
     LOW = "منخفضة"
 
 
-# 2. خواص المراحل والأوزان
 PHASE_PROPERTIES = {
-    MarketPhase.ACCUMULATION: {
-        "color": "#3498db",
-        "emoji": "🔋",
-        "description": "مرحلة التجميع وتجهيز الانطلاق",
-    },
-    MarketPhase.BREAKOUT: {
-        "color": "#2ecc71",
-        "emoji": "🚀",
-        "description": "اختراق مستويات المقاومة",
-    },
-    MarketPhase.UPTREND: {
-        "color": "#9b59b6",
-        "emoji": "📈",
-        "description": "اتجاه صاعد مستمر",
-    },
-    MarketPhase.CONSOLIDATION: {
-        "color": "#f39c12",
-        "emoji": "⚖️",
-        "description": "نطاق عرضي وإعادة تجميع",
-    },
-    MarketPhase.MARKDOWN: {
-        "color": "#e74c3c",
-        "emoji": "📉",
-        "description": "اتجاه هابط ومخاطر مرتفعة",
-    },
+    MarketPhase.ACCUMULATION: {"color": "#3498db", "emoji": "🔋", "description": "مرحلة التجميع وتجهيز الانطلاق"},
+    MarketPhase.BREAKOUT: {"color": "#2ecc71", "emoji": "🚀", "description": "اختراق مستويات المقاومة"},
+    MarketPhase.UPTREND: {"color": "#9b59b6", "emoji": "📈", "description": "اتجاه صاعد مستمر"},
+    MarketPhase.CONSOLIDATION: {"color": "#f39c12", "emoji": "⚖️", "description": "نطاق عرضي وإعادة تجميع"},
+    MarketPhase.MARKDOWN: {"color": "#e74c3c", "emoji": "📉", "description": "اتجاه هابط ومخاطر مرتفعة"},
 }
 
 INDICATOR_WEIGHTS = {
-    "smart_money_flow": 0.20,
-    "relative_volume": 0.15,
-    "pattern_detection": 0.12,
-    "bollinger_squeeze": 0.12,
-    "atr_compression": 0.10,
-    "sector_strength": 0.08,
-    "market_regime": 0.08,
-    "news_sentiment": 0.05,
-    "earnings": 0.05,
-    "ai_score": 0.05,
+    "smart_money_flow": 0.20, "relative_volume": 0.15, "pattern_detection": 0.12,
+    "bollinger_squeeze": 0.12, "atr_compression": 0.10, "sector_strength": 0.08,
+    "market_regime": 0.08, "news_sentiment": 0.05, "earnings": 0.05, "ai_score": 0.05,
 }
 
 
@@ -70,7 +43,45 @@ class Catalysts:
     RESISTANCE_BREAK = "اختراق قمة سابقة"
 
 
-# 3. هياكل البيانات (Data Classes)
+@dataclass
+class PhaseMetrics:
+    phase: str
+    days_in_phase: int
+    confidence: float = 0.0
+
+
+class PhaseDetector:
+    """Classify the current market phase from normalized liquidity features."""
+
+    def get_phase_metrics(self, data: Dict[str, Any], symbol: str = "") -> PhaseMetrics:
+        rvol = self._num(data.get("relative_volume", 1.0), 1.0)
+        price_change = self._num(data.get("price_change", 0.0), 0.0)
+        smart_money = self._num(data.get("smart_money_score", 50.0), 50.0)
+        compression = self._num(data.get("compression_level", 0.0), 0.0)
+        resistance_break = self._num(data.get("resistance_break", 1.0), 1.0)
+        trend = self._num(data.get("trend_strength", 0.5), 0.5)
+        if resistance_break >= 1.0 and rvol >= 1.5 and price_change > 0:
+            phase = MarketPhase.BREAKOUT.value
+        elif trend >= 0.65 and price_change >= 0:
+            phase = MarketPhase.UPTREND.value
+        elif trend <= 0.35 and price_change < 0:
+            phase = MarketPhase.MARKDOWN.value
+        elif compression >= 0.55 and smart_money >= 55:
+            phase = MarketPhase.ACCUMULATION.value
+        else:
+            phase = MarketPhase.CONSOLIDATION.value
+        confidence = min(100.0, max(0.0, 50.0 + abs(trend - 0.5) * 100.0 + (rvol - 1.0) * 10.0))
+        return PhaseMetrics(phase=phase, days_in_phase=5, confidence=confidence)
+
+    @staticmethod
+    def _num(value: Any, default: float) -> float:
+        try:
+            value = float(value)
+            return value if value == value else default
+        except (TypeError, ValueError):
+            return default
+
+
 @dataclass
 class OpportunityResult:
     symbol: str
@@ -96,70 +107,24 @@ class TimelineEvent:
     confidence: float
 
 
-# 4. بناء التسلسل الزمني ومحرك الفرص
 class TimelineBuilder:
-
-    def build_timeline(
-        self,
-        current_phase: MarketPhase,
-        next_phase: Optional[MarketPhase],
-        phase_days: int,
-        expected_days: int,
-        data: Dict[str, Any],
-    ) -> List[TimelineEvent]:
+    def build_timeline(self, current_phase: MarketPhase, next_phase: Optional[MarketPhase], phase_days: int, expected_days: int, data: Dict[str, Any]) -> List[TimelineEvent]:
         today = datetime.now()
-        events = [
-            TimelineEvent(
-                phase=current_phase,
-                date=(today - timedelta(days=phase_days)).strftime("%Y-%m-%d"),
-                confidence=0.85,
-            )
-        ]
+        events = [TimelineEvent(current_phase, (today - timedelta(days=phase_days)).strftime("%Y-%m-%d"), 0.85)]
         if next_phase:
-            events.append(
-                TimelineEvent(
-                    phase=next_phase,
-                    date=(today + timedelta(days=expected_days)).strftime(
-                        "%Y-%m-%d"
-                    ),
-                    confidence=0.70,
-                )
-            )
+            events.append(TimelineEvent(next_phase, (today + timedelta(days=expected_days)).strftime("%Y-%m-%d"), 0.70))
         return events
 
 
 class OpportunityEngine:
-
-    def analyze(
-        self, symbol: str, data: Dict[str, Any] = None
-    ) -> OpportunityResult:
-        score = 82.5
+    def analyze(self, symbol: str, data: Dict[str, Any] = None) -> OpportunityResult:
         return OpportunityResult(
-            symbol=symbol,
-            current_phase=MarketPhase.ACCUMULATION,
-            confidence=88.0,
-            opportunity_score=score,
-            score_level=OpportunityScoreLevel.HIGH,
-            current_phase_days=6,
-            expected_days=10,
-            next_phase=MarketPhase.BREAKOUT,
+            symbol=symbol, current_phase=MarketPhase.ACCUMULATION, confidence=88.0,
+            opportunity_score=82.5, score_level=OpportunityScoreLevel.HIGH,
+            current_phase_days=6, expected_days=10, next_phase=MarketPhase.BREAKOUT,
             transition_probability=0.78,
-            catalysts=[
-                Catalysts.SMART_MONEY_INFLOW,
-                Catalysts.VOLUME_SPIKE,
-                "تقاطع إيجابي لمؤشر RSI فوق مستويات 50",
-            ],
-            risks=[
-                "تقلبات السوق العامة قد تؤثر على سرعة الاختراق",
-                "وجود مستوى مقاومة قريب عند المتوسط المتحرك 200",
-            ],
-            reasons=[
-                "تجميع سيولة هادئ على مدار 6 أيام متتالية",
-                "انخفاض مدى التذبذب (Volatility Squeeze) يسبق الانفجار السعري",
-                "دعم قوي من مؤشرات حركة رؤوس الأموال الذكية",
-            ],
-            ai_decision_report="""### 🤖 تقرير الذكاء الاصطناعي الشامل
-- **حالة السهم:** يشهد السهم عملية بناء مراكز تجميعية واضحة.
-- **التوصية الفنية:** مراقبة اختراق مستويات المقاومة القريبة مع تفعيل وقف الخسارة أسفل منطقة التجميع.
-- **الهدف المتوقع:** تحقيق 8% إلى 12% خلال الدورة الزمنية القادمة.""",
+            catalysts=[Catalysts.SMART_MONEY_INFLOW, Catalysts.VOLUME_SPIKE],
+            risks=["تقلبات السوق العامة قد تؤثر على سرعة الاختراق"],
+            reasons=["تجميع سيولة", "انخفاض التذبذب", "دعم من حركة السيولة الذكية"],
+            ai_decision_report="### 🤖 تقرير الذكاء الاصطناعي\nمراقبة الاختراق مع إدارة المخاطر.",
         )
