@@ -1,5 +1,7 @@
-# backend/scanner/__init__.py
+"""Scanner package.
 
-from .breakout_scanner import BreakoutScanner
+Keep package initialization side-effect free; import BreakoutScanner from its
+module where it is needed.
+"""
 
-__all__ = ['BreakoutScanner']
+__all__ = []
