@@ -25,6 +25,8 @@ if "last_scan_time" not in st.session_state:
     st.session_state.last_scan_time = None
 if "scan_requested" not in st.session_state:
     st.session_state.scan_requested = False
+if "initial_scan_done" not in st.session_state:
+    st.session_state.initial_scan_done = False
 
 try:
     from frontend.components.sidebar import render_sidebar
@@ -34,7 +36,12 @@ except Exception as exc:
 
 try:
     from frontend.pages.dashboard import render
-    render(auto_run=st.session_state.pop("scan_requested", False))
+    # أول دخول فقط: تشغيل اكتشاف تلقائي حتى لا تبدو الصفحة فارغة.
+    # بعد ذلك يبقى التحكم يدويًا لتجنب طلبات Yahoo المتكررة أثناء rerun.
+    auto_scan = not st.session_state.initial_scan_done and not st.session_state.last_scan_time
+    if auto_scan:
+        st.session_state.initial_scan_done = True
+    render(auto_run=st.session_state.pop("scan_requested", False) or auto_scan)
 except Exception as exc:
     st.title("🚀 AI Breakout Scanner")
     st.error(f"تعذر تحميل لوحة التحكم: {exc}")
