@@ -10,8 +10,6 @@ from backend.market.regime import detect_market_regime
 st.set_page_config(page_title="AI Opportunity Ranking", page_icon="🏆", layout="wide")
 
 with st.sidebar:
-    # Direct page navigation is intentionally used here because this page can
-    # be opened directly by URL, without first executing app.py.
     if st.button("🏠 لوحة التحكم", key="go_dashboard", width="stretch"):
         st.switch_page("app.py")
     st.page_link("app.py", label="العودة إلى لوحة التحكم", icon="🏠")
@@ -27,7 +25,6 @@ DEFAULT_SYMBOLS = [
 
 @st.cache_data(ttl=3600, show_spinner=False)
 def load_market_universe():
-    """Build a fresh scan universe from major US indexes, with safe fallbacks."""
     symbols = []
     sources = []
     try:
@@ -62,6 +59,7 @@ if scan_mode == "🔎 مسح تلقائي للسوق":
     symbols = universe[:scan_count]
     st.caption(f"📡 المصدر: {universe_source} — سيتم فحص {len(symbols)} سهمًا تلقائيًا.")
 else:
+    universe_source = "أسهم محددة"
     symbols_text = st.text_input("الأسهم المراد فحصها", value=", ".join(DEFAULT_SYMBOLS))
     symbols = list(dict.fromkeys(s.strip().upper() for s in symbols_text.split(",") if s.strip()))
 
@@ -75,6 +73,7 @@ if st.button("🚀 تشغيل الفحص", type="primary", width="stretch"):
     regime_frames = []
     progress = st.progress(0)
     status = st.empty()
+
     for index, symbol in enumerate(symbols):
         status.caption(f"🔎 تحليل {symbol} ({index + 1}/{len(symbols)})")
         try:
@@ -85,6 +84,7 @@ if st.button("🚀 تشغيل الفحص", type="primary", width="stretch"):
             errors.append({"symbol": symbol, "error": result["error"]})
             progress.progress((index + 1) / max(len(symbols), 1))
             continue
+
         indicators = result.get("indicators", {})
         rows.append({
             "symbol": symbol,
@@ -107,26 +107,42 @@ if st.button("🚀 تشغيل الفحص", type="primary", width="stretch"):
         except Exception:
             pass
         progress.progress((index + 1) / max(len(symbols), 1))
+
     progress.empty()
     status.empty()
+
     if errors:
         with st.expander(f"⚠️ تعذر تحليل {len(errors)} سهم", expanded=False):
             st.dataframe(pd.DataFrame(errors), hide_index=True, width="stretch")
+
     ranked_all = rank_opportunities(rows, top_n=max(top_n, len(rows)))
     ranked = ranked_all[ranked_all["setup_score"] >= min_score].head(top_n).reset_index(drop=True)
     if ranked.empty and not ranked_all.empty:
         ranked = ranked_all.head(top_n).reset_index(drop=True)
-        st.warning(f"لم توجد فرص بدرجة إعداد ≥ {min_score}. نعرض أفضل المرشحين المتاحين بدل ترك الصفحة فارغة. يمكنك خفض الحد الأدنى للحصول على فرص أكثر.")
+        st.warning(f"لم توجد فرص بدرجة إعداد ≥ {min_score}. نعرض أفضل المرشحين المتاحين بدل ترك الصفحة فارغة.")
+
+    # Central result store: the dashboard consumes exactly the same scan results.
+    st.session_state.scan_results = ranked.copy()
+    st.session_state.scan_results_all = ranked_all.copy()
+    st.session_state.scan_errors = pd.DataFrame(errors)
+    st.session_state.scan_symbols_count = len(symbols)
+    st.session_state.scan_success_count = len(rows)
+    st.session_state.last_scan_time = pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S")
+    st.session_state.scan_universe_source = universe_source
+
     if regime_frames:
         market_df = pd.concat(regime_frames).sort_index()
         regime = detect_market_regime(market_df)
+        st.session_state.market_regime = regime
         c1, c2, c3 = st.columns(3)
         c1.metric("حالة السوق", regime["regime"])
         c2.metric("Trend Score", f"{regime['trend_score']:.1f}")
         c3.metric("Volatility", f"{regime['volatility_score']:.1f}")
+
     if ranked.empty:
         st.warning("لم يتم الحصول على نتائج صالحة من بيانات السوق. تحقق من اتصال Yahoo Finance وحاول مرة أخرى.")
     else:
+        st.success(f"✅ تم حفظ {len(ranked)} فرصة في لوحة التحكم — تم تحليل {len(rows)} من أصل {len(symbols)} سهمًا.")
         st.subheader("أفضل الفرص")
         display = ranked[["rank", "symbol", "opportunity_score", "signal_quality", "breakout_probability", "false_breakout_risk", "phase", "price", "target"]].copy()
         display.columns = ["الترتيب", "السهم", "الفرصة", "الجودة", "احتمال الاختراق", "خطر الاختراق الكاذب", "المرحلة", "السعر", "الهدف"]
@@ -142,3 +158,8 @@ if st.button("🚀 تشغيل الفحص", type="primary", width="stretch"):
                 st.write(f"**السعر:** ${row['price']:.2f} | **الهدف الأول:** ${row['target']:.2f}")
 else:
     st.info("اختر المسح التلقائي للسوق أو أدخل أسهمًا محددة، ثم اضغط تشغيل الفحص.")
+    saved = st.session_state.get("scan_results", pd.DataFrame())
+    if isinstance(saved, pd.DataFrame) and not saved.empty:
+        st.success("📌 توجد نتائج محفوظة من آخر مسح. افتح لوحة التحكم لمشاهدتها.")
+        if st.button("🏠 عرض النتائج في لوحة التحكم", width="stretch"):
+            st.switch_page("app.py")
