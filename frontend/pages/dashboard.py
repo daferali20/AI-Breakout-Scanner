@@ -5,31 +5,54 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 
+from backend.results_store import get_scan
+
+
+def _snapshot():
+    """Use the shared scan store first, then session_state as a fallback."""
+    shared = get_scan()
+    if shared.get("last_scan_time"):
+        return shared
+    return {
+        "scan_results": st.session_state.get("scan_results", pd.DataFrame()),
+        "scan_results_all": st.session_state.get("scan_results_all", pd.DataFrame()),
+        "scan_errors": st.session_state.get("scan_errors", pd.DataFrame()),
+        "scan_symbols_count": st.session_state.get("scan_symbols_count", 0),
+        "scan_success_count": st.session_state.get("scan_success_count", 0),
+        "last_scan_time": st.session_state.get("last_scan_time"),
+        "scan_universe_source": st.session_state.get("scan_universe_source", "لم يتم إجراء مسح بعد"),
+        "market_regime": st.session_state.get("market_regime"),
+    }
+
 
 def render():
+    snapshot = _snapshot()
     col_title, col_time = st.columns([3, 1])
     with col_title:
         st.subheader("📊 لوحة التحكم - نظرة عامة على السوق")
     with col_time:
-        last_scan = st.session_state.get("last_scan_time") or "لم يتم"
+        last_scan = snapshot.get("last_scan_time") or "لم يتم"
         st.caption(f"🕐 آخر تحديث: {last_scan}")
-    display_metrics()
+
+    display_metrics(snapshot)
     st.markdown("---")
-    display_market_status()
+    display_market_status(snapshot)
     st.markdown("---")
-    display_top_opportunities()
+    display_top_opportunities(snapshot)
     st.markdown("---")
-    display_activity()
+    display_activity(snapshot)
 
 
-def _results():
-    results = st.session_state.get("scan_results", pd.DataFrame())
+def _results(snapshot=None):
+    snapshot = snapshot or _snapshot()
+    results = snapshot.get("scan_results", pd.DataFrame())
     return results.copy() if isinstance(results, pd.DataFrame) else pd.DataFrame()
 
 
-def display_metrics():
-    results = _results()
-    total_stocks = int(st.session_state.get("scan_success_count", st.session_state.get("scan_symbols_count", 0)))
+def display_metrics(snapshot=None):
+    snapshot = snapshot or _snapshot()
+    results = _results(snapshot)
+    total_stocks = int(snapshot.get("scan_success_count", 0))
     opportunities = len(results)
     avg_score = 0.0
     if not results.empty and "opportunity_score" in results.columns:
@@ -58,28 +81,29 @@ def _metric_card(icon, value, label, color=None):
     )
 
 
-def display_market_status():
+def display_market_status(snapshot=None):
+    snapshot = snapshot or _snapshot()
     st.subheader("🌐 حالة السوق")
-    regime = st.session_state.get("market_regime")
-    source = st.session_state.get("scan_universe_source", "لم يتم إجراء مسح بعد")
-    errors = st.session_state.get("scan_errors", pd.DataFrame())
+    regime = snapshot.get("market_regime")
+    source = snapshot.get("scan_universe_source", "لم يتم إجراء مسح بعد")
+    errors = snapshot.get("scan_errors", pd.DataFrame())
     c1, c2, c3, c4 = st.columns(4)
     with c1:
         st.metric("المصدر", source)
     with c2:
         st.metric("حالة السوق", regime.get("regime", "غير متاح") if isinstance(regime, dict) else "غير متاح")
     with c3:
-        st.metric("تم تحليلها", st.session_state.get("scan_success_count", 0))
+        st.metric("تم تحليلها", snapshot.get("scan_success_count", 0))
     with c4:
         st.metric("تعذر تحليلها", len(errors) if isinstance(errors, pd.DataFrame) else 0)
-    if _results().empty:
+    if _results(snapshot).empty:
         st.info("🔎 لم يتم تنفيذ مسح بعد. افتح «ابدأ المسح الآن» وشغّل المسح التلقائي، ثم ستظهر النتائج هنا تلقائيًا.")
     else:
         st.caption("النتائج أدناه هي آخر مسح محفوظ، وتُستخدم أيضًا في صفحات الترتيب والتحليل.")
 
 
-def display_top_opportunities():
-    results = _results()
+def display_top_opportunities(snapshot=None):
+    results = _results(snapshot)
     st.subheader("🔥 أفضل الفرص الآن")
     if results.empty:
         st.info("لا توجد نتائج محفوظة حاليًا.")
@@ -96,8 +120,8 @@ def display_top_opportunities():
     st.dataframe(display, width="stretch", hide_index=True, height=min(430, 80 + len(display) * 35))
 
 
-def display_activity():
-    results = _results()
+def display_activity(snapshot=None):
+    results = _results(snapshot)
     st.subheader("⚡ نشاط الفرص والسيولة")
     if results.empty:
         st.info("سيظهر النشاط بعد أول مسح للسوق.")
