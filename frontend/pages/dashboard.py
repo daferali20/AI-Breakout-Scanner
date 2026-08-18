@@ -39,9 +39,9 @@ def _load_yahoo_frames(symbols_tuple):
         symbols_tuple,
         period="6mo",
         interval="1d",
-        batch_size=40,
-        pause_seconds=1.0,
-        max_retries=2,
+        batch_size=25,
+        pause_seconds=1.5,
+        max_retries=3,
     )
 
 
@@ -105,11 +105,10 @@ def _run_scan(symbols, source, min_score, top_n, max_symbols):
         st.warning("لم يتم اكتشاف أسهم للمسح.")
         return
 
-    # نضع سقفًا للمرحلة العميقة حتى لا نضغط Yahoo بطلبات إضافية.
     candidate_limit = max(20, min(int(max_symbols), 40, len(symbols)))
     normalized = tuple(symbols)
 
-    with st.spinner(f"📡 يجلب النظام بيانات السوق على دفعات آمنة من Yahoo Finance..."):
+    with st.spinner("📡 يجلب النظام بيانات السوق على دفعات آمنة من Yahoo Finance..."):
         frames = _load_yahoo_frames(normalized)
 
     if not frames:
@@ -133,7 +132,6 @@ def _run_scan(symbols, source, min_score, top_n, max_symbols):
         status.caption(f"🤖 تحليل عميق {symbol} ({index}/{len(candidates)})")
         frame = frames.get(symbol)
         try:
-            # نمرر البيانات التي جلبناها بالفعل؛ لا يعيد Scanner طلب Yahoo.
             result = scanner.scan_stock(symbol, df=frame)
             if not result or "error" in result:
                 errors.append({"symbol": symbol, "error": (result or {}).get("error", "Unknown error")})
@@ -249,38 +247,110 @@ def _fmt(value, suffix="", decimals=1):
         return "—"
 
 
+def _safe_float(value, default=0.0):
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _opportunity_card(row):
+    """بطاقة مرئية تجمع كل معلومات الترتيب والتأكيد في مكان واحد."""
+    symbol = str(row.get("symbol", "—"))
+    score = _safe_float(row.get("opportunity_score"))
+    quality = str(row.get("signal_quality", "Watch"))
+    signal_class = str(row.get("signal_class", "🔵 مراقبة"))
+    signal = str(row.get("signal", "👀 WATCH"))
+    phase = str(row.get("phase", "WATCH"))
+    price = _safe_float(row.get("price"))
+    target = _safe_float(row.get("target"))
+    confirmation = _safe_float(row.get("confirmation_score"))
+    probability = _safe_float(row.get("breakout_probability"))
+    risk = _safe_float(row.get("false_breakout_risk"))
+    rvol = _safe_float(row.get("relative_volume"), 1)
+    setup = _safe_float(row.get("setup_score"))
+    momentum = _safe_float(row.get("momentum_score"))
+    liquidity = _safe_float(row.get("liquidity_score"))
+    trend = _safe_float(row.get("trend_score"))
+    recommendation = str(row.get("recommendation", "راقب السهم"))
+    explanation = str(row.get("explanation", "")).strip()
+
+    if score >= 80:
+        badge = "🔥 فرصة قوية"
+    elif score >= 65:
+        badge = "🟢 فرصة جيدة"
+    elif score >= 50:
+        badge = "🔵 مراقبة"
+    else:
+        badge = "🟡 ضعيفة"
+
+    with st.container(border=True):
+        head_left, head_right = st.columns([3, 1])
+        with head_left:
+            st.markdown(f"### {symbol}")
+            st.caption(f"{signal}  •  {phase}  •  {quality}")
+        with head_right:
+            st.metric("Opportunity", f"{score:.1f}/100")
+        st.markdown(f"**{badge}**  ·  {signal_class}")
+
+        m1, m2, m3, m4, m5 = st.columns(5)
+        m1.metric("السعر", f"${price:.2f}")
+        m2.metric("التأكيد", f"{confirmation:.0f}/100")
+        m3.metric("احتمال الاختراق", f"{probability:.0f}%")
+        m4.metric("الخطر الكاذب", f"{risk:.0f}%")
+        m5.metric("Relative Volume", f"{rvol:.2f}x")
+
+        s1, s2, s3, s4 = st.columns(4)
+        s1.metric("الإعداد", f"{setup:.0f}/100")
+        s2.metric("الزخم", f"{momentum:.0f}/100")
+        s3.metric("السيولة", f"{liquidity:.0f}/100")
+        s4.metric("الاتجاه", f"{trend:.0f}/100")
+
+        if target > 0:
+            upside = ((target / price) - 1) * 100 if price > 0 else 0
+            st.caption(f"🎯 الهدف الأول: **${target:.2f}**  •  العائد المحتمل حتى الهدف: **{upside:.1f}%**")
+
+        if explanation:
+            st.info(f"💡 **لماذا ظهرت هذه الفرصة؟** {explanation}")
+        else:
+            reasons = []
+            if rvol >= 1.5:
+                reasons.append(f"حجم تداول نسبي مرتفع ({rvol:.2f}x)")
+            if momentum >= 70:
+                reasons.append("زخم قوي")
+            if liquidity >= 70:
+                reasons.append("سيولة جيدة")
+            if probability >= 70:
+                reasons.append("احتمال اختراق مرتفع")
+            if confirmation >= 70:
+                reasons.append("تأكيد فني قوي")
+            st.info("💡 **لماذا ظهرت هذه الفرصة؟** " + (" • ".join(reasons) if reasons else "تجميع المؤشرات أعطاها ترتيبًا متقدمًا."))
+
+        st.markdown(f"**📌 التوصية:** {recommendation}")
+
+
 def display_top_opportunities(snapshot=None):
     results = _results(snapshot or _snapshot())
     st.subheader("🔥 أفضل الفرص الآن")
     if results.empty:
         st.info("ستظهر الأسهم هنا فور اكتمال أول مسح.")
         return
-    preferred = ["rank", "symbol", "price", "opportunity_score", "signal_class", "signal_quality", "signal", "confirmation_score", "breakout_probability", "false_breakout_risk", "relative_volume", "phase", "recommendation"]
-    cols = [c for c in preferred if c in results.columns]
-    display = results[cols].head(10).copy()
-    display = display.rename(columns={
-        "rank": "#", "symbol": "السهم", "price": "السعر", "opportunity_score": "الفرصة",
-        "signal_class": "التصنيف", "signal_quality": "الجودة", "signal": "الإشارة", "confirmation_score": "التأكيد",
-        "breakout_probability": "احتمال الاختراق", "false_breakout_risk": "خطر الاختراق الكاذب", "relative_volume": "Relative Volume",
-        "phase": "المرحلة", "recommendation": "التوصية",
-    })
-    st.dataframe(display, width="stretch", hide_index=True, height=min(500, 110 + len(display) * 38))
-    st.subheader("🎯 لماذا ظهرت هذه الأسهم؟")
-    for _, row in results.head(5).iterrows():
-        symbol = row.get("symbol", "-")
-        score = float(row.get("opportunity_score", 0))
-        with st.expander(f"{row.get('signal', '👀 WATCH')}  {symbol} — Opportunity Score {score:.1f}"):
-            c1, c2, c3, c4, c5 = st.columns(5)
-            c1.metric("السعر", f"${float(row.get('price', 0)):.2f}")
-            c2.metric("التأكيد", _fmt(row.get("confirmation_score", 0), "/100"))
-            c3.metric("AI / الاختراق", _fmt(row.get("breakout_probability", 0), "%"))
-            c4.metric("الخطر", _fmt(row.get("false_breakout_risk", 0), "%"))
-            c5.metric("Relative Volume", _fmt(row.get("relative_volume", 1), "x", 2))
-            st.markdown(f"**المرحلة:** `{row.get('phase', 'WATCH')}`")
-            if row.get("explanation", ""):
-                st.info(f"💡 {row.get('explanation')}")
-            if row.get("recommendation", ""):
-                st.markdown(f"**التوصية:** {row.get('recommendation')}" )
+
+    # البطاقات هي الواجهة الأساسية؛ الجدول أصبح اختياريًا للمقارنة السريعة.
+    for _, row in results.head(10).iterrows():
+        _opportunity_card(row)
+
+    with st.expander("📋 عرض جدول المقارنة السريع"):
+        preferred = ["rank", "symbol", "price", "opportunity_score", "signal_class", "signal_quality", "signal", "confirmation_score", "breakout_probability", "false_breakout_risk", "relative_volume", "phase", "recommendation"]
+        cols = [c for c in preferred if c in results.columns]
+        display = results[cols].head(10).copy()
+        display = display.rename(columns={
+            "rank": "#", "symbol": "السهم", "price": "السعر", "opportunity_score": "الفرصة",
+            "signal_class": "التصنيف", "signal_quality": "الجودة", "signal": "الإشارة", "confirmation_score": "التأكيد",
+            "breakout_probability": "احتمال الاختراق", "false_breakout_risk": "خطر الاختراق الكاذب", "relative_volume": "Relative Volume",
+            "phase": "المرحلة", "recommendation": "التوصية",
+        })
+        st.dataframe(display, width="stretch", hide_index=True, height=min(500, 110 + len(display) * 38))
 
 
 def display_activity(snapshot=None):
