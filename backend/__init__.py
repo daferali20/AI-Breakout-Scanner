@@ -1,14 +1,7 @@
-# backend/__init__.py
-"""
-وحدة الخلفية - تحتوي على المنطق الأساسي للتطبيق
+"""Backend package.
+
+Keep package initialization lightweight so importing one backend component does
+not eagerly import the entire application dependency graph.
 """
 
-from .scanner.breakout_scanner import BreakoutScanner
-from .analysis.squeeze_detector import SqueezeDetector
-from .analysis.indicators import TechnicalIndicators
-
-__all__ = [
-    'BreakoutScanner',
-    'SqueezeDetector',
-    'TechnicalIndicators'
-]
+__all__ = []
