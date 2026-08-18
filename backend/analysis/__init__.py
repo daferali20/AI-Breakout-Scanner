@@ -1,20 +1,7 @@
-# backend/analysis/__init__.py
+"""Analysis package.
 
-from .indicators import TechnicalIndicators, calculate_indicators
-from .squeeze_detector import SqueezeDetector
-from .ai_score import AIScoreAnalyzer
-from .liquidity_analysis import LiquidityAnalyzer
-from .news_sentiment import NewsSentimentAnalyzer
-from .pattern_detection import PatternDetector
-from .technical_analysis import TechnicalAnalyzer
+Submodules are imported explicitly by callers to avoid eager dependency
+loading and circular-import failures during application startup.
+"""
 
-__all__ = [
-    'TechnicalIndicators',
-    'calculate_indicators',
-    'SqueezeDetector',
-    'AIScoreAnalyzer',
-    'LiquidityAnalyzer',
-    'NewsSentimentAnalyzer',
-    'PatternDetector',
-    'TechnicalAnalyzer'
-]
+__all__ = []
