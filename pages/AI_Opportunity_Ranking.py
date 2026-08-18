@@ -7,8 +7,12 @@ from backend.ranking.opportunity_ranker import rank_opportunities
 from backend.ranking.explanations import explain_opportunity
 from backend.market.regime import detect_market_regime
 
-
 st.set_page_config(page_title="AI Opportunity Ranking", page_icon="🏆", layout="wide")
+
+# Keep the existing page design, but provide an explicit route back to app.py.
+with st.sidebar:
+    st.page_link("app.py", label="🏠 العودة إلى لوحة التحكم", icon="🏠")
+    st.markdown("---")
 
 st.title("🏆 AI Opportunity Ranking")
 st.caption("ترتيب الفرص يجمع الاختراق والسيولة والزخم والاتجاه ومخاطر الاختراق الكاذب.")
@@ -33,7 +37,10 @@ if st.button("🚀 تشغيل الفحص", type="primary", width="stretch"):
 
     for index, symbol in enumerate(symbols):
         status.caption(f"🔎 تحليل {symbol} ({index + 1}/{len(symbols)})")
-        result = scanner.scan_stock(symbol)
+        try:
+            result = scanner.scan_stock(symbol)
+        except Exception as exc:
+            result = {"error": str(exc)}
         if "error" in result:
             errors.append({"symbol": symbol, "error": result["error"]})
             progress.progress((index + 1) / max(len(symbols), 1))
@@ -74,10 +81,7 @@ if st.button("🚀 تشغيل الفحص", type="primary", width="stretch"):
     ranked_all = rank_opportunities(rows, top_n=max(top_n, len(rows)))
     ranked = ranked_all[ranked_all["setup_score"] >= min_score].head(top_n).reset_index(drop=True)
 
-    # لا نخفي أفضل النتائج إذا كان الحد الأدنى صارمًا جدًا.
-    # نعرض أفضل المرشحين مع تنبيه واضح بدل صفحة فارغة.
-    using_fallback = ranked.empty and not ranked_all.empty
-    if using_fallback:
+    if ranked.empty and not ranked_all.empty:
         ranked = ranked_all.head(top_n).reset_index(drop=True)
         st.warning(
             f"لم توجد فرص بدرجة إعداد ≥ {min_score}. "
