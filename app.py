@@ -1,82 +1,74 @@
-import streamlit as st
-import pandas as pd
-import sys
+"""AI Breakout Scanner - Streamlit entry point."""
+
 import os
 from datetime import datetime
-import warnings
-import importlib.util
 
-# ============================================================================
-# إعداد الصفحة الأولي لـ Streamlit
-# ============================================================================
+import streamlit as st
+
 st.set_page_config(
     page_title="AI Breakout Scanner | ماسح الانفجار السعري",
     page_icon="🚀",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="expanded",
 )
-warnings.filterwarnings('ignore')
 
-# ============================================================================
-# إعداد المسارات
-# ============================================================================
+# -----------------------------------------------------------------------------
+# Global styling (keep the existing frontend design)
+# -----------------------------------------------------------------------------
 PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
-ROOT_DIR = PROJECT_ROOT
+CSS_PATH = os.path.join(PROJECT_ROOT, "frontend", "assets", "style.css")
+if os.path.isfile(CSS_PATH):
+    try:
+        with open(CSS_PATH, "r", encoding="utf-8") as css_file:
+            st.markdown(f"<style>{css_file.read()}</style>", unsafe_allow_html=True)
+    except OSError:
+        pass
 
-BACKEND_DIR = os.path.join(PROJECT_ROOT, "backend")
-OPPORTUNITY_DIR = os.path.join(BACKEND_DIR, "opportunity")
-PAGES_DIR = os.path.join(PROJECT_ROOT, "pages")
+# -----------------------------------------------------------------------------
+# Session state
+# -----------------------------------------------------------------------------
+if "current_page" not in st.session_state:
+    st.session_state.current_page = "dashboard"
+if "last_scan_time" not in st.session_state:
+    st.session_state.last_scan_time = None
 
-for path in [PROJECT_ROOT, BACKEND_DIR, OPPORTUNITY_DIR, PAGES_DIR]:
-    if os.path.exists(path) and path not in sys.path:
-        sys.path.insert(0, path)
-
-# ============================================================================
-# تحميل إعدادات المشروع مباشرة من config.py
-# نتجنب اسم module عام مثل "config" حتى لا يتعارض مع حزمة مثبتة
-# في بيئة Streamlit Cloud.
-# ============================================================================
-def _load_project_config():
-    config_path = os.path.join(PROJECT_ROOT, "config.py")
-    if not os.path.isfile(config_path):
-        return None
-
-    spec = importlib.util.spec_from_file_location(
-        "ai_breakout_project_config", config_path
-    )
-    if spec is None or spec.loader is None:
-        return None
-
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
-
-
+# -----------------------------------------------------------------------------
+# Sidebar and existing dashboard UI
+# -----------------------------------------------------------------------------
 try:
-    _project_config = _load_project_config()
-    if _project_config is None:
-        raise ImportError("Project config.py was not found")
-    STOCK_SYMBOLS = _project_config.STOCK_SYMBOLS
-    APP_SETTINGS = _project_config.APP_SETTINGS
-except (ImportError, AttributeError, OSError, TypeError, ValueError) as exc:
-    # Fallback آمن حتى لا تتوقف الصفحة بالكامل بسبب ملف إعدادات.
-    STOCK_SYMBOLS = {
-        'الكل': ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'NVDA', 'META', 'TSLA', 'AMD'],
-        'التكنولوجيا': ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'NVDA', 'META', 'TSLA', 'AMD']
-    }
-    APP_SETTINGS = {'title': 'AI Breakout Scanner'}
-    print(f"Config fallback activated: {exc}")
+    from frontend.components.sidebar import render_sidebar
+    render_sidebar()
+except Exception as exc:
+    # The dashboard must remain usable even if an optional frontend component
+    # fails. Do not import the backend here: that belongs to the scan pages.
+    st.sidebar.warning(f"تعذر تحميل الشريط الجانبي: {exc}")
 
-# ============================================================================
-# استيراد BreakoutScanner بشكل متأخر (لتجنب Deadlock)
-# ============================================================================
-_BreakoutScanner = None
+current_page = st.session_state.get("current_page", "dashboard")
 
-def get_breakout_scanner():
-    global _BreakoutScanner
-    if _BreakoutScanner is None:
-        from backend.scanner.breakout_scanner import BreakoutScanner
-        _BreakoutScanner = BreakoutScanner
-    return _BreakoutScanner
+if current_page == "dashboard":
+    try:
+        from frontend.pages.dashboard import render
+        render()
+    except Exception as exc:
+        st.title("🚀 AI Breakout Scanner")
+        st.error(f"تعذر تحميل لوحة التحكم: {exc}")
 
-# بقية واجهة التطبيق في الملف الأصلي تستمر بعد هذا الجزء.
+elif current_page == "market_data":
+    st.title("🌐 بيانات السوق")
+    st.info("صفحة بيانات السوق متاحة من خلال صفحة التحليل/المسح المتخصصة.")
+
+elif current_page == "scanner":
+    st.title("🔍 مسح السوق")
+    st.info("استخدم صفحة AI Opportunity Ranking لتشغيل محرك الفرص المتقدم.")
+    st.page_link("pages/AI_Opportunity_Ranking.py", label="🏆 فتح AI Opportunity Ranking")
+
+elif current_page == "analyze":
+    st.title("📈 تحليل سهم")
+    st.info("استخدم AI Opportunity Ranking لتحليل الأسهم وترتيب الفرص.")
+    st.page_link("pages/AI_Opportunity_Ranking.py", label="🏆 فتح AI Opportunity Ranking")
+
+else:
+    st.session_state.current_page = "dashboard"
+    st.rerun()
+
+st.caption(f"آخر تحديث: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
