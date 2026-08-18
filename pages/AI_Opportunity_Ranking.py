@@ -6,6 +6,7 @@ from backend.scanner.breakout_scanner import BreakoutScanner
 from backend.ranking.opportunity_ranker import rank_opportunities
 from backend.ranking.explanations import explain_opportunity
 from backend.market.regime import detect_market_regime
+from backend.results_store import save_scan
 
 st.set_page_config(page_title="AI Opportunity Ranking", page_icon="🏆", layout="wide")
 
@@ -22,6 +23,7 @@ DEFAULT_SYMBOLS = [
     "AAPL", "MSFT", "NVDA", "AMD", "AMZN", "META", "GOOGL", "TSLA",
     "PLTR", "AVGO", "NFLX", "CRM", "ORCL", "COIN", "SMCI"
 ]
+
 
 @st.cache_data(ttl=3600, show_spinner=False)
 def load_market_universe():
@@ -45,6 +47,7 @@ def load_market_universe():
     symbols.extend(DEFAULT_SYMBOLS)
     symbols = list(dict.fromkeys(s.strip().upper() for s in symbols if s and s.strip()))
     return symbols, " + ".join(sources) if sources else "القائمة الافتراضية"
+
 
 scan_mode = st.radio(
     "مصدر الأسهم",
@@ -121,19 +124,38 @@ if st.button("🚀 تشغيل الفحص", type="primary", width="stretch"):
         ranked = ranked_all.head(top_n).reset_index(drop=True)
         st.warning(f"لم توجد فرص بدرجة إعداد ≥ {min_score}. نعرض أفضل المرشحين المتاحين بدل ترك الصفحة فارغة.")
 
-    # Central result store: the dashboard consumes exactly the same scan results.
-    st.session_state.scan_results = ranked.copy()
-    st.session_state.scan_results_all = ranked_all.copy()
-    st.session_state.scan_errors = pd.DataFrame(errors)
-    st.session_state.scan_symbols_count = len(symbols)
-    st.session_state.scan_success_count = len(rows)
-    st.session_state.last_scan_time = pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S")
-    st.session_state.scan_universe_source = universe_source
-
+    now = pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S")
+    errors_df = pd.DataFrame(errors)
+    regime = None
     if regime_frames:
         market_df = pd.concat(regime_frames).sort_index()
-        regime = detect_market_regime(market_df)
-        st.session_state.market_regime = regime
+        try:
+            regime = detect_market_regime(market_df)
+        except Exception:
+            regime = None
+
+    # Keep the latest scan in both the current browser session and the shared
+    # process store, so the dashboard sees exactly the same results.
+    save_scan(
+        scan_results=ranked,
+        scan_results_all=ranked_all,
+        scan_errors=errors_df,
+        scan_symbols_count=len(symbols),
+        scan_success_count=len(rows),
+        last_scan_time=now,
+        scan_universe_source=universe_source,
+        market_regime=regime,
+    )
+    st.session_state.scan_results = ranked.copy()
+    st.session_state.scan_results_all = ranked_all.copy()
+    st.session_state.scan_errors = errors_df
+    st.session_state.scan_symbols_count = len(symbols)
+    st.session_state.scan_success_count = len(rows)
+    st.session_state.last_scan_time = now
+    st.session_state.scan_universe_source = universe_source
+    st.session_state.market_regime = regime
+
+    if regime:
         c1, c2, c3 = st.columns(3)
         c1.metric("حالة السوق", regime["regime"])
         c2.metric("Trend Score", f"{regime['trend_score']:.1f}")
