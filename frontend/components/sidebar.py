@@ -18,6 +18,7 @@ def render_sidebar():
             "📰 المحفزات والفرص": "catalysts",
             "⭐ قائمة المراقبة الذكية": "watchlist",
             "🔔 التنبيهات الذكية": "alerts",
+            "🧠 الإشارات المتقدمة": "advanced",
         }
         labels = list(pages.keys())
         current = st.session_state.get("active_page", "dashboard")
