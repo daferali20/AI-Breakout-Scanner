@@ -50,6 +50,9 @@ try:
     elif page == "alerts":
         from frontend.pages.alerts import render
         render()
+    elif page == "advanced":
+        from frontend.pages.advanced_signals import render
+        render()
 except Exception as exc:
     st.title("🚀 AI Breakout Scanner")
     st.error(f"تعذر تحميل الصفحة: {exc}")
