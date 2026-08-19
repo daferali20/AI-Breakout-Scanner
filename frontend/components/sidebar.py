@@ -16,11 +16,13 @@ def render_sidebar():
             "📊 تحليل السهم": "analysis",
             "💧 السيولة والزخم": "flow",
             "📰 المحفزات والفرص": "catalysts",
+            "⭐ قائمة المراقبة الذكية": "watchlist",
+            "🔔 التنبيهات الذكية": "alerts",
         }
         labels = list(pages.keys())
         current = st.session_state.get("active_page", "dashboard")
         current_label = next((k for k, v in pages.items() if v == current), labels[0])
-        selected = st.radio("", labels, index=labels.index(current_label), label_visibility="collapsed")
+        selected = st.radio("التنقل الرئيسي", labels, index=labels.index(current_label), label_visibility="collapsed")
         st.session_state.active_page = pages[selected]
         st.markdown("---")
         render_scan_settings()
