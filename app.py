@@ -44,6 +44,12 @@ try:
     elif page == "catalysts":
         from frontend.pages.catalysts import render
         render()
+    elif page == "watchlist":
+        from frontend.pages.smart_watchlist import render
+        render()
+    elif page == "alerts":
+        from frontend.pages.alerts import render
+        render()
 except Exception as exc:
     st.title("🚀 AI Breakout Scanner")
     st.error(f"تعذر تحميل الصفحة: {exc}")
