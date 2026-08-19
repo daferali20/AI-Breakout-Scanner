@@ -52,23 +52,38 @@ def _summary(ranked: pd.DataFrame) -> dict[str, Any]:
 
 
 def save_scan(**values: Any) -> None:
-    """Replace the latest scan snapshot and derive one shared ranked snapshot."""
+    """Save the latest scan and make one canonical ranked snapshot for every UI page."""
     with _LOCK:
         for key, value in values.items():
             _STORE[key] = value.copy() if isinstance(value, pd.DataFrame) else value
+
         all_results = _STORE.get("scan_results_all", pd.DataFrame())
-        if isinstance(all_results, pd.DataFrame) and not all_results.empty:
-            ranked = _build_ranked(all_results)
-            _STORE["ranked_results"] = ranked.copy()
-            _STORE["top_opportunities"] = ranked.head(10).copy()
-            _STORE["opportunity_summary"] = _summary(ranked)
+        if not isinstance(all_results, pd.DataFrame) or all_results.empty:
+            return
+
+        # Single source of truth: every page consumes this exact ranking.
+        ranked = _build_ranked(all_results)
+        _STORE["ranked_results"] = ranked.copy()
+        _STORE["top_opportunities"] = ranked.head(10).copy()
+        _STORE["opportunity_summary"] = _summary(ranked)
+
+        # Keep the legacy scan_results key synchronized with the canonical top list.
+        # This makes the existing dashboard immediately consume the unified ranking
+        # without changing its visual layout or navigation.
+        _STORE["scan_results"] = ranked.head(10).copy()
 
 
 def get_scan() -> dict[str, Any]:
     """Return a defensive copy of the latest unified scan snapshot."""
     with _LOCK:
         snapshot = dict(_STORE)
-        for key in ("scan_results", "scan_results_all", "ranked_results", "top_opportunities", "scan_errors"):
+        for key in (
+            "scan_results",
+            "scan_results_all",
+            "ranked_results",
+            "top_opportunities",
+            "scan_errors",
+        ):
             if isinstance(snapshot[key], pd.DataFrame):
                 snapshot[key] = snapshot[key].copy()
         return snapshot
