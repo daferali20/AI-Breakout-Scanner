@@ -1,34 +1,24 @@
 """Independent +40% gainers scanner with resilient batch discovery."""
 from __future__ import annotations
 from typing import Any
-import time
 import pandas as pd
 import streamlit as st
 import yfinance as yf
+from backend.gainers_universe import get_universe
 
-DEFAULT_UNIVERSE = [
-    "AAPL","MSFT","NVDA","AMZN","META","TSLA","GOOGL","GOOG","AVGO","AMD","NFLX","PLTR","MU","INTC","SMCI",
-    "ARM","MRVL","QCOM","MSTR","COIN","HOOD","MARA","CLSK","RIOT","HUT","IREN","ASTS","RKLB","LUNR","SOUN",
-    "RGTI","IONQ","SMR","OKLO","SOFI","RIVN","LCID","NIO","XPEV","LI","GME","AMC","CVNA","UPST","AFRM",
-    "APP","CRWD","SNOW","NET","DDOG","SHOP","UBER","ABNB","DKNG","CELH","CAVA","HIMS","TEM","AI"
-]
+DEFAULT_UNIVERSE = get_universe()
 
 
 def _num(value: Any, default: float = 0.0) -> float:
-    try:
-        return float(value)
-    except (TypeError, ValueError):
-        return default
+    try: return float(value)
+    except (TypeError, ValueError): return default
 
 
 def _score_momentum(change: float, rsi: float, price_vs_high: float) -> float:
     score = min(100.0, max(0.0, change * 1.5))
-    if 55 <= rsi <= 80:
-        score += 15
-    elif rsi > 90:
-        score -= 8
-    if price_vs_high >= 0:
-        score += 10
+    if 55 <= rsi <= 80: score += 15
+    elif rsi > 90: score -= 8
+    if price_vs_high >= 0: score += 10
     return round(min(100.0, max(0.0, score)), 1)
 
 
@@ -54,8 +44,7 @@ def analyze_gainers(symbols: list[str], period: str = "5d") -> pd.DataFrame:
     if not clean: return pd.DataFrame()
     try:
         data = yf.download(clean, period=period, interval="1d", group_by="ticker", auto_adjust=False, threads=False, progress=False)
-    except Exception:
-        return pd.DataFrame()
+    except Exception: return pd.DataFrame()
     for symbol in clean:
         try:
             frame = _extract(data, symbol)
@@ -84,6 +73,7 @@ def analyze_gainers(symbols: list[str], period: str = "5d") -> pd.DataFrame:
 
 
 @st.cache_data(ttl=300, show_spinner=False)
-def discover_strong_gainers(universe: tuple[str, ...] = tuple(DEFAULT_UNIVERSE), period: str = "5d") -> pd.DataFrame:
-    """Discover +40% names using one batched Yahoo request, cached for 5 minutes."""
-    return analyze_gainers(list(universe), period=period)
+def discover_strong_gainers(universe: tuple[str, ...] | None = None, period: str = "5d") -> pd.DataFrame:
+    """Discover +40% names from the independent cached US universe."""
+    symbols = tuple(universe) if universe else get_universe()
+    return analyze_gainers(list(symbols), period=period)
