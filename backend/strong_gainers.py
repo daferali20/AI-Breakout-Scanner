@@ -73,7 +73,14 @@ def analyze_gainers(symbols: list[str], period: str = "5d") -> pd.DataFrame:
 
 
 @st.cache_data(ttl=300, show_spinner=False)
-def discover_strong_gainers(universe: tuple[str, ...] | None = None, period: str = "5d") -> pd.DataFrame:
-    """Discover +40% names from the independent cached US universe."""
-    symbols = tuple(universe) if universe else get_universe()
-    return analyze_gainers(list(symbols), period=period)
+def discover_strong_gainers(limit: int = 1500, period: str = "5d") -> pd.DataFrame:
+    """Discover +40% names from the independent universe in bounded batches."""
+    symbols = list(get_universe())
+    if limit > 0: symbols = symbols[:limit]
+    results: list[pd.DataFrame] = []
+    batch_size = 150
+    for start in range(0, len(symbols), batch_size):
+        frame = analyze_gainers(symbols[start:start + batch_size], period=period)
+        if not frame.empty: results.append(frame)
+    if not results: return pd.DataFrame()
+    return pd.concat(results, ignore_index=True).drop_duplicates("symbol").sort_values(["gainer_score","change_pct"], ascending=False).reset_index(drop=True)
