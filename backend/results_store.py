@@ -1,5 +1,4 @@
-"""Shared in-process result store for the dashboard and scanner pages."""
-
+"""Shared result store for dashboard, scanner and historical opportunities."""
 from __future__ import annotations
 from threading import RLock
 from typing import Any
@@ -11,7 +10,7 @@ _STORE: dict[str, Any] = {
     "top_opportunities": pd.DataFrame(), "smart_watchlist": pd.DataFrame(), "alerts": [],
     "scan_errors": pd.DataFrame(), "scan_symbols_count": 0, "scan_success_count": 0,
     "last_scan_time": None, "scan_universe_source": "لم يتم إجراء مسح بعد", "market_regime": None,
-    "opportunity_summary": {}, "historical_opportunities": [],
+    "opportunity_summary": {}, "historical_opportunities": pd.DataFrame(),
 }
 
 
@@ -47,11 +46,18 @@ def _summary(ranked: pd.DataFrame) -> dict[str, Any]:
     advanced = pd.to_numeric(ranked.get("advanced_signal_count", 0), errors="coerce").fillna(0)
     stages = ranked.get("opportunity_stage", pd.Series(["WATCH"] * len(ranked)))
     return {"count": int(len(ranked)), "strong": int((score >= 65).sum()), "elite": int((score >= 80).sum()),
-            "high_confidence": int((confidence >= 80).sum()),
-            "exceptional_flow": int(((rvol >= 3) & (momentum >= 80) & (liquidity >= 75)).sum()),
+            "high_confidence": int((confidence >= 80).sum()), "exceptional_flow": int(((rvol >= 3) & (momentum >= 80) & (liquidity >= 75)).sum()),
             "average_score": round(float(score.mean()), 1), "advanced_signals": int((advanced > 0).sum()),
             "confirmed": int((stages == "CONFIRMED").sum()), "breakout": int((stages == "BREAKOUT").sum()),
             "setup": int((stages == "SETUP").sum()), "weakening": int((stages == "WEAKENING").sum())}
+
+
+def _load_history_frame() -> pd.DataFrame:
+    try:
+        from backend.opportunity_history import get_history
+        return pd.DataFrame(get_history())
+    except Exception:
+        return pd.DataFrame()
 
 
 def save_scan(**values: Any) -> None:
@@ -60,9 +66,12 @@ def save_scan(**values: Any) -> None:
             _STORE[key] = value.copy() if isinstance(value, pd.DataFrame) else value
         all_results = _STORE.get("scan_results_all", pd.DataFrame())
         if not isinstance(all_results, pd.DataFrame) or all_results.empty:
+            _STORE["historical_opportunities"] = _load_history_frame()
             return
         ranked, regime = _build_ranked(all_results)
-        _STORE["ranked_results"] = ranked.copy(); _STORE["top_opportunities"] = ranked.head(10).copy(); _STORE["scan_results"] = ranked.head(10).copy()
+        _STORE["ranked_results"] = ranked.copy()
+        _STORE["top_opportunities"] = ranked.head(10).copy()
+        _STORE["scan_results"] = ranked.head(10).copy()
         _STORE["market_regime"] = regime
         try:
             from backend.watchlist import build_smart_watchlist
@@ -75,20 +84,23 @@ def save_scan(**values: Any) -> None:
         except Exception:
             _STORE["alerts"] = []
         try:
-            from backend.opportunity_history import update_history, get_history
-            _STORE["historical_opportunities"] = update_history(ranked)
+            from backend.opportunity_history import update_history
+            _STORE["historical_opportunities"] = pd.DataFrame(update_history(ranked))
         except Exception:
-            _STORE["historical_opportunities"] = get_history() if "get_history" in globals() else []
+            _STORE["historical_opportunities"] = _load_history_frame()
         _STORE["opportunity_summary"] = _summary(ranked)
 
 
 def get_scan() -> dict[str, Any]:
     with _LOCK:
         snapshot = dict(_STORE)
-        for key in ("scan_results", "scan_results_all", "ranked_results", "top_opportunities", "smart_watchlist", "scan_errors"):
-            if isinstance(snapshot[key], pd.DataFrame): snapshot[key] = snapshot[key].copy()
-        if isinstance(snapshot.get("alerts"), list): snapshot["alerts"] = list(snapshot["alerts"])
-        if isinstance(snapshot.get("historical_opportunities"), list): snapshot["historical_opportunities"] = list(snapshot["historical_opportunities"])
+        if not isinstance(snapshot.get("historical_opportunities"), pd.DataFrame) or snapshot["historical_opportunities"].empty:
+            snapshot["historical_opportunities"] = _load_history_frame()
+        for key in ("scan_results", "scan_results_all", "ranked_results", "top_opportunities", "smart_watchlist", "scan_errors", "historical_opportunities"):
+            if isinstance(snapshot.get(key), pd.DataFrame):
+                snapshot[key] = snapshot[key].copy()
+        if isinstance(snapshot.get("alerts"), list):
+            snapshot["alerts"] = list(snapshot["alerts"])
         return snapshot
 
 
