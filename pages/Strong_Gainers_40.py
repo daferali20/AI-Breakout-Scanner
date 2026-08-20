@@ -12,33 +12,36 @@ status = universe_status()
 u1, u2, u3 = st.columns(3)
 u1.metric("🇺🇸 الكون المستقل", f"{status['count']:,} رمز")
 u2.metric("💾 التخزين المؤقت", "6 ساعات")
-u3.metric("📡 المصدر", "S&P 500 + Nasdaq-100")
+u3.metric("📡 المصدر", "Nasdaq / NYSE / AMEX")
 
 c1, c2, c3 = st.columns([1, 1, 1])
 auto = c1.toggle("🤖 اكتشاف تلقائي", value=True)
 manual = c2.text_input("🔎 سهم/رموز إضافية", placeholder="NVDA, AMD, PLTR")
-limit = c3.selectbox("حجم الكون", [100, 250, 500, 1000, 0], index=2, format_func=lambda x: "كل الرموز" if x == 0 else f"أول {x:,}")
+limit = c3.selectbox("حجم الكون", [150, 300, 600, 1000, 1500], index=1, format_func=lambda x: f"{x:,} رمز")
 
 if st.button("🔄 تحديث الأسهم +40%", type="primary", use_container_width=True):
-    with st.spinner("جاري فحص السوق دفعة واحدة وتحليل الزخم والسيولة..."):
+    with st.spinner("جاري فحص السوق على دفعات آمنة وتحليل الزخم والسيولة..."):
+        universe = get_universe(limit)
         if auto:
-            universe = get_universe(limit or None)
-            df = discover_strong_gainers(universe=universe)
+            df = discover_strong_gainers(limit=limit)
         else:
             symbols = [x.strip().upper() for x in manual.replace("\n", ",").split(",") if x.strip()]
-            df = analyze_gainers(symbols or list(get_universe(limit or None)))
+            df = analyze_gainers(symbols or list(universe))
         st.session_state["strong_gainers_40"] = df
+        st.session_state["strong_gainers_40_universe"] = len(universe)
 
 if "strong_gainers_40" not in st.session_state and auto:
-    with st.spinner("جاري أول اكتشاف تلقائي..."):
-        st.session_state["strong_gainers_40"] = discover_strong_gainers(universe=get_universe(limit or None))
+    with st.spinner("جاري أول اكتشاف تلقائي على الكون المستقل..."):
+        st.session_state["strong_gainers_40"] = discover_strong_gainers(limit=limit)
+        st.session_state["strong_gainers_40_universe"] = len(get_universe(limit))
 
 df = st.session_state.get("strong_gainers_40")
 if df is None:
     st.info("اضغط «تحديث الأسهم +40%» لبدء الفحص.")
     st.stop()
 if df.empty:
-    st.warning("لم يتم العثور على سهم ارتفع 40% أو أكثر ضمن الكون الحالي. جرّب توسيع حجم الكون.")
+    st.warning("لم يتم العثور على سهم ارتفع 40% أو أكثر ضمن البيانات المتاحة حاليًا. جرّب توسيع الكون أو إعادة التحديث.")
+    st.caption(f"تم فحص نحو {st.session_state.get('strong_gainers_40_universe', limit):,} رمزًا. عدم ظهور نتائج لا يعني بالضرورة عدم وجود ارتفاعات في السوق إذا كان مصدر البيانات لا يعيد بعض الرموز.")
     st.stop()
 
 c1,c2,c3,c4 = st.columns(4)
