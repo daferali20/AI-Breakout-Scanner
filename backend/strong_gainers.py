@@ -6,8 +6,6 @@ import streamlit as st
 import yfinance as yf
 from backend.gainers_universe import get_universe
 
-DEFAULT_UNIVERSE = get_universe()
-
 
 def _num(value: Any, default: float = 0.0) -> float:
     try: return float(value)
@@ -38,8 +36,8 @@ def _extract(data: pd.DataFrame, symbol: str) -> pd.DataFrame:
     return data.dropna(how="all")
 
 
-def analyze_gainers(symbols: list[str], threshold: float = 40.0, period: str = "1mo") -> tuple[pd.DataFrame, dict[str, int]]:
-    """Analyze daily gainers. `threshold` is the latest-session percentage move."""
+def analyze_gainers(symbols: list[str], threshold: float = 40.0, period: str = "3mo") -> tuple[pd.DataFrame, dict[str, int]]:
+    """Find symbols that gained at least threshold over one supported window."""
     rows: list[dict[str, Any]] = []
     stats = {"requested": 0, "with_data": 0, "above_threshold": 0}
     clean = list(dict.fromkeys(str(s).strip().upper() for s in symbols if str(s).strip()))
@@ -57,8 +55,14 @@ def analyze_gainers(symbols: list[str], threshold: float = 40.0, period: str = "
             volume = pd.to_numeric(frame.get("Volume", 0), errors="coerce").fillna(0)
             if len(close) < 2: continue
             stats["with_data"] += 1
-            price, previous = _num(close.iloc[-1]), _num(close.iloc[-2])
-            change = ((price / previous) - 1) * 100 if previous > 0 else 0
+            price = _num(close.iloc[-1])
+            candidates = []
+            for label, days in (("اليوم", 1), ("3 أيام", 3), ("5 أيام", 5), ("20 يوم", 20), ("60 يوم", 60)):
+                if len(close) > days:
+                    base = _num(close.iloc[-days-1])
+                    if base > 0: candidates.append((label, ((price / base) - 1) * 100, days))
+            if not candidates: continue
+            period_label, change, change_days = max(candidates, key=lambda x: x[1])
             if change < threshold: continue
             stats["above_threshold"] += 1
             vol = _num(volume.iloc[-1]); avg_vol = _num(volume.iloc[:-1].tail(20).mean())
@@ -73,23 +77,21 @@ def analyze_gainers(symbols: list[str], threshold: float = 40.0, period: str = "
             liquidity, rvol = _score_liquidity(vol, avg_vol, dollar_volume)
             composite = round(momentum * 0.55 + liquidity * 0.45, 1)
             strength = "🔥 انفجار قوي" if composite >= 80 else ("🚀 صعود قوي" if composite >= 65 else ("⚡ ارتفاع مع سيولة" if liquidity >= 65 else "⚠️ ارتفاع ضعيف"))
-            rows.append({"symbol":symbol,"price":round(price,2),"change_pct":round(change,2),"momentum_score":momentum,"liquidity_score":liquidity,"volume":int(vol),"relative_volume":rvol,"dollar_volume":round(dollar_volume,0),"rsi":round(rsi,1),"strength":strength,"gainer_score":composite})
+            rows.append({"symbol":symbol,"price":round(price,2),"change_pct":round(change,2),"period":period_label,"period_days":change_days,"momentum_score":momentum,"liquidity_score":liquidity,"volume":int(vol),"relative_volume":rvol,"dollar_volume":round(dollar_volume,0),"rsi":round(rsi,1),"strength":strength,"gainer_score":composite})
         except Exception: continue
     result = pd.DataFrame(rows)
     if result.empty: return result, stats
-    return result.sort_values(["gainer_score","change_pct"],ascending=False).reset_index(drop=True), stats
+    return result.sort_values(["gainer_score","change_pct"], ascending=False).reset_index(drop=True), stats
 
 
 @st.cache_data(ttl=300, show_spinner=False)
-def discover_strong_gainers(limit: int = 1500, threshold: float = 40.0, period: str = "1mo") -> tuple[pd.DataFrame, dict[str, int]]:
-    """Discover daily +40% names from the independent universe in bounded batches."""
+def discover_strong_gainers(limit: int = 1500, threshold: float = 40.0, period: str = "3mo") -> tuple[pd.DataFrame, dict[str, int]]:
     symbols = list(get_universe())
     if limit > 0: symbols = symbols[:limit]
     results: list[pd.DataFrame] = []
     total = {"requested": 0, "with_data": 0, "above_threshold": 0}
-    batch_size = 150
-    for start in range(0, len(symbols), batch_size):
-        frame, stats = analyze_gainers(symbols[start:start + batch_size], threshold=threshold, period=period)
+    for start in range(0, len(symbols), 150):
+        frame, stats = analyze_gainers(symbols[start:start + 150], threshold=threshold, period=period)
         for key in total: total[key] += stats[key]
         if not frame.empty: results.append(frame)
     if not results: return pd.DataFrame(), total
