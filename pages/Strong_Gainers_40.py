@@ -1,34 +1,42 @@
-"""🚀 Independent +40% gainers page."""
+"""🚀 Independent +40% gainers dashboard."""
 from __future__ import annotations
 import streamlit as st
-from backend.strong_gainers import analyze_gainers
+from backend.strong_gainers import DEFAULT_UNIVERSE, analyze_gainers, discover_strong_gainers
 
 st.set_page_config(page_title="الأسهم الصاعدة +40%", page_icon="🚀", layout="wide")
 st.title("🚀 الأسهم الأكثر ارتفاعًا +40%")
-st.caption("صفحة مستقلة لا تخلط نتائجها مع قائمة المراقبة أو الفرص التاريخية.")
+st.caption("ماسح مستقل للارتفاعات الاستثنائية؛ لا يضيف نتائجه إلى قائمة المراقبة أو السجل التاريخي تلقائيًا.")
 
-symbols_text = st.text_area("قائمة الأسهم المراد فحصها", value="NVDA, AMD, PLTR, TSLA, SMCI, HOOD, MARA, CLSK, ASTS, SOFI", height=70)
-symbols = [x.strip().upper() for x in symbols_text.replace("\n", ",").split(",") if x.strip()]
+c1, c2 = st.columns([1, 1])
+auto = c1.toggle("🤖 اكتشاف تلقائي", value=True)
+manual = c2.text_input("🔎 سهم/رموز إضافية", placeholder="NVDA, AMD, PLTR")
 
-if st.button("🔄 فحص الأسهم +40%", type="primary", use_container_width=True):
-    with st.spinner("جاري فحص الارتفاع والزخم والسيولة..."):
-        st.session_state["strong_gainers_40"] = analyze_gainers(symbols)
+if st.button("🔄 تحديث الأسهم +40%", type="primary", use_container_width=True):
+    with st.spinner("جاري فحص السوق دفعة واحدة وتحليل الزخم والسيولة..."):
+        if auto:
+            df = discover_strong_gainers()
+        else:
+            symbols = [x.strip().upper() for x in manual.replace("\n", ",").split(",") if x.strip()]
+            df = analyze_gainers(symbols or list(DEFAULT_UNIVERSE))
+        st.session_state["strong_gainers_40"] = df
+
+if "strong_gainers_40" not in st.session_state and auto:
+    with st.spinner("جاري أول اكتشاف تلقائي..."):
+        st.session_state["strong_gainers_40"] = discover_strong_gainers()
 
 df = st.session_state.get("strong_gainers_40")
 if df is None:
-    st.info("أدخل الأسهم ثم اضغط «فحص الأسهم +40%». هذه الصفحة مستقلة عن القوائم الأخرى.")
+    st.info("اضغط «تحديث الأسهم +40%» لبدء الفحص.")
     st.stop()
-
 if df.empty:
-    st.warning("لم يتم العثور على سهم ارتفع 40% أو أكثر ضمن المجموعة الحالية.")
+    st.warning("لم يتم العثور على سهم ارتفع 40% أو أكثر ضمن الكون الحالي. هذا لا يعني عدم وجود أسهم في السوق؛ يمكن توسيع الكون لاحقًا بمصدر قائمة رموز متخصص.")
     st.stop()
 
-c1, c2, c3, c4 = st.columns(4)
+c1,c2,c3,c4 = st.columns(4)
 c1.metric("🚀 الأسهم +40%", len(df))
 c2.metric("🔥 زخم قوي", int((df["momentum_score"] >= 70).sum()))
 c3.metric("💧 سيولة قوية", int((df["liquidity_score"] >= 70).sum()))
 c4.metric("⚡ RVOL مرتفع", int((df["relative_volume"] >= 2).sum()))
-
 st.divider()
 
 for _, row in df.head(30).iterrows():
