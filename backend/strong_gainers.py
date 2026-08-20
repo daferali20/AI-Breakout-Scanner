@@ -1,0 +1,81 @@
+"""Independent scanner for stocks gaining 40% or more."""
+from __future__ import annotations
+from typing import Any
+import pandas as pd
+import yfinance as yf
+
+
+def _num(value: Any, default: float = 0.0) -> float:
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _score_momentum(change: float, rsi: float, price_vs_high: float) -> float:
+    score = min(100.0, max(0.0, change * 1.5))
+    if 55 <= rsi <= 80:
+        score += 15
+    elif rsi > 90:
+        score -= 8
+    if price_vs_high >= 0:
+        score += 10
+    return round(min(100.0, max(0.0, score)), 1)
+
+
+def _score_liquidity(volume: float, avg_volume: float, dollar_volume: float) -> tuple[float, float]:
+    rvol = volume / avg_volume if avg_volume > 0 else 0.0
+    score = min(100.0, rvol * 25)
+    if dollar_volume >= 50_000_000:
+        score += 25
+    elif dollar_volume >= 10_000_000:
+        score += 15
+    elif dollar_volume >= 2_000_000:
+        score += 8
+    return round(min(100.0, score), 1), round(rvol, 2)
+
+
+def analyze_gainers(symbols: list[str], period: str = "5d") -> pd.DataFrame:
+    rows: list[dict[str, Any]] = []
+    clean = list(dict.fromkeys(str(s).strip().upper() for s in symbols if str(s).strip()))
+    if not clean:
+        return pd.DataFrame()
+    try:
+        data = yf.download(clean, period=period, interval="1d", group_by="ticker", auto_adjust=False, threads=True, progress=False)
+    except Exception:
+        return pd.DataFrame()
+    for symbol in clean:
+        try:
+            frame = data[symbol].dropna(how="all") if isinstance(data.columns, pd.MultiIndex) and symbol in data.columns.get_level_values(0) else data
+            if frame.empty or "Close" not in frame or len(frame) < 2:
+                continue
+            close = pd.to_numeric(frame["Close"], errors="coerce").dropna()
+            volume = pd.to_numeric(frame.get("Volume", 0), errors="coerce").fillna(0)
+            if len(close) < 2:
+                continue
+            price = _num(close.iloc[-1])
+            previous = _num(close.iloc[-2])
+            change = ((price / previous) - 1) * 100 if previous > 0 else 0
+            if change < 40:
+                continue
+            vol = _num(volume.iloc[-1])
+            avg_vol = _num(volume.iloc[:-1].tail(20).mean())
+            dollar_volume = price * vol
+            high = _num(close.tail(252).max(), price)
+            price_vs_high = ((price / high) - 1) * 100 if high > 0 else 0
+            returns = close.pct_change().dropna()
+            rsi = 50.0
+            if len(returns) >= 14:
+                gains = returns.clip(lower=0).rolling(14).mean().iloc[-1]
+                losses = (-returns.clip(upper=0)).rolling(14).mean().iloc[-1]
+                rsi = 100 - (100 / (1 + gains / losses)) if losses > 0 else 100.0
+            momentum, _ = _score_momentum(change, rsi, price_vs_high), None
+            liquidity, rvol = _score_liquidity(vol, avg_vol, dollar_volume)
+            composite = round(momentum * 0.55 + liquidity * 0.45, 1)
+            strength = "🔥 انفجار قوي" if composite >= 80 else ("🚀 صعود قوي" if composite >= 65 else ("⚡ ارتفاع مع سيولة" if liquidity >= 65 else "⚠️ ارتفاع ضعيف"))
+            rows.append({"symbol": symbol, "price": round(price, 2), "change_pct": round(change, 2), "momentum_score": momentum, "liquidity_score": liquidity, "volume": int(vol), "relative_volume": rvol, "dollar_volume": round(dollar_volume, 0), "rsi": round(rsi, 1), "strength": strength, "gainer_score": composite})
+        except Exception:
+            continue
+    if not rows:
+        return pd.DataFrame()
+    return pd.DataFrame(rows).sort_values(["gainer_score", "change_pct"], ascending=False).reset_index(drop=True)
