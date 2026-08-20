@@ -38,13 +38,17 @@ def _extract(data: pd.DataFrame, symbol: str) -> pd.DataFrame:
     return data.dropna(how="all")
 
 
-def analyze_gainers(symbols: list[str], period: str = "5d") -> pd.DataFrame:
+def analyze_gainers(symbols: list[str], threshold: float = 40.0, period: str = "1mo") -> tuple[pd.DataFrame, dict[str, int]]:
+    """Analyze daily gainers. `threshold` is the latest-session percentage move."""
     rows: list[dict[str, Any]] = []
+    stats = {"requested": 0, "with_data": 0, "above_threshold": 0}
     clean = list(dict.fromkeys(str(s).strip().upper() for s in symbols if str(s).strip()))
-    if not clean: return pd.DataFrame()
+    stats["requested"] = len(clean)
+    if not clean: return pd.DataFrame(), stats
     try:
         data = yf.download(clean, period=period, interval="1d", group_by="ticker", auto_adjust=False, threads=False, progress=False)
-    except Exception: return pd.DataFrame()
+    except Exception:
+        return pd.DataFrame(), stats
     for symbol in clean:
         try:
             frame = _extract(data, symbol)
@@ -52,9 +56,11 @@ def analyze_gainers(symbols: list[str], period: str = "5d") -> pd.DataFrame:
             close = pd.to_numeric(frame["Close"], errors="coerce").dropna()
             volume = pd.to_numeric(frame.get("Volume", 0), errors="coerce").fillna(0)
             if len(close) < 2: continue
+            stats["with_data"] += 1
             price, previous = _num(close.iloc[-1]), _num(close.iloc[-2])
             change = ((price / previous) - 1) * 100 if previous > 0 else 0
-            if change < 40: continue
+            if change < threshold: continue
+            stats["above_threshold"] += 1
             vol = _num(volume.iloc[-1]); avg_vol = _num(volume.iloc[:-1].tail(20).mean())
             dollar_volume = price * vol; high = _num(close.tail(252).max(), price)
             price_vs_high = ((price / high) - 1) * 100 if high > 0 else 0
@@ -69,18 +75,22 @@ def analyze_gainers(symbols: list[str], period: str = "5d") -> pd.DataFrame:
             strength = "🔥 انفجار قوي" if composite >= 80 else ("🚀 صعود قوي" if composite >= 65 else ("⚡ ارتفاع مع سيولة" if liquidity >= 65 else "⚠️ ارتفاع ضعيف"))
             rows.append({"symbol":symbol,"price":round(price,2),"change_pct":round(change,2),"momentum_score":momentum,"liquidity_score":liquidity,"volume":int(vol),"relative_volume":rvol,"dollar_volume":round(dollar_volume,0),"rsi":round(rsi,1),"strength":strength,"gainer_score":composite})
         except Exception: continue
-    return pd.DataFrame(rows).sort_values(["gainer_score","change_pct"],ascending=False).reset_index(drop=True) if rows else pd.DataFrame()
+    result = pd.DataFrame(rows)
+    if result.empty: return result, stats
+    return result.sort_values(["gainer_score","change_pct"],ascending=False).reset_index(drop=True), stats
 
 
 @st.cache_data(ttl=300, show_spinner=False)
-def discover_strong_gainers(limit: int = 1500, period: str = "5d") -> pd.DataFrame:
-    """Discover +40% names from the independent universe in bounded batches."""
+def discover_strong_gainers(limit: int = 1500, threshold: float = 40.0, period: str = "1mo") -> tuple[pd.DataFrame, dict[str, int]]:
+    """Discover daily +40% names from the independent universe in bounded batches."""
     symbols = list(get_universe())
     if limit > 0: symbols = symbols[:limit]
     results: list[pd.DataFrame] = []
+    total = {"requested": 0, "with_data": 0, "above_threshold": 0}
     batch_size = 150
     for start in range(0, len(symbols), batch_size):
-        frame = analyze_gainers(symbols[start:start + batch_size], period=period)
+        frame, stats = analyze_gainers(symbols[start:start + batch_size], threshold=threshold, period=period)
+        for key in total: total[key] += stats[key]
         if not frame.empty: results.append(frame)
-    if not results: return pd.DataFrame()
-    return pd.concat(results, ignore_index=True).drop_duplicates("symbol").sort_values(["gainer_score","change_pct"], ascending=False).reset_index(drop=True)
+    if not results: return pd.DataFrame(), total
+    return pd.concat(results, ignore_index=True).drop_duplicates("symbol").sort_values(["gainer_score","change_pct"], ascending=False).reset_index(drop=True), total
