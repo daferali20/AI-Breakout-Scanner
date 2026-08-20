@@ -6,7 +6,7 @@ from backend.strong_gainers import analyze_gainers, discover_strong_gainers
 
 st.set_page_config(page_title="الأسهم الصاعدة +40%", page_icon="🚀", layout="wide")
 st.title("🚀 الأسهم الأكثر ارتفاعًا +40%")
-st.caption("ماسح مستقل للارتفاعات الاستثنائية؛ نتائجه لا تدخل في قائمة المراقبة أو السجل التاريخي.")
+st.caption("ماسح مستقل؛ +40% تعني ارتفاع جلسة التداول الأخيرة، ولا تدخل نتائجه في القوائم الأخرى.")
 
 status = universe_status()
 u1, u2, u3 = st.columns(3)
@@ -20,28 +20,43 @@ manual = c2.text_input("🔎 سهم/رموز إضافية", placeholder="NVDA, A
 limit = c3.selectbox("حجم الكون", [150, 300, 600, 1000, 1500], index=1, format_func=lambda x: f"{x:,} رمز")
 
 if st.button("🔄 تحديث الأسهم +40%", type="primary", use_container_width=True):
-    with st.spinner("جاري فحص السوق على دفعات آمنة وتحليل الزخم والسيولة..."):
+    with st.spinner("جاري فحص آخر جلسة على دفعات آمنة وتحليل الزخم والسيولة..."):
         universe = get_universe(limit)
         if auto:
-            df = discover_strong_gainers(limit=limit)
+            df, stats = discover_strong_gainers(limit=limit, threshold=40.0)
         else:
             symbols = [x.strip().upper() for x in manual.replace("\n", ",").split(",") if x.strip()]
-            df = analyze_gainers(symbols or list(universe))
+            df, stats = analyze_gainers(symbols or list(universe), threshold=40.0)
         st.session_state["strong_gainers_40"] = df
+        st.session_state["strong_gainers_40_stats"] = stats
         st.session_state["strong_gainers_40_universe"] = len(universe)
 
 if "strong_gainers_40" not in st.session_state and auto:
     with st.spinner("جاري أول اكتشاف تلقائي على الكون المستقل..."):
-        st.session_state["strong_gainers_40"] = discover_strong_gainers(limit=limit)
+        df, stats = discover_strong_gainers(limit=limit, threshold=40.0)
+        st.session_state["strong_gainers_40"] = df
+        st.session_state["strong_gainers_40_stats"] = stats
         st.session_state["strong_gainers_40_universe"] = len(get_universe(limit))
 
 df = st.session_state.get("strong_gainers_40")
+stats = st.session_state.get("strong_gainers_40_stats", {})
+
 if df is None:
     st.info("اضغط «تحديث الأسهم +40%» لبدء الفحص.")
     st.stop()
+
+with st.expander("🔎 تشخيص عملية المسح", expanded=df.empty):
+    d1,d2,d3 = st.columns(3)
+    d1.metric("الرموز المطلوبة", f"{stats.get('requested', 0):,}")
+    d2.metric("بيانات صالحة", f"{stats.get('with_data', 0):,}")
+    d3.metric("+40%", f"{stats.get('above_threshold', 0):,}")
+
 if df.empty:
-    st.warning("لم يتم العثور على سهم ارتفع 40% أو أكثر ضمن البيانات المتاحة حاليًا. جرّب توسيع الكون أو إعادة التحديث.")
-    st.caption(f"تم فحص نحو {st.session_state.get('strong_gainers_40_universe', limit):,} رمزًا. عدم ظهور نتائج لا يعني بالضرورة عدم وجود ارتفاعات في السوق إذا كان مصدر البيانات لا يعيد بعض الرموز.")
+    if stats.get("with_data", 0) == 0:
+        st.error("لم تصل بيانات أسعار صالحة من Yahoo لهذه الدفعة. المشكلة في مصدر البيانات/الجلب وليست في شرط +40%.")
+    else:
+        st.warning("لم يظهر سهم حقق +40% في آخر جلسة ضمن البيانات التي وصلت بنجاح.")
+    st.caption(f"تم طلب {stats.get('requested', 0):,} رمزًا، ووصلت بيانات {stats.get('with_data', 0):,} رمزًا.")
     st.stop()
 
 c1,c2,c3,c4 = st.columns(4)
