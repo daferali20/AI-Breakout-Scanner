@@ -11,7 +11,7 @@ _STORE: dict[str, Any] = {
     "top_opportunities": pd.DataFrame(), "smart_watchlist": pd.DataFrame(), "alerts": [],
     "scan_errors": pd.DataFrame(), "scan_symbols_count": 0, "scan_success_count": 0,
     "last_scan_time": None, "scan_universe_source": "لم يتم إجراء مسح بعد", "market_regime": None,
-    "opportunity_summary": {},
+    "opportunity_summary": {}, "historical_opportunities": [],
 }
 
 
@@ -74,6 +74,11 @@ def save_scan(**values: Any) -> None:
             _STORE["alerts"] = generate_alerts(ranked)
         except Exception:
             _STORE["alerts"] = []
+        try:
+            from backend.opportunity_history import update_history, get_history
+            _STORE["historical_opportunities"] = update_history(ranked)
+        except Exception:
+            _STORE["historical_opportunities"] = get_history() if "get_history" in globals() else []
         _STORE["opportunity_summary"] = _summary(ranked)
 
 
@@ -83,6 +88,7 @@ def get_scan() -> dict[str, Any]:
         for key in ("scan_results", "scan_results_all", "ranked_results", "top_opportunities", "smart_watchlist", "scan_errors"):
             if isinstance(snapshot[key], pd.DataFrame): snapshot[key] = snapshot[key].copy()
         if isinstance(snapshot.get("alerts"), list): snapshot["alerts"] = list(snapshot["alerts"])
+        if isinstance(snapshot.get("historical_opportunities"), list): snapshot["historical_opportunities"] = list(snapshot["historical_opportunities"])
         return snapshot
 
 
