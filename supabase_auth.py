@@ -45,6 +45,21 @@ def sign_in(email: str, password: str) -> dict[str, Any]:
     return response.json()
 
 
+def request_password_reset(email: str) -> None:
+    url, _ = _config()
+    redirect_to = str(st.secrets.get("PASSWORD_RESET_REDIRECT_URL", "")).strip()
+    params = {"redirect_to": redirect_to} if redirect_to else None
+    response = requests.post(
+        f"{url}/auth/v1/recover",
+        headers=_headers(),
+        params=params,
+        json={"email": email.strip().lower()},
+        timeout=20,
+    )
+    if not response.ok:
+        raise RuntimeError(_error_message(response))
+
+
 def fetch_profile(user_id: str, access_token: str) -> dict[str, Any]:
     url, _ = _config()
     response = requests.get(f"{url}/rest/v1/profiles", headers={**_headers(access_token), "Accept": "application/json"}, params={"id": f"eq.{user_id}", "select": "id,email,full_name,role,subscription_status,created_at,updated_at", "limit": "1"}, timeout=20)
@@ -85,18 +100,10 @@ def update_profile_name(full_name: str) -> dict[str, Any]:
 
 def _admin_headers() -> dict[str, str]:
     _config()
-    service_key = str(
-        st.secrets.get("SUPABASE_SECRET_KEY", "")
-        or st.secrets.get("SUPABASE_SERVICE_ROLE_KEY", "")
-    ).strip()
+    service_key = str(st.secrets.get("SUPABASE_SECRET_KEY", "") or st.secrets.get("SUPABASE_SERVICE_ROLE_KEY", "")).strip()
     if not service_key:
         raise RuntimeError("SUPABASE_SECRET_KEY غير موجود في Streamlit Secrets")
-    return {
-        "apikey": service_key,
-        "Authorization": f"Bearer {service_key}",
-        "Content-Type": "application/json",
-        "Accept": "application/json",
-    }
+    return {"apikey": service_key, "Authorization": f"Bearer {service_key}", "Content-Type": "application/json", "Accept": "application/json"}
 
 
 def _require_admin() -> None:
