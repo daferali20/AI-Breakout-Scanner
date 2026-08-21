@@ -1,0 +1,25 @@
+# Secrets and environment files
+.streamlit/secrets.toml
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+
+# Local/editor files
+.vscode/
+.idea/
+.DS_Store
+
+# Caches and generated files
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.log
