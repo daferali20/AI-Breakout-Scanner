@@ -5,8 +5,8 @@ PROJECT_ROOT=os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if PROJECT_ROOT not in sys.path:sys.path.insert(0,PROJECT_ROOT)
 import pandas as pd
 import streamlit as st
-from backend.gainers_universe import get_universe,universe_status
-from backend.strong_gainers import MIN_PRICE,MAX_PRICE,analyze_gainers,discover_strong_gainers
+from gainers_universe import get_universe,universe_status
+from strong_gainers import MIN_PRICE,MAX_PRICE,analyze_gainers,discover_strong_gainers
 st.set_page_config(page_title="الأسهم الأكثر ارتفاعًا",page_icon="🚀",layout="wide")
 CSS_PATH=os.path.join(PROJECT_ROOT,"frontend","assets","style.css")
 if os.path.isfile(CSS_PATH):
@@ -64,7 +64,7 @@ with t1:
  for i,(_,r) in enumerate(market.head(60).iterrows(),1):
   with st.container(border=True):
    rank,sym,gain,price,vol=st.columns([.55,1.2,1.25,1,1.2]);rank.markdown(f"## #{i}");sym.markdown(f"## {r.symbol}<div class='stock-price'>${r.price:.2f}</div>",unsafe_allow_html=True);gain.metric("📈 الارتفاع",f"+{r.change_pct:.2f}%");price.metric("💵 السعر",f"${r.price:.2f}");vol.metric("الحجم",f"{int(r.volume):,}")
-   st.markdown(f"<div class='gainer-detail'><span class='strength'>{r.strength}</span> &nbsp;·&nbsp; <span class='money'>💵 Dollar Volume: ${r.dollar_volume:,.0f}</span> &nbsp;·&nbsp; <span class='source'>📡 المصدر: {r.get('source','Market discovery')}</span></div>",unsafe_allow_html=True)
+   st.markdown(f"<div class='gainer-detail'><span class='strength'>{r.strength}</span> &nbsp;·&nbsp; <span class='money'>💵 Dollar Volume: ${r.dollar_volume:,.0f}</span> &nbsp;·&nbsp; <span class='source'>🧠 AI Market Engine</span></div>",unsafe_allow_html=True)
 with t2:
  st.caption("هنا فقط نستخدم السيولة والزخم وRVOL والمحـفز لاستخراج أفضل الأسهم من قائمة المتصدرين.")
  if elite.empty:st.info("لا توجد أسهم تحقق شروط النخبة حاليًا.")
