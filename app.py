@@ -1,4 +1,4 @@
-"""AI Breakout Scanner - منصة متعددة الصفحات مع مصادقة Supabase."""
+"""AI Breakout Scanner - منصة متعددة الصفحات مع مصادقة Supabase وصلاحيات الخطط."""
 import os
 from datetime import datetime
 import streamlit as st
@@ -26,18 +26,27 @@ for key, default in {
     if key not in st.session_state:
         st.session_state[key] = default
 
-# المصادقة أولًا: لا يتم تحميل بيانات أو صفحات المنصة قبل تسجيل الدخول.
 if not st.session_state.get("auth_user"):
     from frontend.pages.auth_page import render as render_auth
     render_auth()
     st.stop()
 
-# الخطة تأتي من public.profiles.subscription_status بعد تسجيل الدخول.
-if not st.session_state.get("plan_selected"):
-    profile = st.session_state.get("user_profile") or {}
-    status = str(profile.get("subscription_status", "free") or "free").lower()
-    st.session_state.plan_selected = "pro" if status == "pro" else "free"
-    st.session_state.active_page = "dashboard" if status == "pro" else "free_home"
+profile = st.session_state.get("user_profile") or {}
+status = str(profile.get("subscription_status", "free") or "free").lower()
+actual_plan = "pro" if status == "pro" else "free"
+st.session_state.plan_selected = actual_plan
+
+if st.session_state.get("active_page") in (None, "auth"):
+    st.session_state.active_page = "dashboard" if actual_plan == "pro" else "free_home"
+
+FREE_PAGES = {"free_home", "scanner", "analysis", "account"}
+PRO_PAGES = {"dashboard", "scanner", "analysis", "flow", "catalysts", "watchlist", "alerts", "advanced", "account"}
+allowed_pages = PRO_PAGES if actual_plan == "pro" else FREE_PAGES
+
+requested_page = st.session_state.get("active_page", "free_home" if actual_plan == "free" else "dashboard")
+if requested_page not in allowed_pages:
+    st.session_state.active_page = "account"
+    st.warning("🔒 هذه الصفحة متاحة ضمن خطة Pro فقط.")
 
 try:
     from frontend.components.sidebar import render_sidebar
@@ -45,7 +54,7 @@ try:
 except Exception as exc:
     st.sidebar.warning(f"تعذر تحميل التنقل: {exc}")
 
-page = st.session_state.get("active_page", "free_home" if st.session_state.get("plan_selected") == "free" else "dashboard")
+page = st.session_state.get("active_page", "free_home" if actual_plan == "free" else "dashboard")
 try:
     if page == "free_home":
         from frontend.pages.free_home import render
@@ -76,6 +85,9 @@ try:
         render()
     elif page == "advanced":
         from frontend.pages.advanced_signals import render
+        render()
+    elif page == "account":
+        from frontend.pages.account import render
         render()
 except Exception as exc:
     st.title("🚀 AI Breakout Scanner")
