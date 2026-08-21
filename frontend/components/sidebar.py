@@ -24,6 +24,7 @@ def render_sidebar():
                 "🏠 الرئيسية المجانية": "free_home",
                 "🔎 مستكشف السوق": "scanner",
                 "📊 تحليل السهم": "analysis",
+                "👤 حسابي": "account",
             }
         else:
             st.caption("👑 الخطة المدفوعة")
@@ -36,6 +37,7 @@ def render_sidebar():
                 "⭐ قائمة المراقبة الذكية": "watchlist",
                 "🔔 التنبيهات الذكية": "alerts",
                 "🧠 الإشارات المتقدمة": "advanced",
+                "👤 حسابي": "account",
             }
 
         st.markdown("---")
