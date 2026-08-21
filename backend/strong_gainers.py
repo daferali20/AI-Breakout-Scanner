@@ -1,162 +1,77 @@
 """Independent +40% gainers scanner using live multi-source discovery."""
 from __future__ import annotations
 from typing import Any
-import time
-import random
+import time, random
 import pandas as pd
 import streamlit as st
 import yfinance as yf
 from backend.gainers_universe import get_universe, discover_market_gainers
-
-MIN_PRICE = 0.40
-MAX_PRICE = 50.00
-BATCH_SIZE = 80
-BATCH_DELAY_SECONDS = 2.5
-RETRY_DELAYS = (8.0, 20.0, 45.0)
-
-
-def _num(value: Any, default: float = 0.0) -> float:
-    try: return float(value)
-    except (TypeError, ValueError): return default
-
-
-def _score_momentum(change: float, rsi: float, price_vs_high: float) -> float:
-    score = min(100.0, max(0.0, change * 1.5))
-    if 55 <= rsi <= 80: score += 15
-    elif rsi > 90: score -= 8
-    if price_vs_high >= 0: score += 10
-    return round(min(100.0, max(0.0, score)), 1)
-
-
-def _score_liquidity(volume: float, avg_volume: float, dollar_volume: float) -> tuple[float, float]:
-    rvol = volume / avg_volume if avg_volume > 0 else 0.0
-    score = min(100.0, rvol * 25)
-    if dollar_volume >= 50_000_000: score += 25
-    elif dollar_volume >= 10_000_000: score += 15
-    elif dollar_volume >= 2_000_000: score += 8
-    return round(min(100.0, score), 1), round(rvol, 2)
-
-
-def _extract(data: pd.DataFrame, symbol: str) -> pd.DataFrame:
-    if isinstance(data.columns, pd.MultiIndex):
-        try: return data[symbol].dropna(how="all")
-        except Exception: return pd.DataFrame()
+MIN_PRICE=0.40; MAX_PRICE=50.00; BATCH_SIZE=80; BATCH_DELAY_SECONDS=2.5; RETRY_DELAYS=(8.0,20.0,45.0)
+def _num(value:Any,default:float=0.0)->float:
+    try:return float(value)
+    except (TypeError,ValueError):return default
+def _score_momentum(change,rsi,price_vs_high):
+    score=min(100.0,max(0.0,change*1.5)); score += 15 if 55<=rsi<=80 else (-8 if rsi>90 else 0); score += 10 if price_vs_high>=0 else 0; return round(min(100.0,max(0.0,score)),1)
+def _score_liquidity(volume,avg_volume,dollar_volume):
+    rvol=volume/avg_volume if avg_volume>0 else 0.0; score=min(100.0,rvol*25); score += 25 if dollar_volume>=50_000_000 else (15 if dollar_volume>=10_000_000 else (8 if dollar_volume>=2_000_000 else 0)); return round(min(100.0,score),1),round(rvol,2)
+def _gain_strength(change:float)->str:
+    if change>=200:return "🌋 ارتفاع استثنائي +200%"
+    if change>=100:return "🔥 ارتفاع هائل +100%"
+    if change>=75:return "🚀 ارتفاع قوي جدًا +75%"
+    if change>=50:return "⚡ ارتفاع قوي +50%"
+    return "📈 ارتفاع واضح +40%"
+def _extract(data,symbol):
+    if isinstance(data.columns,pd.MultiIndex):
+        try:return data[symbol].dropna(how="all")
+        except Exception:return pd.DataFrame()
     return data.dropna(how="all")
-
-
-def _download_batch(symbols: list[str], period: str) -> pd.DataFrame:
-    for attempt, delay in enumerate((0.0, *RETRY_DELAYS)):
-        if delay:
-            time.sleep(delay + random.uniform(0.0, 1.5))
-        try:
-            return yf.download(symbols, period=period, interval="1d", group_by="ticker", auto_adjust=False, threads=False, progress=False)
+def _download_batch(symbols,period):
+    for attempt,delay in enumerate((0.0,*RETRY_DELAYS)):
+        if delay:time.sleep(delay+random.uniform(0,1.5))
+        try:return yf.download(symbols,period=period,interval="1d",group_by="ticker",auto_adjust=False,threads=False,progress=False)
         except Exception as exc:
-            rate_limited = "RateLimit" in type(exc).__name__ or "Too Many Requests" in str(exc)
-            if not rate_limited or attempt == len(RETRY_DELAYS):
-                return pd.DataFrame()
+            limited="RateLimit" in type(exc).__name__ or "Too Many Requests" in str(exc)
+            if not limited or attempt==len(RETRY_DELAYS):return pd.DataFrame()
     return pd.DataFrame()
-
-
-def analyze_gainers(symbols: list[str], threshold: float = 40.0, period: str = "3mo", min_price: float = MIN_PRICE, max_price: float = MAX_PRICE, market_snapshot: pd.DataFrame | None = None) -> tuple[pd.DataFrame, dict[str, int]]:
-    rows: list[dict[str, Any]] = []
-    stats = {"requested": 0, "with_data": 0, "price_range": 0, "above_threshold": 0, "prefiltered": len(market_snapshot) if isinstance(market_snapshot, pd.DataFrame) else 0}
-    clean = list(dict.fromkeys(str(s).strip().upper() for s in symbols if str(s).strip()))
-    stats["requested"] = len(clean)
-    if not clean: return pd.DataFrame(), stats
-
-    market_map = {}
-    if isinstance(market_snapshot, pd.DataFrame) and not market_snapshot.empty:
-        market_map = market_snapshot.set_index("symbol").to_dict("index")
-
-    for batch_start in range(0, len(clean), BATCH_SIZE):
-        batch = clean[batch_start:batch_start + BATCH_SIZE]
-        data = _download_batch(batch, period)
-        if data.empty: continue
+def analyze_gainers(symbols,threshold=40.0,period="3mo",min_price=MIN_PRICE,max_price=MAX_PRICE,market_snapshot=None):
+    rows=[]; stats={"requested":0,"with_data":0,"price_range":0,"above_threshold":0,"prefiltered":len(market_snapshot) if isinstance(market_snapshot,pd.DataFrame) else 0}; clean=list(dict.fromkeys(str(s).strip().upper() for s in symbols if str(s).strip())); stats["requested"]=len(clean)
+    if not clean:return pd.DataFrame(),stats
+    market_map=market_snapshot.set_index("symbol").to_dict("index") if isinstance(market_snapshot,pd.DataFrame) and not market_snapshot.empty else {}
+    for start in range(0,len(clean),BATCH_SIZE):
+        batch=clean[start:start+BATCH_SIZE]; data=_download_batch(batch,period)
+        if data.empty:continue
         for symbol in batch:
             try:
-                frame = _extract(data, symbol)
-                if frame.empty or "Close" not in frame or len(frame) < 2: continue
-                close = pd.to_numeric(frame["Close"], errors="coerce").dropna()
-                volume = pd.to_numeric(frame.get("Volume", 0), errors="coerce").fillna(0)
-                if len(close) < 2: continue
-                stats["with_data"] += 1
-                price = _num(close.iloc[-1])
-                market_row = market_map.get(symbol, {})
-                if market_row:
-                    market_price = _num(market_row.get("market_price"), price)
-                    if market_price > 0: price = market_price
-                if not (min_price <= price <= max_price): continue
-                stats["price_range"] += 1
-
-                market_change = _num(market_row.get("market_change_pct"), 0.0) if market_row else 0.0
-                candidates = [("اليوم", market_change, 1)] if market_change else []
-                for label, days in (("اليوم", 1), ("3 أيام", 3), ("5 أيام", 5), ("20 يوم", 20), ("60 يوم", 60)):
-                    if len(close) > days:
-                        base = _num(close.iloc[-days-1])
-                        if base > 0: candidates.append((label, ((price / base) - 1) * 100, days))
-                if not candidates: continue
-                # For live-discovered leaders, today's move wins. Historical windows are fallback context only.
-                if market_change >= threshold:
-                    period_label, change, change_days = "اليوم", market_change, 1
-                else:
-                    period_label, change, change_days = max(candidates, key=lambda x: x[1])
-                if change < threshold: continue
-                stats["above_threshold"] += 1
-
-                vol = _num(volume.iloc[-1]); avg_vol = _num(volume.iloc[:-1].tail(20).mean())
-                if market_row and _num(market_row.get("market_volume"), 0) > 0:
-                    vol = _num(market_row.get("market_volume"))
-                dollar_volume = price * vol; high = _num(close.tail(252).max(), price)
-                price_vs_high = ((price / high) - 1) * 100 if high > 0 else 0
-                returns = close.pct_change().dropna(); rsi = 50.0
-                if len(returns) >= 14:
-                    gains = returns.clip(lower=0).rolling(14).mean().iloc[-1]
-                    losses = (-returns.clip(upper=0)).rolling(14).mean().iloc[-1]
-                    rsi = 100 - (100 / (1 + gains / losses)) if losses > 0 else 100.0
-                momentum = _score_momentum(change, rsi, price_vs_high)
-                liquidity, rvol = _score_liquidity(vol, avg_vol, dollar_volume)
-                composite = round(momentum * 0.55 + liquidity * 0.45, 1)
-                strength = "🔥 انفجار قوي" if composite >= 80 else ("🚀 صعود قوي" if composite >= 65 else ("⚡ ارتفاع مع سيولة" if liquidity >= 65 else "⚠️ ارتفاع ضعيف"))
-                rows.append({
-                    "symbol": symbol,
-                    "price": round(price, 2),
-                    "change_pct": round(change, 2),
-                    "period": period_label,
-                    "period_days": change_days,
-                    "momentum_score": momentum,
-                    "liquidity_score": liquidity,
-                    "volume": int(vol),
-                    "relative_volume": rvol,
-                    "dollar_volume": round(dollar_volume, 0),
-                    "rsi": round(rsi, 1),
-                    "strength": strength,
-                    "gainer_score": composite,
-                    "exchange": market_row.get("exchange", "") if market_row else "",
-                    "source": market_row.get("source", "Yahoo History") if market_row else "Yahoo History",
-                })
-            except Exception:
-                continue
-        if batch_start + BATCH_SIZE < len(clean):
-            time.sleep(BATCH_DELAY_SECONDS + random.uniform(0.0, 1.0))
-
-    result = pd.DataFrame(rows)
-    if result.empty: return result, stats
-    # The page is a gainers leaderboard, so % change is the primary sort.
-    return result.sort_values(["change_pct", "gainer_score", "liquidity_score"], ascending=False).reset_index(drop=True), stats
-
-
-@st.cache_data(ttl=180, show_spinner=False)
-def discover_strong_gainers(limit: int = 250, threshold: float = 40.0, period: str = "3mo", min_price: float = MIN_PRICE, max_price: float = MAX_PRICE) -> tuple[pd.DataFrame, dict[str, int]]:
-    """Discover live leaders first, then enrich only those symbols with history."""
-    candidates = discover_market_gainers(min_price=min_price, max_price=max_price, threshold=threshold)
+                frame=_extract(data,symbol)
+                if frame.empty or "Close" not in frame or len(frame)<2:continue
+                close=pd.to_numeric(frame["Close"],errors="coerce").dropna(); volume=pd.to_numeric(frame.get("Volume",0),errors="coerce").fillna(0)
+                if len(close)<2:continue
+                stats["with_data"]+=1; price=_num(close.iloc[-1]); mr=market_map.get(symbol,{})
+                if mr and _num(mr.get("market_price"),0)>0:price=_num(mr.get("market_price"))
+                if not(min_price<=price<=max_price):continue
+                stats["price_range"]+=1; live_change=_num(mr.get("market_change_pct"),0) if mr else 0; candidates=[("اليوم",live_change,1)] if live_change else []
+                for label,days in (("اليوم",1),("3 أيام",3),("5 أيام",5),("20 يوم",20),("60 يوم",60)):
+                    if len(close)>days:
+                        base=_num(close.iloc[-days-1]);
+                        if base>0:candidates.append((label,((price/base)-1)*100,days))
+                if not candidates:continue
+                period_label,change,change_days=("اليوم",live_change,1) if live_change>=threshold else max(candidates,key=lambda x:x[1])
+                if change<threshold:continue
+                stats["above_threshold"]+=1; vol=_num(volume.iloc[-1]); avg_vol=_num(volume.iloc[:-1].tail(20).mean())
+                if mr and _num(mr.get("market_volume"),0)>0:vol=_num(mr.get("market_volume"))
+                dollar_volume=price*vol; high=_num(close.tail(252).max(),price); price_vs_high=((price/high)-1)*100 if high>0 else 0; returns=close.pct_change().dropna(); rsi=50.0
+                if len(returns)>=14:
+                    gains=returns.clip(lower=0).rolling(14).mean().iloc[-1]; losses=(-returns.clip(upper=0)).rolling(14).mean().iloc[-1]; rsi=100-(100/(1+gains/losses)) if losses>0 else 100.0
+                momentum=_score_momentum(change,rsi,price_vs_high); liquidity,rvol=_score_liquidity(vol,avg_vol,dollar_volume); composite=round(momentum*.55+liquidity*.45,1)
+                rows.append({"symbol":symbol,"price":round(price,2),"change_pct":round(change,2),"period":period_label,"period_days":change_days,"momentum_score":momentum,"liquidity_score":liquidity,"volume":int(vol),"relative_volume":rvol,"dollar_volume":round(dollar_volume,0),"rsi":round(rsi,1),"strength":_gain_strength(change),"gainer_score":composite,"exchange":mr.get("exchange","") if mr else "","source":mr.get("source","Yahoo History") if mr else "Yahoo History"})
+            except Exception:continue
+        if start+BATCH_SIZE<len(clean):time.sleep(BATCH_DELAY_SECONDS+random.uniform(0,1))
+    result=pd.DataFrame(rows)
+    if result.empty:return result,stats
+    return result.sort_values(["change_pct","gainer_score","liquidity_score"],ascending=False).reset_index(drop=True),stats
+@st.cache_data(ttl=180,show_spinner=False)
+def discover_strong_gainers(limit=250,threshold=40.0,period="3mo",min_price=MIN_PRICE,max_price=MAX_PRICE):
+    candidates=discover_market_gainers(min_price=min_price,max_price=max_price,threshold=threshold)
     if not candidates.empty:
-        symbols = candidates["symbol"].tolist()
-        if limit > 0: symbols = symbols[:limit]
-        candidates = candidates[candidates["symbol"].isin(symbols)].copy()
-        return analyze_gainers(symbols, threshold=threshold, period=period, min_price=min_price, max_price=max_price, market_snapshot=candidates)
-
-    symbols = list(get_universe())
-    if limit > 0: symbols = symbols[:limit]
-    result, stats = analyze_gainers(symbols, threshold=threshold, period=period, min_price=min_price, max_price=max_price)
-    stats["prefiltered"] = 0
-    return result, stats
+        symbols=candidates["symbol"].tolist()[:limit] if limit>0 else candidates["symbol"].tolist(); candidates=candidates[candidates["symbol"].isin(symbols)].copy(); return analyze_gainers(symbols,threshold,period,min_price,max_price,candidates)
+    symbols=list(get_universe()); symbols=symbols[:limit] if limit>0 else symbols; result,stats=analyze_gainers(symbols,threshold,period,min_price,max_price); stats["prefiltered"]=0; return result,stats
