@@ -1,33 +1,53 @@
-"""التنقل وإعدادات المسح."""
+"""التنقل وإعدادات المسح مع دعم الخطط."""
 from datetime import datetime
 import streamlit as st
 
 
 def render_sidebar():
+    plan = st.session_state.get("plan_selected", "free")
     with st.sidebar:
         st.image("https://img.icons8.com/fluency/96/stock.png", width=70)
         st.title("🤖 AI Scanner")
-        st.caption("منصة واحدة لاكتشاف وتحليل فرص السوق")
+        if plan == "free":
+            st.caption("🟢 الخطة المجانية")
+            pages = {
+                "🏠 الرئيسية المجانية": "free_home",
+                "🔎 مستكشف السوق": "scanner",
+                "📊 تحليل السهم": "analysis",
+            }
+        else:
+            st.caption("منصة واحدة لاكتشاف وتحليل فرص السوق")
+            pages = {
+                "🏠 لوحة التحكم": "dashboard",
+                "🔎 مستكشف السوق": "scanner",
+                "📊 تحليل السهم": "analysis",
+                "💧 السيولة والزخم": "flow",
+                "📰 المحفزات والفرص": "catalysts",
+                "⭐ قائمة المراقبة الذكية": "watchlist",
+                "🔔 التنبيهات الذكية": "alerts",
+                "🧠 الإشارات المتقدمة": "advanced",
+            }
+
         st.markdown("---")
         st.subheader("📍 التنقل")
-        pages = {
-            "🏠 لوحة التحكم": "dashboard",
-            "🔎 مستكشف السوق": "scanner",
-            "📊 تحليل السهم": "analysis",
-            "💧 السيولة والزخم": "flow",
-            "📰 المحفزات والفرص": "catalysts",
-            "⭐ قائمة المراقبة الذكية": "watchlist",
-            "🔔 التنبيهات الذكية": "alerts",
-            "🧠 الإشارات المتقدمة": "advanced",
-        }
         labels = list(pages.keys())
-        current = st.session_state.get("active_page", "dashboard")
+        current = st.session_state.get("active_page", list(pages.values())[0])
         current_label = next((k for k, v in pages.items() if v == current), labels[0])
         selected = st.radio("التنقل الرئيسي", labels, index=labels.index(current_label), label_visibility="collapsed")
         st.session_state.active_page = pages[selected]
+
+        if plan == "free":
+            st.markdown("---")
+            st.info("👑 الأدوات المتقدمة ستكون متاحة ضمن الخطة المدفوعة لاحقًا.")
+        else:
+            st.markdown("---")
+            render_scan_settings()
+
         st.markdown("---")
-        render_scan_settings()
-        st.markdown("---")
+        if st.button("↩️ العودة إلى الخطط", width="stretch", key="back_to_plans"):
+            st.session_state.plan_selected = None
+            st.session_state.active_page = "dashboard"
+            st.rerun()
         st.caption(f"🕐 {datetime.now().strftime('%Y-%m-%d %H:%M')}")
         st.caption("💡 AI Breakout Scanner | Multi-View")
 
