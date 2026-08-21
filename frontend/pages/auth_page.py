@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import streamlit as st
 
-from backend.supabase_auth import establish_session, sign_in, sign_up
+from supabase_auth import establish_session, sign_in, sign_up
 
 
 def _login_form() -> None:
