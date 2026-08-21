@@ -1,13 +1,23 @@
-"""التنقل وإعدادات المسح مع دعم الخطط."""
+"""التنقل وإعدادات المسح مع دعم الخطط والمستخدم المسجل."""
 from datetime import datetime
 import streamlit as st
 
 
 def render_sidebar():
     plan = st.session_state.get("plan_selected", "free")
+    profile = st.session_state.get("user_profile") or {}
+    user = st.session_state.get("auth_user") or {}
+
     with st.sidebar:
         st.image("https://img.icons8.com/fluency/96/stock.png", width=70)
         st.title("🤖 AI Scanner")
+
+        display_name = str(profile.get("full_name") or user.get("email") or "مستخدم")
+        email = str(profile.get("email") or user.get("email") or "")
+        st.caption(f"👤 {display_name}")
+        if email and email != display_name:
+            st.caption(email)
+
         if plan == "free":
             st.caption("🟢 الخطة المجانية")
             pages = {
@@ -16,7 +26,7 @@ def render_sidebar():
                 "📊 تحليل السهم": "analysis",
             }
         else:
-            st.caption("منصة واحدة لاكتشاف وتحليل فرص السوق")
+            st.caption("👑 الخطة المدفوعة")
             pages = {
                 "🏠 لوحة التحكم": "dashboard",
                 "🔎 مستكشف السوق": "scanner",
@@ -44,10 +54,11 @@ def render_sidebar():
             render_scan_settings()
 
         st.markdown("---")
-        if st.button("↩️ العودة إلى الخطط", width="stretch", key="back_to_plans"):
-            st.session_state.plan_selected = None
-            st.session_state.active_page = "dashboard"
+        if st.button("🚪 تسجيل الخروج", width="stretch", key="logout_button"):
+            from backend.supabase_auth import logout
+            logout()
             st.rerun()
+
         st.caption(f"🕐 {datetime.now().strftime('%Y-%m-%d %H:%M')}")
         st.caption("💡 AI Breakout Scanner | Multi-View")
 
