@@ -71,14 +71,14 @@ def render(auto_run=False):
 
     c1, c2, c3 = st.columns([2, 1, 1])
     with c1:
-        st.info("🤖 مسح الفرص: تكوين كون الأسهم، استخدام البيانات التاريخية لترتيب المرشحين، ثم تحليل عميق لأقوى النتائج. صفحة Live Market Leaders مستقلة للاكتشاف اللحظي للمتصدرين.")
+        st.info("🧠 محرك اكتشاف الفرص الذكي يحلل السوق، يرتب المرشحين، ثم يمرر أقوى النتائج إلى التحليل العميق.")
     with c2:
         top_n = st.number_input("أفضل النتائج", min_value=5, max_value=20, value=10, step=1)
     with c3:
         run_here = st.button("🚀 تشغيل المسح", type="primary", width="stretch")
 
     universe, source = load_market_universe()
-    st.caption(f"📡 كون المسح: {source} — يحتوي {len(universe)} سهمًا.")
+    st.caption(f"📡 نطاق المسح الحالي يحتوي {len(universe)} سهمًا.")
 
     if auto_run or run_here:
         _run_scan(universe, source, int(min_score), int(top_n), int(max_symbols))
@@ -108,11 +108,11 @@ def _run_scan(symbols, source, min_score, top_n, max_symbols):
     candidate_limit = max(20, min(int(max_symbols), 40, len(symbols)))
     normalized = tuple(symbols)
 
-    with st.spinner("📚 يجلب النظام البيانات التاريخية اللازمة لترتيب المرشحين وتحليلهم..."):
+    with st.spinner("🧠 محرك الذكاء الاصطناعي يجهز البيانات ويرتب المرشحين..."):
         frames = _load_yahoo_frames(normalized)
 
     if not frames:
-        st.warning("تعذر الحصول على البيانات التاريخية في هذه الجولة. سيتم الاحتفاظ بالنتائج السابقة إن وجدت.")
+        st.warning("تعذر الحصول على البيانات اللازمة في هذه الجولة. سيتم الاحتفاظ بالنتائج السابقة إن وجدت.")
         return
 
     ranking = rank_discovery_candidates(frames, limit=candidate_limit)
@@ -121,7 +121,7 @@ def _run_scan(symbols, source, min_score, top_n, max_symbols):
         return
 
     candidates = ranking["symbol"].tolist()
-    st.success(f"🔎 اختار النظام {len(candidates)} مرشحًا من كون يضم {len(symbols)} سهمًا للتحليل العميق.")
+    st.success(f"🧠 اختار محرك الفرص الذكي {len(candidates)} مرشحًا من نطاق يضم {len(symbols)} سهمًا للتحليل العميق.")
 
     scanner = BreakoutScanner()
     rows, errors, regime_frames = [], [], []
@@ -181,7 +181,7 @@ def _run_scan(symbols, source, min_score, top_n, max_symbols):
 
     now = pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S")
     errors_df = pd.DataFrame(errors)
-    discovery_source = f"كون الأسهم: {source} | ترتيب المرشحين: محرك الفرص الداخلي"
+    discovery_source = "AI Opportunity Engine"
     save_scan(
         scan_results=ranked,
         scan_results_all=ranked_all,
@@ -231,16 +231,13 @@ def display_market_status(snapshot=None):
     errors = snapshot.get("scan_errors", pd.DataFrame())
     regime_name = regime.get("regime", "غير متاح") if isinstance(regime, dict) else "غير متاح"
 
-    c1, c2, c3, c4, c5 = st.columns([1.4, 1, 1, 1, 1])
-    c1.metric("🔎 مصدر الاكتشاف", "محرك الفرص الداخلي")
-    c2.metric("📚 بيانات التحليل", "Yahoo Finance")
-    c3.metric("🌡️ حالة العينة", regime_name)
-    c4.metric("✅ تم تحليلها", snapshot.get("scan_success_count", 0))
-    c5.metric("⚠️ تعذر تحليلها", len(errors) if isinstance(errors, pd.DataFrame) else 0)
+    c1, c2, c3, c4 = st.columns([1.5, 1, 1, 1])
+    c1.metric("🧠 الاكتشاف", "AI Opportunity Engine")
+    c2.metric("🌡️ حالة العينة", regime_name)
+    c3.metric("✅ تم تحليلها", snapshot.get("scan_success_count", 0))
+    c4.metric("⚠️ تعذر تحليلها", len(errors) if isinstance(errors, pd.DataFrame) else 0)
 
-    source_detail = snapshot.get("scan_universe_source", "لم يتم إجراء مسح بعد")
-    st.caption(f"كون الأسهم: {source_detail}")
-    st.info("حالة العينة مثل High Volatility تصف الأسهم التي دخلت التحليل في هذه الجولة، وليست حكمًا على السوق الأمريكي بالكامل. لاكتشاف المتصدرين اللحظيين استخدم صفحة Live Market Leaders.")
+    st.info("حالة العينة مثل High Volatility تصف الأسهم التي دخلت التحليل في هذه الجولة، وليست حكمًا على السوق الأمريكي بالكامل.")
 
     if snapshot.get("last_scan_time"):
         st.caption(f"🕐 آخر مسح: {snapshot['last_scan_time']}")
