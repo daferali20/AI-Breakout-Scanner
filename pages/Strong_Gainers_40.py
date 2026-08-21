@@ -1,10 +1,12 @@
 """🚀 Independent +40% gainers dashboard."""
 from __future__ import annotations
 import streamlit as st
+from access_control import require_access
 from backend.gainers_universe import get_universe, universe_status
 from backend.strong_gainers import MIN_PRICE, MAX_PRICE, analyze_gainers, discover_strong_gainers
 
 st.set_page_config(page_title="الأسهم الصاعدة +40%", page_icon="🚀", layout="wide")
+require_access("free")
 st.title("🚀 الأسهم الأكثر ارتفاعًا +40%")
 st.caption("ماسح مستقل؛ يكتشف الصاعدين أولًا ثم يستخدم Yahoo لتحليل المرشحين فقط.")
 
