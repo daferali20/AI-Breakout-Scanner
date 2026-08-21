@@ -17,6 +17,7 @@ st.markdown("""
 <style>
 .gainer-detail{margin-top:.65rem;padding:.72rem .9rem;border:1px solid rgba(103,126,234,.28);border-radius:10px;background:rgba(22,33,61,.72);font-size:1rem;line-height:1.7;color:#eef3ff;font-weight:600}
 .gainer-detail .strength{color:#80e3a7;font-weight:800}.gainer-detail .money{color:#7dd3fc;font-weight:800}.gainer-detail .source{color:#c4b5fd;font-weight:700}
+.stock-price{font-size:1.45rem;font-weight:800;color:#7dd3fc;margin-top:.2rem}
 </style>
 """,unsafe_allow_html=True)
 if not st.session_state.get("auth_user") or not st.session_state.get("auth_access_token"):st.error("🔒 يجب تسجيل الدخول للوصول إلى هذه الصفحة.");st.stop()
@@ -62,7 +63,7 @@ with t1:
  st.info("هذه القائمة مرتبة حصريًا حسب نسبة الارتفاع. السيولة والزخم لا يغيران ترتيبها.")
  for i,(_,r) in enumerate(market.head(60).iterrows(),1):
   with st.container(border=True):
-   rank,sym,gain,price,vol=st.columns([.55,1.2,1.25,1,1.2]);rank.markdown(f"## #{i}");sym.markdown(f"## {r.symbol}");gain.metric("📈 الارتفاع",f"+{r.change_pct:.2f}%");price.metric("السعر",f"${r.price:.2f}");vol.metric("الحجم",f"{int(r.volume):,}")
+   rank,sym,gain,price,vol=st.columns([.55,1.2,1.25,1,1.2]);rank.markdown(f"## #{i}");sym.markdown(f"## {r.symbol}<div class='stock-price'>${r.price:.2f}</div>",unsafe_allow_html=True);gain.metric("📈 الارتفاع",f"+{r.change_pct:.2f}%");price.metric("💵 السعر",f"${r.price:.2f}");vol.metric("الحجم",f"{int(r.volume):,}")
    st.markdown(f"<div class='gainer-detail'><span class='strength'>{r.strength}</span> &nbsp;·&nbsp; <span class='money'>💵 Dollar Volume: ${r.dollar_volume:,.0f}</span> &nbsp;·&nbsp; <span class='source'>📡 المصدر: {r.get('source','Market discovery')}</span></div>",unsafe_allow_html=True)
 with t2:
  st.caption("هنا فقط نستخدم السيولة والزخم وRVOL والمحـفز لاستخراج أفضل الأسهم من قائمة المتصدرين.")
@@ -70,6 +71,6 @@ with t2:
  else:
   for i,(_,r) in enumerate(elite.head(25).iterrows(),1):
    with st.container(border=True):
-    rank,sym,score,gain,liq,mom=st.columns([.5,1,1,1,1,1]);rank.markdown(f"## #{i}");sym.markdown(f"## {r.symbol}");score.metric("🏆 Elite",f"{r.elite_score:.1f}");gain.metric("📈 الارتفاع",f"+{r.change_pct:.1f}%");liq.metric("💧 السيولة",f"{r.liquidity_score:.0f}");mom.metric("🚀 الزخم",f"{r.momentum_score:.0f}");st.markdown(" · ".join(r.catalysts));st.markdown(f"<div class='gainer-detail'>RVOL <b>{r.relative_volume:.2f}x</b> &nbsp;·&nbsp; الحجم <b>{int(r.volume):,}</b> &nbsp;·&nbsp; <span class='money'>💵 Dollar Volume ${r.dollar_volume:,.0f}</span></div>",unsafe_allow_html=True)
+    rank,sym,price,score,gain,liq,mom=st.columns([.45,1.05,.9,.9,.95,.9,.9]);rank.markdown(f"## #{i}");sym.markdown(f"## {r.symbol}");price.metric("💵 السعر",f"${r.price:.2f}");score.metric("🏆 Elite",f"{r.elite_score:.1f}");gain.metric("📈 الارتفاع",f"+{r.change_pct:.1f}%");liq.metric("💧 السيولة",f"{r.liquidity_score:.0f}");mom.metric("🚀 الزخم",f"{r.momentum_score:.0f}");st.markdown(" · ".join(r.catalysts));st.markdown(f"<div class='gainer-detail'>RVOL <b>{r.relative_volume:.2f}x</b> &nbsp;·&nbsp; الحجم <b>{int(r.volume):,}</b> &nbsp;·&nbsp; <span class='money'>💵 Dollar Volume ${r.dollar_volume:,.0f}</span></div>",unsafe_allow_html=True)
 with st.expander("🔎 تشخيص المسح"):
  x1,x2,x3,x4=st.columns(4);x1.metric("مرشحو السوق",stats.get("prefiltered",0));x2.metric("تم تحليلها",stats.get("requested",0));x3.metric("بيانات صالحة",stats.get("with_data",0));x4.metric("+40%",stats.get("above_threshold",0))
