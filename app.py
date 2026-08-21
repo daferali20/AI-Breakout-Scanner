@@ -1,4 +1,4 @@
-"""AI Breakout Scanner - منصة متعددة الصفحات مع بوابة خطط."""
+"""AI Breakout Scanner - منصة متعددة الصفحات مع مصادقة Supabase."""
 import os
 from datetime import datetime
 import streamlit as st
@@ -18,17 +18,26 @@ for key, default in {
     "last_scan_time": None,
     "scan_requested": False,
     "initial_scan_done": False,
-    "active_page": "dashboard",
+    "active_page": "auth",
     "plan_selected": None,
+    "auth_user": None,
+    "user_profile": None,
 }.items():
     if key not in st.session_state:
         st.session_state[key] = default
 
-# بوابة الخطط: لا يتم تحميل بقية التطبيق قبل اختيار خطة.
-if not st.session_state.get("plan_selected"):
-    from frontend.pages.plan_landing import render as render_plan_landing
-    render_plan_landing()
+# المصادقة أولًا: لا يتم تحميل بيانات أو صفحات المنصة قبل تسجيل الدخول.
+if not st.session_state.get("auth_user"):
+    from frontend.pages.auth_page import render as render_auth
+    render_auth()
     st.stop()
+
+# الخطة تأتي من public.profiles.subscription_status بعد تسجيل الدخول.
+if not st.session_state.get("plan_selected"):
+    profile = st.session_state.get("user_profile") or {}
+    status = str(profile.get("subscription_status", "free") or "free").lower()
+    st.session_state.plan_selected = "pro" if status == "pro" else "free"
+    st.session_state.active_page = "dashboard" if status == "pro" else "free_home"
 
 try:
     from frontend.components.sidebar import render_sidebar
