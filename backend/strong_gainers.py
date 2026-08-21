@@ -1,4 +1,4 @@
-"""Independent +40% gainers scanner using two-stage discovery."""
+"""Independent +40% gainers scanner using live multi-source discovery."""
 from __future__ import annotations
 from typing import Any
 import time
@@ -88,7 +88,6 @@ def analyze_gainers(symbols: list[str], threshold: float = 40.0, period: str = "
                 if not (min_price <= price <= max_price): continue
                 stats["price_range"] += 1
 
-                # Prefer the current screener move for today's +40% discovery.
                 market_change = _num(market_row.get("market_change_pct"), 0.0) if market_row else 0.0
                 candidates = [("اليوم", market_change, 1)] if market_change else []
                 for label, days in (("اليوم", 1), ("3 أيام", 3), ("5 أيام", 5), ("20 يوم", 20), ("60 يوم", 60)):
@@ -96,7 +95,11 @@ def analyze_gainers(symbols: list[str], threshold: float = 40.0, period: str = "
                         base = _num(close.iloc[-days-1])
                         if base > 0: candidates.append((label, ((price / base) - 1) * 100, days))
                 if not candidates: continue
-                period_label, change, change_days = max(candidates, key=lambda x: x[1])
+                # For live-discovered leaders, today's move wins. Historical windows are fallback context only.
+                if market_change >= threshold:
+                    period_label, change, change_days = "اليوم", market_change, 1
+                else:
+                    period_label, change, change_days = max(candidates, key=lambda x: x[1])
                 if change < threshold: continue
                 stats["above_threshold"] += 1
 
@@ -114,7 +117,23 @@ def analyze_gainers(symbols: list[str], threshold: float = 40.0, period: str = "
                 liquidity, rvol = _score_liquidity(vol, avg_vol, dollar_volume)
                 composite = round(momentum * 0.55 + liquidity * 0.45, 1)
                 strength = "🔥 انفجار قوي" if composite >= 80 else ("🚀 صعود قوي" if composite >= 65 else ("⚡ ارتفاع مع سيولة" if liquidity >= 65 else "⚠️ ارتفاع ضعيف"))
-                rows.append({"symbol":symbol,"price":round(price,2),"change_pct":round(change,2),"period":period_label,"period_days":change_days,"momentum_score":momentum,"liquidity_score":liquidity,"volume":int(vol),"relative_volume":rvol,"dollar_volume":round(dollar_volume,0),"rsi":round(rsi,1),"strength":strength,"gainer_score":composite,"exchange":market_row.get("exchange", "") if market_row else ""})
+                rows.append({
+                    "symbol": symbol,
+                    "price": round(price, 2),
+                    "change_pct": round(change, 2),
+                    "period": period_label,
+                    "period_days": change_days,
+                    "momentum_score": momentum,
+                    "liquidity_score": liquidity,
+                    "volume": int(vol),
+                    "relative_volume": rvol,
+                    "dollar_volume": round(dollar_volume, 0),
+                    "rsi": round(rsi, 1),
+                    "strength": strength,
+                    "gainer_score": composite,
+                    "exchange": market_row.get("exchange", "") if market_row else "",
+                    "source": market_row.get("source", "Yahoo History") if market_row else "Yahoo History",
+                })
             except Exception:
                 continue
         if batch_start + BATCH_SIZE < len(clean):
@@ -122,12 +141,13 @@ def analyze_gainers(symbols: list[str], threshold: float = 40.0, period: str = "
 
     result = pd.DataFrame(rows)
     if result.empty: return result, stats
-    return result.sort_values(["gainer_score","change_pct"], ascending=False).reset_index(drop=True), stats
+    # The page is a gainers leaderboard, so % change is the primary sort.
+    return result.sort_values(["change_pct", "gainer_score", "liquidity_score"], ascending=False).reset_index(drop=True), stats
 
 
-@st.cache_data(ttl=900, show_spinner=False)
-def discover_strong_gainers(limit: int = 1500, threshold: float = 40.0, period: str = "3mo", min_price: float = MIN_PRICE, max_price: float = MAX_PRICE) -> tuple[pd.DataFrame, dict[str, int]]:
-    """Two-stage discovery: Nasdaq/NYSE/AMEX first, Yahoo analysis second."""
+@st.cache_data(ttl=180, show_spinner=False)
+def discover_strong_gainers(limit: int = 250, threshold: float = 40.0, period: str = "3mo", min_price: float = MIN_PRICE, max_price: float = MAX_PRICE) -> tuple[pd.DataFrame, dict[str, int]]:
+    """Discover live leaders first, then enrich only those symbols with history."""
     candidates = discover_market_gainers(min_price=min_price, max_price=max_price, threshold=threshold)
     if not candidates.empty:
         symbols = candidates["symbol"].tolist()
@@ -135,7 +155,6 @@ def discover_strong_gainers(limit: int = 1500, threshold: float = 40.0, period: 
         candidates = candidates[candidates["symbol"].isin(symbols)].copy()
         return analyze_gainers(symbols, threshold=threshold, period=period, min_price=min_price, max_price=max_price, market_snapshot=candidates)
 
-    # Fallback only when market screener discovery is unavailable.
     symbols = list(get_universe())
     if limit > 0: symbols = symbols[:limit]
     result, stats = analyze_gainers(symbols, threshold=threshold, period=period, min_price=min_price, max_price=max_price)
