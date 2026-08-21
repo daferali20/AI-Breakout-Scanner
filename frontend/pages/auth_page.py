@@ -2,8 +2,25 @@
 from __future__ import annotations
 
 import streamlit as st
+from supabase_auth import establish_session, request_password_reset, sign_in, sign_up
 
-from supabase_auth import establish_session, sign_in, sign_up
+
+def _forgot_password_form() -> None:
+    with st.expander("🔑 نسيت كلمة المرور؟", expanded=False):
+        st.caption("أدخل بريدك الإلكتروني وسيرسل Supabase رابط إعادة ضبط كلمة المرور.")
+        with st.form("forgot_password_form"):
+            email = st.text_input("البريد الإلكتروني", placeholder="name@example.com", key="reset_email")
+            submitted = st.form_submit_button("إرسال رابط إعادة الضبط", width="stretch")
+        if submitted:
+            if not email:
+                st.warning("أدخل البريد الإلكتروني.")
+                return
+            try:
+                request_password_reset(email)
+                st.success("إذا كان البريد مسجلًا، تم إرسال رابط إعادة ضبط كلمة المرور إليه.")
+                st.caption("تحقق من صندوق الوارد والرسائل غير المرغوب فيها.")
+            except Exception as exc:
+                st.error(f"تعذر إرسال رابط إعادة الضبط: {exc}")
 
 
 def _login_form() -> None:
@@ -24,6 +41,8 @@ def _login_form() -> None:
             st.rerun()
         except Exception as exc:
             st.error(f"تعذر تسجيل الدخول: {exc}")
+
+    _forgot_password_form()
 
 
 def _signup_form() -> None:
