@@ -55,7 +55,7 @@ def render_sidebar():
 
         st.markdown("---")
         if st.button("🚪 تسجيل الخروج", width="stretch", key="logout_button"):
-            from backend.supabase_auth import logout
+            from supabase_auth import logout
             logout()
             st.rerun()
 
