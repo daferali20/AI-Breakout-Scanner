@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import yfinance as yf
 
+from access_control import require_access
 from backend.scanner.breakout_scanner import BreakoutScanner
 from backend.ranking.opportunity_ranker import rank_opportunities
 from backend.ranking.explanations import explain_opportunity
@@ -9,6 +10,7 @@ from backend.market.regime import detect_market_regime
 from backend.results_store import save_scan
 
 st.set_page_config(page_title="AI Opportunity Ranking", page_icon="🏆", layout="wide")
+require_access("pro")
 
 with st.sidebar:
     if st.button("🏠 لوحة التحكم", key="go_dashboard", width="stretch"):
@@ -134,8 +136,6 @@ if st.button("🚀 تشغيل الفحص", type="primary", width="stretch"):
         except Exception:
             regime = None
 
-    # Keep the latest scan in both the current browser session and the shared
-    # process store, so the dashboard sees exactly the same results.
     save_scan(
         scan_results=ranked,
         scan_results_all=ranked_all,
