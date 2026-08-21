@@ -70,6 +70,41 @@ def fetch_profile(user_id: str, access_token: str) -> dict[str, Any]:
     return rows[0] if rows else {}
 
 
+def refresh_profile() -> dict[str, Any]:
+    user = st.session_state.get("auth_user") or {}
+    token = st.session_state.get("auth_access_token")
+    user_id = str(user.get("id", "")).strip()
+    if not user_id or not token:
+        raise RuntimeError("جلسة المستخدم غير متاحة.")
+    profile = fetch_profile(user_id, str(token))
+    st.session_state.user_profile = profile
+    status = str(profile.get("subscription_status", "free") or "free").lower()
+    st.session_state.plan_selected = "pro" if status == "pro" else "free"
+    return profile
+
+
+def update_profile_name(full_name: str) -> dict[str, Any]:
+    user = st.session_state.get("auth_user") or {}
+    token = st.session_state.get("auth_access_token")
+    user_id = str(user.get("id", "")).strip()
+    if not user_id or not token:
+        raise RuntimeError("جلسة المستخدم غير متاحة.")
+    url, _ = _config()
+    response = requests.patch(
+        f"{url}/rest/v1/profiles",
+        headers={**_headers(str(token)), "Prefer": "return=representation"},
+        params={"id": f"eq.{user_id}"},
+        json={"full_name": full_name.strip()},
+        timeout=20,
+    )
+    if not response.ok:
+        raise RuntimeError(_error_message(response))
+    rows = response.json()
+    profile = rows[0] if rows else fetch_profile(user_id, str(token))
+    st.session_state.user_profile = profile
+    return profile
+
+
 def establish_session(auth_payload: dict[str, Any]) -> dict[str, Any]:
     user = auth_payload.get("user") or {}
     access_token = auth_payload.get("access_token")
