@@ -1,10 +1,13 @@
-"""Independent +40% gainers scanner with resilient batch discovery."""
+"""Independent +40% gainers scanner with price filtering."""
 from __future__ import annotations
 from typing import Any
 import pandas as pd
 import streamlit as st
 import yfinance as yf
 from backend.gainers_universe import get_universe
+
+MIN_PRICE = 0.40
+MAX_PRICE = 50.00
 
 
 def _num(value: Any, default: float = 0.0) -> float:
@@ -36,10 +39,10 @@ def _extract(data: pd.DataFrame, symbol: str) -> pd.DataFrame:
     return data.dropna(how="all")
 
 
-def analyze_gainers(symbols: list[str], threshold: float = 40.0, period: str = "3mo") -> tuple[pd.DataFrame, dict[str, int]]:
-    """Find symbols that gained at least threshold over one supported window."""
+def analyze_gainers(symbols: list[str], threshold: float = 40.0, period: str = "3mo", min_price: float = MIN_PRICE, max_price: float = MAX_PRICE) -> tuple[pd.DataFrame, dict[str, int]]:
+    """Find >= threshold gainers whose latest price is between min_price and max_price."""
     rows: list[dict[str, Any]] = []
-    stats = {"requested": 0, "with_data": 0, "above_threshold": 0}
+    stats = {"requested": 0, "with_data": 0, "price_range": 0, "above_threshold": 0}
     clean = list(dict.fromkeys(str(s).strip().upper() for s in symbols if str(s).strip()))
     stats["requested"] = len(clean)
     if not clean: return pd.DataFrame(), stats
@@ -56,6 +59,8 @@ def analyze_gainers(symbols: list[str], threshold: float = 40.0, period: str = "
             if len(close) < 2: continue
             stats["with_data"] += 1
             price = _num(close.iloc[-1])
+            if not (min_price <= price <= max_price): continue
+            stats["price_range"] += 1
             candidates = []
             for label, days in (("اليوم", 1), ("3 أيام", 3), ("5 أيام", 5), ("20 يوم", 20), ("60 يوم", 60)):
                 if len(close) > days:
@@ -85,13 +90,13 @@ def analyze_gainers(symbols: list[str], threshold: float = 40.0, period: str = "
 
 
 @st.cache_data(ttl=300, show_spinner=False)
-def discover_strong_gainers(limit: int = 1500, threshold: float = 40.0, period: str = "3mo") -> tuple[pd.DataFrame, dict[str, int]]:
+def discover_strong_gainers(limit: int = 1500, threshold: float = 40.0, period: str = "3mo", min_price: float = MIN_PRICE, max_price: float = MAX_PRICE) -> tuple[pd.DataFrame, dict[str, int]]:
     symbols = list(get_universe())
     if limit > 0: symbols = symbols[:limit]
     results: list[pd.DataFrame] = []
-    total = {"requested": 0, "with_data": 0, "above_threshold": 0}
+    total = {"requested": 0, "with_data": 0, "price_range": 0, "above_threshold": 0}
     for start in range(0, len(symbols), 150):
-        frame, stats = analyze_gainers(symbols[start:start + 150], threshold=threshold, period=period)
+        frame, stats = analyze_gainers(symbols[start:start + 150], threshold=threshold, period=period, min_price=min_price, max_price=max_price)
         for key in total: total[key] += stats[key]
         if not frame.empty: results.append(frame)
     if not results: return pd.DataFrame(), total
