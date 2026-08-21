@@ -1,8 +1,11 @@
-"""Small dependency-light CI smoke test for core application modules."""
-
+"""Dependency-light smoke test for core application imports."""
 import importlib
 
 MODULES = (
+    "gainers_universe",
+    "strong_gainers",
+    "live_market_leaders",
+    "supabase_auth",
     "backend.analysis.breakout_features",
     "backend.ml.breakout_model",
     "backend.ml.dataset_builder",
