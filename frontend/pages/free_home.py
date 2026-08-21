@@ -51,7 +51,7 @@ def render() -> None:
         with st.container(border=True):
             st.markdown("### 🚀 الأسهم الأكثر ارتفاعًا")
             st.write("تابع الأسهم القوية ضمن نطاقات سعرية محددة من صفحة +40% المستقلة.")
-            st.page_link("pages/Strong_Gainers_40.py", label="فتح الأسهم +40%", icon="🚀", use_container_width=True)
+            st.page_link("pages/Strong_Gainers_40.py", label="فتح الأسهم +40%", icon="🚀", width="stretch")
 
     st.markdown("---")
     st.subheader("🔥 لمحة عن أفضل الفرص")
