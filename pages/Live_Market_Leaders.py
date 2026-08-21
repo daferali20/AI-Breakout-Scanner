@@ -1,4 +1,4 @@
-"""📡 Separate live market leaders page using non-Yahoo discovery."""
+"""📡 Separate live market leaders page."""
 from __future__ import annotations
 import os, sys
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -7,8 +7,8 @@ if PROJECT_ROOT not in sys.path:
 
 import pandas as pd
 import streamlit as st
-from backend.live_market_leaders import discover_live_leaders
-from backend.strong_gainers import analyze_gainers
+from live_market_leaders import discover_live_leaders
+from strong_gainers import analyze_gainers
 
 st.set_page_config(page_title="Live Market Leaders", page_icon="📡", layout="wide")
 CSS_PATH=os.path.join(PROJECT_ROOT,"frontend","assets","style.css")
@@ -17,7 +17,7 @@ if os.path.isfile(CSS_PATH):
         with open(CSS_PATH,"r",encoding="utf-8") as f: st.markdown(f"<style>{f.read()}</style>",unsafe_allow_html=True)
     except OSError: pass
 
-if not st.session_state.get("auth_user"):
+if not st.session_state.get("auth_user") or not st.session_state.get("auth_access_token"):
     st.error("🔒 يجب تسجيل الدخول أولًا."); st.stop()
 
 def _build_elite(df: pd.DataFrame) -> pd.DataFrame:
@@ -27,21 +27,21 @@ def _build_elite(df: pd.DataFrame) -> pd.DataFrame:
     work["elite_score"]=(work["momentum_score"]*.34+work["liquidity_score"]*.36+work["change_pct"].clip(upper=200)/200*20+work["relative_volume"].clip(upper=5)/5*10).round(1)
     elite=work[(work.momentum_score>=65)&(work.liquidity_score>=60)&((work.relative_volume>=1.5)|(work.dollar_volume>=5_000_000))].copy()
     return elite.sort_values(["elite_score","liquidity_score","momentum_score"],ascending=False).reset_index(drop=True)
-st.title("📡 Live Market Leaders"); st.caption("صفحة مستقلة لاكتشاف أعلى الأسهم ارتفاعًا مباشرة من السوق، بدون استخدام Yahoo كمصدر اكتشاف.")
+st.title("📡 Live Market Leaders"); st.caption("صفحة مستقلة لاكتشاف أعلى الأسهم ارتفاعًا مباشرة من السوق عبر محرك الاكتشاف الذكي.")
 f1,f2,f3,f4=st.columns(4); min_change=f1.number_input("📈 أقل ارتفاع %",5.,500.,40.,5.); min_price=f2.number_input("💵 أقل سعر",.01,50.,.40,.10); max_price=f3.number_input("💵 أعلى سعر",.02,500.,50.,1.); limit=f4.selectbox("عدد المتصدرين",[50,100,200,300,500],index=3)
 if st.button("🔄 جلب المتصدرين الآن",type="primary",width="stretch") or "live_market_leaders" not in st.session_state:
     with st.spinner("جاري فحص السوق الأمريكي مباشرة..."):leaders,meta=discover_live_leaders(min_price=min_price,max_price=max_price,min_change=min_change,limit=limit); st.session_state["live_market_leaders"]=leaders; st.session_state["live_market_leaders_meta"]=meta; st.session_state.pop("live_market_leaders_elite",None)
 leaders=st.session_state.get("live_market_leaders",pd.DataFrame()); meta=st.session_state.get("live_market_leaders_meta",{})
-s1,s2,s3,s4=st.columns(4); s1.metric("🚀 عدد المتصدرين",len(leaders)); s2.metric("🥇 أعلى ارتفاع",f"+{leaders['change_pct'].max():.1f}%" if not leaders.empty else "—"); s3.metric("💧 أعلى حجم",f"{int(leaders['volume'].max()):,}" if not leaders.empty else "—"); s4.metric("📡 المصادر",", ".join(meta.get("sources",[])) or "غير متاح")
+s1,s2,s3,s4=st.columns(4); s1.metric("🚀 عدد المتصدرين",len(leaders)); s2.metric("🥇 أعلى ارتفاع",f"+{leaders['change_pct'].max():.1f}%" if not leaders.empty else "—"); s3.metric("💧 أعلى حجم",f"{int(leaders['volume'].max()):,}" if not leaders.empty else "—"); s4.metric("🧠 الاكتشاف","AI Market Engine")
 if meta.get("errors"):
-    with st.expander("⚠️ ملاحظات المصادر"):
+    with st.expander("⚠️ ملاحظات الاتصال"):
         for err in meta["errors"]:st.caption(err)
 if leaders.empty:st.warning("لم يتم العثور على نتائج ضمن الشروط الحالية. جرّب خفض نسبة الارتفاع أو توسيع نطاق السعر.");st.stop()
 st.subheader("🚀 المتصدرون الحقيقيون"); st.caption("الترتيب هنا حسب نسبة الارتفاع فقط، من الأعلى إلى الأقل.")
 for i,(_,row) in enumerate(leaders.head(60).iterrows(),1):
     with st.container(border=True):
-        c1,c2,c3,c4,c5,c6=st.columns([.5,1,1.1,1,1.1,1.2]); c1.markdown(f"## #{i}"); c2.markdown(f"## {row['symbol']}"); c3.metric("📈 الارتفاع",f"+{row['change_pct']:.2f}%"); c4.metric("السعر",f"${row['price']:.2f}"); c5.metric("الحجم",f"{int(row['volume']):,}"); c6.metric("Dollar Volume",f"${row['dollar_volume']/1_000_000:.1f}M"); st.caption(f"{str(row.get('company','') or '')} · {str(row.get('exchange','') or '')} · المصدر: {str(row.get('source','') or '')}")
-st.divider(); st.subheader("🏆 تحليل نخبة المتصدرين"); st.caption("هذه الخطوة ترسل رموز المتصدرين إلى محلل السيولة والزخم الحالي. الاكتشاف نفسه يبقى من TradingView/Nasdaq وليس Yahoo.")
+        c1,c2,c3,c4,c5,c6=st.columns([.5,1,1.1,1,1.1,1.2]); c1.markdown(f"## #{i}"); c2.markdown(f"## {row['symbol']}"); c3.metric("📈 الارتفاع",f"+{row['change_pct']:.2f}%"); c4.metric("السعر",f"${row['price']:.2f}"); c5.metric("الحجم",f"{int(row['volume']):,}"); c6.metric("Dollar Volume",f"${row['dollar_volume']/1_000_000:.1f}M"); st.caption(f"{str(row.get('company','') or '')} · {str(row.get('exchange','') or '')} · 🧠 AI Market Engine")
+st.divider(); st.subheader("🏆 تحليل نخبة المتصدرين"); st.caption("هذه الخطوة تحلل السيولة والزخم وRVOL للمتصدرين الذين اكتشفهم المحرك الذكي.")
 analysis_limit=st.selectbox("عدد المتصدرين المراد تحليلهم",[20,40,60,100,150],index=2)
 if st.button("🏆 تحليل النخبة الآن",width="stretch"):
     symbols=leaders.head(analysis_limit)["symbol"].tolist(); snapshot=leaders.head(analysis_limit).rename(columns={"price":"market_price","change_pct":"market_change_pct","volume":"market_volume"}).copy()
