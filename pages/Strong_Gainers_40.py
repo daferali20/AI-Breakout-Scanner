@@ -11,7 +11,7 @@ st.caption("ماسح مستقل؛ لا يضيف نتائجه إلى القوائ
 status = universe_status()
 u1, u2, u3 = st.columns(3)
 u1.metric("🇺🇸 الكون المستقل", f"{status['count']:,} رمز")
-u2.metric("💾 التخزين المؤقت", "6 ساعات")
+u2.metric("💾 التخزين المؤقت", "30 دقيقة")
 u3.metric("📡 المصدر", "Nasdaq / NYSE / AMEX")
 
 c1, c2, c3, c4 = st.columns([1, 1, 1, 1])
@@ -27,7 +27,7 @@ elif price_range == "مخصص":
     max_price = p2.number_input("أعلى سعر", min_value=0.02, value=50.00, step=1.00)
 else: min_price, max_price = MIN_PRICE, MAX_PRICE
 
-if st.button("🔄 تحديث الأسهم +40%", type="primary", use_container_width=True):
+if st.button("🔄 تحديث الأسهم +40%", type="primary", width="stretch"):
     with st.spinner("جاري فحص السوق وتحليل الارتفاع والزخم والسيولة..."):
         if auto:
             df, stats = discover_strong_gainers(limit=limit, threshold=40.0, min_price=min_price, max_price=max_price)
@@ -63,13 +63,27 @@ if df.empty:
     st.caption("هذه النتيجة مستقلة عن قوائم الفرص والمراقبة والسجل التاريخي.")
     st.stop()
 
+st.subheader("🏆 أفضل 10 أسهم الآن")
+top = df.sort_values(["gainer_score", "liquidity_score", "change_pct"], ascending=False).head(10).reset_index(drop=True)
+for i, (_, row) in enumerate(top.iterrows(), 1):
+    with st.container(border=True):
+        a,b,c,d,e,f = st.columns([0.7, 1.3, 1, 1, 1, 1.5])
+        a.markdown(f"## #{i}")
+        b.markdown(f"### {row['symbol']}\n${row['price']:.2f}")
+        c.metric("📈 الارتفاع", f"+{row['change_pct']:.1f}%")
+        d.metric("⚡ الزخم", f"{row['momentum_score']:.0f}/100")
+        e.metric("💧 السيولة", f"{row['liquidity_score']:.0f}/100")
+        f.metric("🏆 Score", f"{row['gainer_score']:.1f}")
+        st.caption(f"{row['strength']} · الفترة: {row['period']} · RVOL: {row['relative_volume']:.2f}x · الحجم: {int(row['volume']):,} · RSI: {row['rsi']:.1f}")
+
+st.divider()
 c1,c2,c3,c4 = st.columns(4)
 c1.metric("🚀 الأسهم +40%", len(df))
 c2.metric("🔥 زخم قوي", int((df["momentum_score"] >= 70).sum()))
 c3.metric("💧 سيولة قوية", int((df["liquidity_score"] >= 70).sum()))
 c4.metric("⚡ RVOL مرتفع", int((df["relative_volume"] >= 2).sum()))
-st.divider()
 
+st.subheader("📋 جميع النتائج")
 for _, row in df.head(30).iterrows():
     with st.container(border=True):
         a,b,c,d,e,f = st.columns([1.2,1,1,1,1,1.4])
@@ -82,4 +96,4 @@ for _, row in df.head(30).iterrows():
         st.caption(f"السعر: ${row['price']:.2f} · الفترة: {row['period']} · الحجم: {int(row['volume']):,} · Dollar Volume: ${row['dollar_volume']:,.0f} · RSI: {row['rsi']:.1f} · Gainer Score: {row['gainer_score']:.1f}")
 
 with st.expander("عرض البيانات الكاملة"):
-    st.dataframe(df, use_container_width=True, hide_index=True)
+    st.dataframe(df, width="stretch", hide_index=True)
