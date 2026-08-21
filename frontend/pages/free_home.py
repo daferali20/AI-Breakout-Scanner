@@ -21,6 +21,36 @@ def _num(value, default=0.0):
         return default
 
 
+def _ensure_free_results(force: bool = False) -> None:
+    """Run one small scan for the free plan so its home page is never empty."""
+    if not force and st.session_state.get("free_initial_scan_done"):
+        return
+    try:
+        snapshot = get_scan() if get_scan else {}
+        ranked = snapshot.get("ranked_results", pd.DataFrame()) if isinstance(snapshot, dict) else pd.DataFrame()
+        if not force and isinstance(ranked, pd.DataFrame) and not ranked.empty:
+            st.session_state.free_initial_scan_done = True
+            return
+
+        from frontend.pages.dashboard import load_market_universe, _run_scan
+        universe, source = load_market_universe()
+        free_universe = list(universe[:30])
+        if not free_universe:
+            return
+        with st.spinner("🔎 تجهيز أفضل فرص الخطة المجانية..."):
+            _run_scan(
+                free_universe,
+                f"FREE PLAN · {source}",
+                min_score=0,
+                top_n=5,
+                max_symbols=12,
+            )
+        st.session_state.free_initial_scan_done = True
+    except Exception as exc:
+        st.session_state.free_initial_scan_done = True
+        st.caption(f"تعذر تحديث النتائج المجانية الآن: {exc}")
+
+
 def render() -> None:
     st.markdown(
         """
@@ -32,6 +62,8 @@ def render() -> None:
         """,
         unsafe_allow_html=True,
     )
+
+    _ensure_free_results()
 
     state = get_scan() if get_scan else {}
     ranked = state.get("ranked_results", pd.DataFrame()) if isinstance(state, dict) else pd.DataFrame()
@@ -48,6 +80,13 @@ def render() -> None:
     m2.metric("🔥 الفرص القوية", strong)
     m3.metric("⭐ متوسط التقييم", f"{average:.1f}")
     m4.metric("🌐 حالة السوق", market_label)
+
+    r1, r2 = st.columns([3, 1])
+    r1.caption("الخطة المجانية تعرض عينة محدودة من السوق للحفاظ على سرعة الخدمة وتقليل ضغط البيانات.")
+    if r2.button("🔄 تحديث العينة", width="stretch", key="free_refresh_sample"):
+        st.session_state.free_initial_scan_done = False
+        _ensure_free_results(force=True)
+        st.rerun()
 
     st.markdown("---")
     st.subheader("⚡ الوصول السريع")
@@ -90,7 +129,7 @@ def render() -> None:
             score = _num(row.get(score_col, 0))
             momentum = _num(row.get("momentum_score", 0))
             liquidity = _num(row.get("liquidity_score", 0))
-            stage = str(row.get("opportunity_stage", "WATCH"))
+            stage = str(row.get("opportunity_stage", row.get("phase", "WATCH")))
 
             with st.container(border=True):
                 a, b, c, d, e = st.columns([0.7, 1.3, 1, 1, 1.3])
@@ -101,7 +140,7 @@ def render() -> None:
                 e.metric("💧 السيولة", f"{liquidity:.0f}")
                 st.caption(f"مرحلة الفرصة: {stage}")
     else:
-        st.info("لا توجد نتائج محفوظة حتى الآن. افتح مستكشف السوق لبدء التحليل.")
+        st.warning("لم تصل نتائج من المسح المجاني في هذه الجولة. اضغط «تحديث العينة» للمحاولة مرة أخرى.")
 
     st.markdown("---")
     st.subheader("🟢 ما الذي تحصل عليه مجانًا؟")
