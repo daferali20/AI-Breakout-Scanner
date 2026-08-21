@@ -25,6 +25,41 @@ def _num(row: pd.Series, *keys: str, default: float = 0.0) -> float:
     return default
 
 
+@st.cache_data(ttl=900, show_spinner=False)
+def _fallback_levels(symbol: str) -> dict[str, float]:
+    """Calculate recent support/resistance only when scan results omitted levels."""
+    try:
+        import yfinance as yf
+        df = yf.download(symbol, period="3mo", interval="1d", auto_adjust=False, progress=False, threads=False)
+        if df is None or df.empty:
+            return {}
+        # yfinance may return MultiIndex columns even for one symbol.
+        if isinstance(df.columns, pd.MultiIndex):
+            try:
+                df = df.xs(symbol, axis=1, level=1)
+            except Exception:
+                try:
+                    df.columns = df.columns.get_level_values(0)
+                except Exception:
+                    pass
+        high = pd.to_numeric(df.get("High"), errors="coerce").dropna()
+        low = pd.to_numeric(df.get("Low"), errors="coerce").dropna()
+        close = pd.to_numeric(df.get("Close"), errors="coerce").dropna()
+        if len(close) < 5 or high.empty or low.empty:
+            return {}
+        lookback = min(20, len(close) - 1)
+        resistance = float(high.iloc[-lookback-1:-1].max()) if len(high) > lookback else float(high.iloc[:-1].max())
+        support = float(low.iloc[-lookback-1:-1].min()) if len(low) > lookback else float(low.iloc[:-1].min())
+        current = float(close.iloc[-1])
+        return {
+            "resistance": round(resistance, 2),
+            "support": round(support, 2),
+            "current": round(current, 2),
+        }
+    except Exception:
+        return {}
+
+
 def _score_label(value: float) -> str:
     if value >= 85:
         return "🔥 قوي جدًا"
@@ -52,6 +87,9 @@ def _stage_label(row: pd.Series) -> str:
         "BREAKOUT": "🚀 اختراق محتمل",
         "CONFIRMED": "🟢 اختراق مؤكد",
         "MOMENTUM": "🔥 زخم قوي",
+        "BREAKOUT_READY": "🎯 جاهز للاختراق",
+        "BREAKOUT_CONFIRMED": "🟢 اختراق مؤكد",
+        "BUILDING": "🏗️ قيد البناء",
     }
     return mapping.get(phase, mapping.get(signal, phase.replace("_", " ").title()))
 
@@ -85,7 +123,7 @@ def _reasons(row: pd.Series) -> list[str]:
 
 def render() -> None:
     st.title("📊 تحليل السهم")
-    st.caption("تحليل متقدم مبني على آخر مسح محفوظ — بدون إعادة طلب بيانات السوق عند فتح الصفحة.")
+    st.caption("تحليل متقدم مبني على آخر مسح محفوظ، مع استكمال مستويات الدعم والمقاومة عند الحاجة.")
 
     snapshot = get_scan()
     data = snapshot.get("scan_results_all", pd.DataFrame())
@@ -142,15 +180,10 @@ def render() -> None:
     c4.metric("False Breakout Risk", f"{false_risk:.0f}%, {_risk_label(false_risk)}")
 
     st.divider()
-
     st.subheader("🧠 مكونات الفرصة")
     metrics = [
-        ("📈 الزخم", momentum),
-        ("💧 السيولة", liquidity),
-        ("📊 الاتجاه", trend),
-        ("🚀 الاختراق", breakout),
-        ("✅ التأكيد", confirmation),
-        ("💨 Relative Volume", rvol, True),
+        ("📈 الزخم", momentum), ("💧 السيولة", liquidity), ("📊 الاتجاه", trend),
+        ("🚀 الاختراق", breakout), ("✅ التأكيد", confirmation), ("💨 Relative Volume", rvol, True),
     ]
     cols = st.columns(3)
     for i, item in enumerate(metrics):
@@ -161,7 +194,6 @@ def render() -> None:
             cols[i % 3].metric(label, f"{value:.0f}/100", _score_label(value))
 
     st.divider()
-
     left, right = st.columns([1.25, 1])
     with left:
         st.subheader("💡 لماذا ظهرت هذه الفرصة؟")
@@ -183,20 +215,30 @@ def render() -> None:
         st.caption(f"مرحلة الفرصة: {_stage_label(row)}")
 
     st.divider()
-
     st.subheader("🎯 مستويات الفرصة")
-    p1, p2, p3 = st.columns(3)
     target = _num(row, "target", "target_price")
     support = _num(row, "support", "support_level")
-    resistance = _num(row, "resistance", "resistance_level", "breakout_level")
+    resistance = _num(row, "resistance", "resistance_level", "breakout_level", "entry", "entry_price")
+
+    fallback = {}
+    if not resistance or not support:
+        fallback = _fallback_levels(symbol)
+        resistance = resistance or float(fallback.get("resistance", 0) or 0)
+        support = support or float(fallback.get("support", 0) or 0)
+        if not price:
+            price = float(fallback.get("current", 0) or 0)
+            price_text = f"${price:,.2f}" if price else "—"
+
+    p1, p2, p3 = st.columns(3)
     p1.metric("السعر الحالي", price_text)
     p2.metric("المقاومة / مستوى الاختراق", f"${resistance:,.2f}" if resistance else "غير متوفر")
     p3.metric("الهدف", f"${target:,.2f}" if target else "غير متوفر")
     if support:
-        st.caption(f"الدعم المحفوظ: ${support:,.2f}")
+        st.caption(f"الدعم: ${support:,.2f}")
+    if fallback:
+        st.caption("تم استكمال الدعم/المقاومة من آخر 20 جلسة لأن نتيجة المسح المحفوظة لم تتضمن هذه المستويات.")
 
     st.divider()
-
     st.subheader("📋 بيانات التحليل")
     detail = {
         "الرمز": symbol,
@@ -209,6 +251,8 @@ def render() -> None:
         "Confirmation": round(confirmation, 2),
         "False Breakout Risk": round(false_risk, 2),
         "Relative Volume": round(rvol, 2),
+        "Resistance": round(resistance, 2) if resistance else None,
+        "Support": round(support, 2) if support else None,
         "Stage": _stage_label(row),
     }
     st.dataframe(pd.DataFrame([detail]), width="stretch", hide_index=True)
