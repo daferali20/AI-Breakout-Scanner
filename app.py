@@ -26,11 +26,10 @@ for key, default in {
         st.session_state[key] = default
 
 if not st.session_state.get("auth_user"):
-    from frontend.pages.auth_page import render as render_auth
+    from auth_page import render as render_auth
     render_auth()
     st.stop()
 
-# Refresh the profile from Supabase so role/plan changes are reflected immediately.
 try:
     from supabase_auth import refresh_profile
     profile = refresh_profile()
