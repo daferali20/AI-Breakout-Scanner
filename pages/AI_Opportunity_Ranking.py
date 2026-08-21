@@ -1,3 +1,11 @@
+from __future__ import annotations
+import os
+import sys
+
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
+
 import streamlit as st
 import pandas as pd
 import yfinance as yf
@@ -26,7 +34,6 @@ DEFAULT_SYMBOLS = [
     "PLTR", "AVGO", "NFLX", "CRM", "ORCL", "COIN", "SMCI"
 ]
 
-
 @st.cache_data(ttl=3600, show_spinner=False)
 def load_market_universe():
     symbols = []
@@ -49,7 +56,6 @@ def load_market_universe():
     symbols.extend(DEFAULT_SYMBOLS)
     symbols = list(dict.fromkeys(s.strip().upper() for s in symbols if s and s.strip()))
     return symbols, " + ".join(sources) if sources else "القائمة الافتراضية"
-
 
 scan_mode = st.radio(
     "مصدر الأسهم",
