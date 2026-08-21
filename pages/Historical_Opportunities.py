@@ -4,9 +4,11 @@ from __future__ import annotations
 import pandas as pd
 import streamlit as st
 
+from access_control import require_access
 from backend.results_store import get_scan
 
 st.set_page_config(page_title="تم استخراجها سابقًا", page_icon="📚", layout="wide")
+require_access("pro")
 
 st.title("📚 تم استخراجها سابقًا")
 st.caption("سجل الفرص التي اكتشفها النظام سابقًا ويتابع تغير حالتها.")
@@ -20,7 +22,6 @@ if not isinstance(history, pd.DataFrame) or history.empty:
 
 df = history.copy()
 
-# Normalize common numeric fields without assuming a fixed scanner schema.
 for col in ["current_score", "best_score", "current_confidence", "times_detected", "risk_reward", "current_price"]:
     if col in df.columns:
         df[col] = pd.to_numeric(df[col], errors="coerce")
@@ -78,4 +79,4 @@ for _, row in filtered.head(50).iterrows():
 st.divider()
 
 with st.expander("عرض البيانات الكاملة"):
-    st.dataframe(filtered, use_container_width=True, hide_index=True)
+    st.dataframe(filtered, width="stretch", hide_index=True)
