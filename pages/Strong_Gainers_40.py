@@ -5,10 +5,15 @@ PROJECT_ROOT=os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if PROJECT_ROOT not in sys.path:sys.path.insert(0,PROJECT_ROOT)
 import pandas as pd
 import streamlit as st
-from access_control import require_access
 from backend.gainers_universe import get_universe,universe_status
 from backend.strong_gainers import MIN_PRICE,MAX_PRICE,analyze_gainers,discover_strong_gainers
-st.set_page_config(page_title="الأسهم الأكثر ارتفاعًا",page_icon="🚀",layout="wide"); require_access("free")
+st.set_page_config(page_title="الأسهم الأكثر ارتفاعًا",page_icon="🚀",layout="wide")
+
+# Inline access guard to avoid Streamlit/Python 3.14 import-cache KeyError on access_control.py.
+if not st.session_state.get("auth_user") or not st.session_state.get("auth_access_token"):
+    st.error("🔒 يجب تسجيل الدخول للوصول إلى هذه الصفحة.")
+    st.stop()
+
 def _cats(r):
     out=[]; rv=float(r.get("relative_volume",0) or 0); m=float(r.get("momentum_score",0) or 0); l=float(r.get("liquidity_score",0) or 0); ch=float(r.get("change_pct",0) or 0); dv=float(r.get("dollar_volume",0) or 0)
     if rv>=3:out.append("🔥 حجم استثنائي")
