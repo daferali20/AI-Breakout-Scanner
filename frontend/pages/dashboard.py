@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import html
-from urllib.parse import quote
 
 import pandas as pd
 import plotly.express as px
@@ -243,17 +242,20 @@ def _bar(value, invert=False):
     return f'<div class="mini-bar"><span class="{cls}" style="width:{value:.0f}%"></span></div>'
 
 
-def _analysis_link(symbol: str, mobile: bool = False) -> str:
-    """Build an internal, compact stock-analysis action link."""
-    href = f"?page=analysis&symbol={quote(symbol)}"
-    size = "36px" if mobile else "34px"
-    return (
-        f'<a href="{href}" target="_self" title="استعراض وتحليل {html.escape(symbol)}" '
-        f'aria-label="استعراض وتحليل {html.escape(symbol)}" '
-        f'style="display:inline-flex;align-items:center;justify-content:center;width:{size};height:{size};'
-        f'border:1px solid #355078;border-radius:8px;background:#14233a;color:#9ab7ff!important;'
-        f'font-size:18px;font-weight:800;text-decoration:none;line-height:1;">↗</a>'
-    )
+def _open_stock_analysis(symbol: str) -> None:
+    """Navigate to stock analysis without leaving the current Streamlit session."""
+    st.session_state.analysis_symbol = symbol
+    st.session_state.active_page = "analysis"
+    try:
+        st.query_params.clear()
+    except Exception:
+        pass
+    st.rerun()
+
+
+def _cell(primary: str, secondary: str = "", css_class: str = "") -> str:
+    secondary_html = f'<small class="{css_class}">{secondary}</small>' if secondary else ""
+    return f'<div style="padding-top:6px"><b>{primary}</b>{secondary_html}</div>'
 
 
 def display_top_opportunities(snapshot=None):
@@ -263,8 +265,11 @@ def display_top_opportunities(snapshot=None):
         st.info("ستظهر أفضل الفرص هنا فور اكتمال أول مسح.")
         return
 
-    rows_html = []
-    cards_html = []
+    widths = [0.35, 1.25, 1.0, 1.0, 1.15, 1.2, 1.1, 1.1, 0.85, 0.42]
+    header = st.columns(widths, gap="small")
+    labels = ["#", "Symbol", "Price", "Opportunity", "Breakout", "Relative Volume", "Momentum", "Liquidity", "Risk", ""]
+    for col, label in zip(header, labels):
+        col.markdown(f"<div style='font-size:.72rem;color:#8da0ba;font-weight:800;padding:4px 0 8px'>{label}</div>", unsafe_allow_html=True)
 
     for i, (_, row) in enumerate(results.head(10).iterrows(), 1):
         raw_symbol = str(row.get("symbol", "—")).upper().strip()
@@ -280,49 +285,20 @@ def display_top_opportunities(snapshot=None):
         risk_label = "LOW" if risk <= 25 else ("MEDIUM" if risk <= 40 else "HIGH")
         risk_class = "low" if risk <= 25 else ("medium" if risk <= 40 else "high")
         volume_label = "High" if rvol >= 1.5 else "Average"
-        action_link = _analysis_link(raw_symbol)
-        mobile_action_link = _analysis_link(raw_symbol, mobile=True)
 
-        row_html = (
-            f'<tr>'
-            f'<td class="rank">{i}</td>'
-            f'<td><b>{symbol}</b><small>{signal}</small></td>'
-            f'<td><b>${price:,.2f}</b></td>'
-            f'<td><span class="score-ring">{score:.1f}</span></td>'
-            f'<td><b>{prob:.0f}%</b>{_bar(prob)}</td>'
-            f'<td><b>{rvol:.2f}x</b><small class="positive">{volume_label}</small></td>'
-            f'<td><b>{momentum:.0f}/100</b>{_bar(momentum)}</td>'
-            f'<td><b>{liquidity:.0f}/100</b>{_bar(liquidity)}</td>'
-            f'<td><b>{risk:.0f}%</b><small class="{risk_class}">{risk_label}</small></td>'
-            f'<td style="text-align:center;width:54px">{action_link}</td>'
-            f'</tr>'
-        )
-        rows_html.append(row_html)
-
-        card_html = (
-            f'<div class="mobile-op-card">'
-            f'<div class="mobile-op-top"><div><span class="rank-badge">#{i}</span><b>{symbol}</b><small>{signal}</small></div>'
-            f'<div style="display:flex;align-items:center;gap:8px"><span class="score-ring">{score:.1f}</span>{mobile_action_link}</div></div>'
-            f'<div class="mobile-op-price">${price:,.2f}</div>'
-            f'<div class="mobile-grid">'
-            f'<span>Breakout<b>{prob:.0f}%</b></span>'
-            f'<span>RVOL<b>{rvol:.2f}x</b></span>'
-            f'<span>Momentum<b>{momentum:.0f}</b></span>'
-            f'<span>Liquidity<b>{liquidity:.0f}</b></span>'
-            f'<span>Risk<b class="{risk_class}">{risk:.0f}%</b></span>'
-            f'</div></div>'
-        )
-        cards_html.append(card_html)
-
-    table_html = (
-        '<div class="desktop-op-table">'
-        '<table class="op-table">'
-        '<thead><tr><th>#</th><th>Symbol</th><th>Price</th><th>Opportunity</th><th>Breakout</th><th>Relative Volume</th><th>Momentum</th><th>Liquidity</th><th>Risk</th><th style="width:54px;text-align:center">عرض</th></tr></thead>'
-        f'<tbody>{"".join(rows_html)}</tbody>'
-        '</table></div>'
-        f'<div class="mobile-op-list">{"".join(cards_html)}</div>'
-    )
-    st.markdown(table_html, unsafe_allow_html=True)
+        with st.container(border=True):
+            cols = st.columns(widths, gap="small", vertical_alignment="center")
+            cols[0].markdown(f"<div style='color:#73869f;text-align:center'>{i}</div>", unsafe_allow_html=True)
+            cols[1].markdown(_cell(symbol, signal), unsafe_allow_html=True)
+            cols[2].markdown(_cell(f"${price:,.2f}"), unsafe_allow_html=True)
+            cols[3].markdown(f'<div style="padding-top:2px"><span class="score-ring">{score:.1f}</span></div>', unsafe_allow_html=True)
+            cols[4].markdown(_cell(f"{prob:.0f}%") + _bar(prob), unsafe_allow_html=True)
+            cols[5].markdown(_cell(f"{rvol:.2f}x", volume_label, "positive"), unsafe_allow_html=True)
+            cols[6].markdown(_cell(f"{momentum:.0f}/100") + _bar(momentum), unsafe_allow_html=True)
+            cols[7].markdown(_cell(f"{liquidity:.0f}/100") + _bar(liquidity), unsafe_allow_html=True)
+            cols[8].markdown(_cell(f"{risk:.0f}%", risk_label, risk_class), unsafe_allow_html=True)
+            if cols[9].button("↗", key=f"view_stock_{raw_symbol}_{i}", help=f"استعراض وتحليل {raw_symbol}", width="stretch"):
+                _open_stock_analysis(raw_symbol)
 
 
 def display_market_status(snapshot=None):
