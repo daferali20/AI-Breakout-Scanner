@@ -49,9 +49,16 @@ def _go_internal(target: str) -> None:
         st.rerun()
 
 
-def _internal_item(label: str, target: str, active_page: str) -> None:
+def _internal_item(label: str, target: str, active_page: str, item_id: str | None = None) -> None:
+    """Render one internal navigation button with a stable unique widget key."""
     active = active_page == target
-    if st.button(label, key=f"nav_{target}", type="primary" if active else "secondary", width="stretch"):
+    unique_id = item_id or target
+    if st.button(
+        label,
+        key=f"nav_{unique_id}",
+        type="primary" if active else "secondary",
+        width="stretch",
+    ):
         _go_internal(target)
 
 
@@ -91,33 +98,38 @@ def render_sidebar() -> None:
         _account_card(display_name, email, plan, role, trial_active)
 
         _section("اكتشاف الفرص")
-        _internal_item("🏠  لوحة التحكم", "dashboard" if plan == "pro" else "free_home", active_page)
+        _internal_item(
+            "🏠  لوحة التحكم",
+            "dashboard" if plan == "pro" else "free_home",
+            active_page,
+            item_id="home_dashboard",
+        )
         if plan == "pro":
-            _internal_item("🧠  AI Scanner", "dashboard", active_page)
+            _internal_item("🧠  AI Scanner", "dashboard", active_page, item_id="ai_scanner")
             _external_item("🚀  الأكثر ارتفاعًا", "pages/Strong_Gainers_40.py")
             _external_item("📡  متصدرو السوق", "pages/Live_Market_Leaders.py")
             _external_item("⭐  ترتيب الفرص", "pages/AI_Opportunity_Ranking.py")
             _external_item("🕘  الفرص التاريخية", "pages/Historical_Opportunities.py")
         else:
-            _internal_item("🔎  مستكشف السوق", "scanner", active_page)
+            _internal_item("🔎  مستكشف السوق", "scanner", active_page, item_id="free_scanner")
 
         _section("التحليل")
-        _internal_item("📊  تحليل السهم", "analysis", active_page)
+        _internal_item("📊  تحليل السهم", "analysis", active_page, item_id="stock_analysis")
         if plan == "pro":
-            _internal_item("🔎  مستكشف السوق", "scanner", active_page)
-            _internal_item("💧  تدفق السيولة", "flow", active_page)
-            _internal_item("📰  المحفزات والفرص", "catalysts", active_page)
-            _internal_item("🧠  الإشارات المتقدمة", "advanced", active_page)
+            _internal_item("🔎  مستكشف السوق", "scanner", active_page, item_id="market_scanner")
+            _internal_item("💧  تدفق السيولة", "flow", active_page, item_id="liquidity_flow")
+            _internal_item("📰  المحفزات والفرص", "catalysts", active_page, item_id="catalysts")
+            _internal_item("🧠  الإشارات المتقدمة", "advanced", active_page, item_id="advanced_signals")
 
         _section("الأدوات")
         if plan == "pro":
-            _internal_item("⭐  قائمة المراقبة", "watchlist", active_page)
-            _internal_item("🔔  التنبيهات", "alerts", active_page)
-        _internal_item("👤  حسابي", "account", active_page)
+            _internal_item("⭐  قائمة المراقبة", "watchlist", active_page, item_id="watchlist")
+            _internal_item("🔔  التنبيهات", "alerts", active_page, item_id="alerts")
+        _internal_item("👤  حسابي", "account", active_page, item_id="account")
 
         if role == "admin":
             _section("الإدارة")
-            _internal_item("🛡️  لوحة الإدارة", "admin", active_page)
+            _internal_item("🛡️  لوحة الإدارة", "admin", active_page, item_id="admin_panel")
 
         if plan == "free":
             st.markdown(
