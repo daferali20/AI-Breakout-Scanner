@@ -151,6 +151,7 @@ def render_sidebar() -> None:
 
         st.markdown('<div class="sidebar-bottom-separator"></div>', unsafe_allow_html=True)
         _internal_item("🔒  سياسة الخصوصية", "privacy", active_page, item_id="privacy_policy")
+        _internal_item("📜  الشروط والأحكام", "terms", active_page, item_id="terms_conditions")
 
         if st.button("🚪 تسجيل الخروج", width="stretch", key="logout_button"):
             from supabase_auth import logout
@@ -158,7 +159,7 @@ def render_sidebar() -> None:
             st.rerun()
 
         st.markdown(
-            f"<div class='sidebar-footer'>{datetime.now().strftime('%Y-%m-%d %H:%M')}<br>AI Breakout Scanner · Privacy</div>",
+            f"<div class='sidebar-footer'>{datetime.now().strftime('%Y-%m-%d %H:%M')}<br>AI Breakout Scanner · Privacy · Terms</div>",
             unsafe_allow_html=True,
         )
 
