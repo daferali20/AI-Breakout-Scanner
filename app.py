@@ -60,6 +60,16 @@ allowed_pages = PRO_PAGES if pro_access else FREE_PAGES
 if role == "admin":
     allowed_pages = allowed_pages | {"admin"}
 
+# Internal deep links such as ?page=analysis&symbol=NVDA.
+# Consume the page parameter once so normal sidebar navigation remains in control afterwards.
+query_page = str(st.query_params.get("page", "") or "").strip().lower()
+if query_page and query_page in allowed_pages:
+    st.session_state.active_page = query_page
+    try:
+        del st.query_params["page"]
+    except Exception:
+        pass
+
 requested_page = st.session_state.get("active_page", "dashboard" if pro_access else "free_home")
 if requested_page not in allowed_pages:
     st.session_state.active_page = "account"
