@@ -28,6 +28,7 @@ def _login_form() -> None:
     with st.form("login_form"):
         email = st.text_input("البريد الإلكتروني", placeholder="name@example.com")
         password = st.text_input("كلمة المرور", type="password")
+        remember = st.checkbox("تذكرني على هذا الجهاز", value=True, help="يحافظ على تسجيل الدخول بعد تحديث الصفحة أو إعادة فتح المتصفح على هذا الجهاز.")
         submitted = st.form_submit_button("دخول", type="primary", width="stretch")
     if submitted:
         if not email or not password:
@@ -35,12 +36,13 @@ def _login_form() -> None:
             return
         try:
             payload = sign_in(email, password)
-            establish_session(payload)
+            establish_session(payload, remember=remember)
             st.session_state.guest_mode = False
             st.success("تم تسجيل الدخول بنجاح.")
             st.rerun()
         except Exception:
             st.error("تعذر تسجيل الدخول. تحقق من البريد الإلكتروني وكلمة المرور ثم حاول مرة أخرى.")
+    st.caption("🔐 عند اختيار «تذكرني» يتم حفظ رمز جلسة مشفّر فقط، ولا يتم حفظ كلمة المرور.")
     _forgot_password_form()
 
 
@@ -69,7 +71,7 @@ def _signup_form() -> None:
             return
         try:
             payload = sign_up(email, password, full_name)
-            result = establish_session(payload)
+            result = establish_session(payload, remember=False)
             st.session_state.guest_mode = False
             if result.get("requires_confirmation"):
                 st.success("تم إنشاء الحساب. أكد بريدك الإلكتروني ثم سجّل الدخول لبدء تجربة Pro لمدة 7 أيام.")
