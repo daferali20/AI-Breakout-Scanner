@@ -19,6 +19,8 @@ if os.path.isfile(CSS_PATH):
 
 if not st.session_state.get("auth_user") or not st.session_state.get("auth_access_token"):
     st.error("🔒 يجب تسجيل الدخول أولًا."); st.stop()
+from frontend.components.sidebar import render_sidebar
+render_sidebar()
 
 def _build_elite(df: pd.DataFrame) -> pd.DataFrame:
     if df.empty:return df.copy()
