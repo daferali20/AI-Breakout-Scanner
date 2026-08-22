@@ -70,6 +70,12 @@ try:
 except Exception as exc:
     st.sidebar.warning(f"تعذر تحميل التنقل: {exc}")
 
+try:
+    from frontend.components.top_market_bar import render_top_market_bar
+    render_top_market_bar()
+except Exception:
+    pass
+
 page = st.session_state.get("active_page", "dashboard" if pro_access else "free_home")
 try:
     if page == "free_home":
