@@ -14,7 +14,14 @@ from access_control import require_access
 from backend.results_store import get_scan
 
 st.set_page_config(page_title="تم استخراجها سابقًا", page_icon="📚", layout="wide")
+CSS_PATH=os.path.join(PROJECT_ROOT,"frontend","assets","style.css")
+if os.path.isfile(CSS_PATH):
+    try:
+        with open(CSS_PATH,"r",encoding="utf-8") as f: st.markdown(f"<style>{f.read()}</style>",unsafe_allow_html=True)
+    except OSError: pass
 require_access("pro")
+from frontend.components.sidebar import render_sidebar
+render_sidebar()
 
 st.title("📚 تم استخراجها سابقًا")
 st.caption("سجل الفرص التي اكتشفها النظام سابقًا ويتابع تغير حالتها.")
