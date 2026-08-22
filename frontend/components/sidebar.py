@@ -1,4 +1,4 @@
-"""Unified institutional sidebar for AI Breakout Scanner."""
+"""Unified, scalable institutional sidebar for AI Breakout Scanner."""
 from datetime import datetime, timezone
 import streamlit as st
 
@@ -32,24 +32,38 @@ def _account_card(name: str, email: str, plan: str, role: str, trial_active: boo
     role_label = "ADMIN" if role == "admin" else "USER"
     initial = name[:1].upper() if name else "U"
     st.markdown(
-        f"""
-        <div class="sidebar-account-card">
-          <div class="sidebar-avatar">{initial}</div>
-          <div class="sidebar-account-meta">
-            <div class="sidebar-account-name">{name}</div>
-            <div class="sidebar-account-email">{email}</div>
-            <div class="sidebar-badges">
-              <span class="sidebar-badge plan-{plan_class}">{plan_label}</span>
-              <span class="sidebar-badge role-{role}">{role_label}</span>
-            </div>
-          </div>
-        </div>
-        """,
+        f'<div class="sidebar-account-card"><div class="sidebar-avatar">{initial}</div>'
+        f'<div class="sidebar-account-meta"><div class="sidebar-account-name">{name}</div>'
+        f'<div class="sidebar-account-email">{email}</div><div class="sidebar-badges">'
+        f'<span class="sidebar-badge plan-{plan_class}">{plan_label}</span>'
+        f'<span class="sidebar-badge role-{role}">{role_label}</span></div></div></div>',
         unsafe_allow_html=True,
     )
 
 
-def render_sidebar():
+def _go_internal(target: str) -> None:
+    st.session_state.active_page = target
+    try:
+        st.switch_page("app.py")
+    except Exception:
+        st.rerun()
+
+
+def _internal_item(label: str, target: str, active_page: str) -> None:
+    active = active_page == target
+    if st.button(label, key=f"nav_{target}", type="primary" if active else "secondary", width="stretch"):
+        _go_internal(target)
+
+
+def _external_item(label: str, path: str) -> None:
+    st.page_link(path, label=label, use_container_width=True)
+
+
+def _section(title: str) -> None:
+    st.markdown(f'<div class="sidebar-section-title">{title}</div>', unsafe_allow_html=True)
+
+
+def render_sidebar() -> None:
     profile = st.session_state.get("user_profile") or {}
     profile_trial_active, profile_trial_days = _trial_from_profile(profile)
     trial_active = profile_trial_active or bool(st.session_state.get("trial_active", False))
@@ -64,67 +78,51 @@ def render_sidebar():
     role = str(profile.get("role", "user") or "user").lower()
     display_name = str(profile.get("full_name") or user.get("email") or "مستخدم")
     email = str(profile.get("email") or user.get("email") or "")
+    active_page = str(st.session_state.get("active_page") or "dashboard")
 
     with st.sidebar:
         st.markdown(
-            """
-            <div class="sidebar-brand">
-              <div class="sidebar-brand-icon">📈</div>
-              <div>
-                <div class="sidebar-brand-title">AI BREAKOUT</div>
-                <div class="sidebar-brand-title brand-accent">SCANNER</div>
-                <div class="sidebar-brand-subtitle">Breakout Intelligence</div>
-              </div>
-            </div>
-            """,
+            '<div class="sidebar-brand"><div class="sidebar-brand-icon">📈</div><div>'
+            '<div class="sidebar-brand-title">AI BREAKOUT</div>'
+            '<div class="sidebar-brand-title brand-accent">SCANNER</div>'
+            '<div class="sidebar-brand-subtitle">Breakout Intelligence</div></div></div>',
             unsafe_allow_html=True,
         )
-
         _account_card(display_name, email, plan, role, trial_active)
 
-        if plan == "free":
-            pages = {
-                "🏠  الرئيسية": "free_home",
-                "🔎  مستكشف السوق": "scanner",
-                "📊  تحليل السهم": "analysis",
-                "👤  حسابي": "account",
-            }
+        _section("اكتشاف الفرص")
+        _internal_item("🏠  لوحة التحكم", "dashboard" if plan == "pro" else "free_home", active_page)
+        if plan == "pro":
+            _internal_item("🧠  AI Scanner", "dashboard", active_page)
+            _external_item("🚀  الأكثر ارتفاعًا", "pages/Strong_Gainers_40.py")
+            _external_item("📡  متصدرو السوق", "pages/Live_Market_Leaders.py")
+            _external_item("⭐  ترتيب الفرص", "pages/AI_Opportunity_Ranking.py")
+            _external_item("🕘  الفرص التاريخية", "pages/Historical_Opportunities.py")
         else:
-            pages = {
-                "🏠  لوحة التحكم": "dashboard",
-                "🔎  مستكشف السوق": "scanner",
-                "📊  تحليل السهم": "analysis",
-                "💧  السيولة والزخم": "flow",
-                "📰  المحفزات والفرص": "catalysts",
-                "⭐  قائمة المراقبة": "watchlist",
-                "🔔  التنبيهات": "alerts",
-                "🧠  الإشارات المتقدمة": "advanced",
-                "👤  حسابي": "account",
-            }
-        if role == "admin":
-            pages["🛡️  لوحة الإدارة"] = "admin"
+            _internal_item("🔎  مستكشف السوق", "scanner", active_page)
 
-        st.markdown('<div class="sidebar-section-title">WORKSPACE</div>', unsafe_allow_html=True)
-        labels = list(pages.keys())
-        current = st.session_state.get("active_page", list(pages.values())[0])
-        current_label = next((k for k, v in pages.items() if v == current), labels[0])
-        selected = st.radio(
-            "التنقل الرئيسي",
-            labels,
-            index=labels.index(current_label),
-            label_visibility="collapsed",
-            key="main_sidebar_navigation",
-        )
-        st.session_state.active_page = pages[selected]
+        _section("التحليل")
+        _internal_item("📊  تحليل السهم", "analysis", active_page)
+        if plan == "pro":
+            _internal_item("🔎  مستكشف السوق", "scanner", active_page)
+            _internal_item("💧  تدفق السيولة", "flow", active_page)
+            _internal_item("📰  المحفزات والفرص", "catalysts", active_page)
+            _internal_item("🧠  الإشارات المتقدمة", "advanced", active_page)
+
+        _section("الأدوات")
+        if plan == "pro":
+            _internal_item("⭐  قائمة المراقبة", "watchlist", active_page)
+            _internal_item("🔔  التنبيهات", "alerts", active_page)
+        _internal_item("👤  حسابي", "account", active_page)
+
+        if role == "admin":
+            _section("الإدارة")
+            _internal_item("🛡️  لوحة الإدارة", "admin", active_page)
 
         if plan == "free":
             st.markdown(
-                """
-                <div class="sidebar-upgrade-card">
-                  <div class="sidebar-upgrade-title">👑 Pro Access</div>
-                  <div class="sidebar-upgrade-text">السيولة والزخم والتنبيهات والإشارات المتقدمة.</div>
-                </div>
-                """,
+                '<div class="sidebar-upgrade-card"><div class="sidebar-upgrade-title">👑 Pro Access</div>'
+                '<div class="sidebar-upgrade-text">افتح أدوات اكتشاف المتصدرين والسيولة والزخم والتنبيهات.</div></div>',
                 unsafe_allow_html=True,
             )
         else:
@@ -134,13 +132,9 @@ def render_sidebar():
         if trial_active:
             pct = max(0, min(100, round((trial_days_left / 7) * 100)))
             st.markdown(
-                f"""
-                <div class="sidebar-trial-card">
-                  <div class="trial-row"><b>👑 7-Day Trial</b><span>{trial_days_left} days left</span></div>
-                  <div class="trial-caption">Full Pro access</div>
-                  <div class="trial-progress"><span style="width:{pct}%"></span></div>
-                </div>
-                """,
+                f'<div class="sidebar-trial-card"><div class="trial-row"><b>👑 7-Day Trial</b>'
+                f'<span>{trial_days_left} days left</span></div><div class="trial-caption">Full Pro access</div>'
+                f'<div class="trial-progress"><span style="width:{pct}%"></span></div></div>',
                 unsafe_allow_html=True,
             )
 
@@ -163,4 +157,7 @@ def render_scan_settings():
     if st.button("🔍 ابدأ المسح الآن", type="primary", width="stretch", key="scan_button"):
         st.session_state.scan_requested = True
         st.session_state.active_page = "dashboard"
-        st.rerun()
+        try:
+            st.switch_page("app.py")
+        except Exception:
+            st.rerun()
