@@ -5,13 +5,19 @@ import streamlit as st
 
 from supabase_auth import has_pro_access, refresh_profile, trial_status, update_profile_name
 
+BUILD_TAG = "trial-debug-2026-08-22-0040"
+
 
 def render() -> None:
-    profile = st.session_state.get("user_profile") or {}
+    try:
+        profile = refresh_profile()
+    except Exception:
+        profile = st.session_state.get("user_profile") or {}
     user = st.session_state.get("auth_user") or {}
 
     st.title("👤 حسابي")
     st.caption("إدارة بيانات الحساب ومراجعة الخطة والفترة التجريبية.")
+    st.caption(f"Build: {BUILD_TAG}")
 
     name = str(profile.get("full_name") or user.get("email") or "مستخدم")
     email = str(profile.get("email") or user.get("email") or "غير متاح")
@@ -50,6 +56,14 @@ def render() -> None:
 
     if trial.get("active") and status != "pro":
         st.info("🎁 خلال التجربة لديك وصول كامل إلى صفحات وأدوات Pro. بعد انتهاء المدة يعود الحساب تلقائيًا إلى صلاحيات Free ما لم يتم تفعيل اشتراك Pro.")
+
+    with st.expander("🧪 تشخيص الفترة التجريبية", expanded=True):
+        d1, d2, d3 = st.columns(3)
+        d1.metric("trial_active", str(bool(trial.get("active"))))
+        d2.metric("days_left", int(trial.get("days_left", 0) or 0))
+        d3.metric("pro_access", str(bool(pro_access)))
+        st.write("trial_started_at:", profile.get("trial_started_at"))
+        st.write("trial_ends_at:", profile.get("trial_ends_at"))
 
     st.divider()
     st.subheader("✏️ تعديل الاسم")
