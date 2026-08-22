@@ -31,6 +31,15 @@ for key, default in {
     if key not in st.session_state:
         st.session_state[key] = default
 
+# Before showing login, try to restore a remembered Supabase session from the
+# encrypted refresh-token cookie. No password is stored in the browser.
+if not st.session_state.get("auth_user") and not st.session_state.get("guest_mode"):
+    try:
+        from supabase_auth import restore_persistent_session
+        restore_persistent_session()
+    except Exception:
+        pass
+
 # Guest Preview is deliberately separated from authenticated navigation.
 # No Supabase profile, sidebar, admin functions, or protected pages are loaded for guests.
 if not st.session_state.get("auth_user"):
