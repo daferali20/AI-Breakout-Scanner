@@ -75,25 +75,21 @@ def render(auto_run=False):
     regime_name = regime.get("regime", "READY") if isinstance(regime, dict) else "READY"
     universe, source = load_market_universe()
 
-    st.markdown(
-        f"""
-        <div class="terminal-topbar">
-          <div class="terminal-market-pill"><span class="state-dot"></span><b>Scanner Ready</b></div>
-          <div><span>Universe</span><b>{len(universe):,}</b></div>
-          <div><span>Market Sample</span><b>{html.escape(str(regime_name))}</b></div>
-          <div class="topbar-last"><span>Last Scan</span><b>{html.escape(str(last_scan))}</b></div>
-        </div>
-        <div class="terminal-hero terminal-hero-v2">
-          <div>
-            <div class="terminal-eyebrow">AI OPPORTUNITY ENGINE</div>
-            <div class="terminal-title">🧠 AI Opportunity Engine</div>
-            <div class="terminal-sub">Advanced breakout, momentum and liquidity ranking across the current market universe.</div>
-          </div>
-          <div class="engine-state"><span class="state-dot"></span><b>Engine Online</b><small>AI-ranked opportunity workflow</small></div>
-        </div>
-        """,
-        unsafe_allow_html=True,
+    topbar_html = (
+        f'<div class="terminal-topbar">'
+        f'<div class="terminal-market-pill"><span class="state-dot"></span><b>Scanner Ready</b></div>'
+        f'<div><span>Universe</span><b>{len(universe):,}</b></div>'
+        f'<div><span>Market Sample</span><b>{html.escape(str(regime_name))}</b></div>'
+        f'<div class="topbar-last"><span>Last Scan</span><b>{html.escape(str(last_scan))}</b></div>'
+        f'</div>'
+        f'<div class="terminal-hero terminal-hero-v2">'
+        f'<div><div class="terminal-eyebrow">AI OPPORTUNITY ENGINE</div>'
+        f'<div class="terminal-title">🧠 AI Opportunity Engine</div>'
+        f'<div class="terminal-sub">Advanced breakout, momentum and liquidity ranking across the current market universe.</div></div>'
+        f'<div class="engine-state"><span class="state-dot"></span><b>Engine Online</b><small>AI-ranked opportunity workflow</small></div>'
+        f'</div>'
     )
+    st.markdown(topbar_html, unsafe_allow_html=True)
 
     config = st.session_state.get("sidebar_config", {})
     min_score = config.get("min_score", 40)
@@ -252,7 +248,9 @@ def display_top_opportunities(snapshot=None):
         st.info("ستظهر أفضل الفرص هنا فور اكتمال أول مسح.")
         return
 
-    rows_html, cards_html = [], []
+    rows_html = []
+    cards_html = []
+
     for i, (_, row) in enumerate(results.head(10).iterrows(), 1):
         symbol = html.escape(str(row.get("symbol", "—")))
         price = _safe_float(row.get("price"))
@@ -265,41 +263,46 @@ def display_top_opportunities(snapshot=None):
         signal = html.escape(str(row.get("signal_class") or row.get("signal") or "WATCH"))
         risk_label = "LOW" if risk <= 25 else ("MEDIUM" if risk <= 40 else "HIGH")
         risk_class = "low" if risk <= 25 else ("medium" if risk <= 40 else "high")
+        volume_label = "High" if rvol >= 1.5 else "Average"
 
-        rows_html.append(
-            f"""
-            <tr>
-              <td class="rank">{i}</td>
-              <td><b>{symbol}</b><small>{signal}</small></td>
-              <td><b>${price:,.2f}</b></td>
-              <td><span class="score-ring">{score:.1f}</span></td>
-              <td><b>{prob:.0f}%</b>{_bar(prob)}</td>
-              <td><b>{rvol:.2f}x</b><small class="positive">{'High' if rvol >= 1.5 else 'Average'}</small></td>
-              <td><b>{momentum:.0f}/100</b>{_bar(momentum)}</td>
-              <td><b>{liquidity:.0f}/100</b>{_bar(liquidity)}</td>
-              <td><b>{risk:.0f}%</b><small class="{risk_class}">{risk_label}</small></td>
-            </tr>
-            """
+        row_html = (
+            f'<tr>'
+            f'<td class="rank">{i}</td>'
+            f'<td><b>{symbol}</b><small>{signal}</small></td>'
+            f'<td><b>${price:,.2f}</b></td>'
+            f'<td><span class="score-ring">{score:.1f}</span></td>'
+            f'<td><b>{prob:.0f}%</b>{_bar(prob)}</td>'
+            f'<td><b>{rvol:.2f}x</b><small class="positive">{volume_label}</small></td>'
+            f'<td><b>{momentum:.0f}/100</b>{_bar(momentum)}</td>'
+            f'<td><b>{liquidity:.0f}/100</b>{_bar(liquidity)}</td>'
+            f'<td><b>{risk:.0f}%</b><small class="{risk_class}">{risk_label}</small></td>'
+            f'</tr>'
         )
-        cards_html.append(
-            f"""
-            <div class="mobile-op-card">
-              <div class="mobile-op-top"><div><span class="rank-badge">#{i}</span><b>{symbol}</b><small>{signal}</small></div><span class="score-ring">{score:.1f}</span></div>
-              <div class="mobile-op-price">${price:,.2f}</div>
-              <div class="mobile-grid">
-                <span>Breakout<b>{prob:.0f}%</b></span><span>RVOL<b>{rvol:.2f}x</b></span><span>Momentum<b>{momentum:.0f}</b></span><span>Liquidity<b>{liquidity:.0f}</b></span><span>Risk<b class="{risk_class}">{risk:.0f}%</b></span>
-              </div>
-            </div>
-            """
-        )
+        rows_html.append(row_html)
 
-    st.markdown(
-        f"""
-        <div class="desktop-op-table"><table class="op-table"><thead><tr><th>#</th><th>Symbol</th><th>Price</th><th>Opportunity</th><th>Breakout</th><th>Relative Volume</th><th>Momentum</th><th>Liquidity</th><th>Risk</th></tr></thead><tbody>{''.join(rows_html)}</tbody></table></div>
-        <div class="mobile-op-list">{''.join(cards_html)}</div>
-        """,
-        unsafe_allow_html=True,
+        card_html = (
+            f'<div class="mobile-op-card">'
+            f'<div class="mobile-op-top"><div><span class="rank-badge">#{i}</span><b>{symbol}</b><small>{signal}</small></div><span class="score-ring">{score:.1f}</span></div>'
+            f'<div class="mobile-op-price">${price:,.2f}</div>'
+            f'<div class="mobile-grid">'
+            f'<span>Breakout<b>{prob:.0f}%</b></span>'
+            f'<span>RVOL<b>{rvol:.2f}x</b></span>'
+            f'<span>Momentum<b>{momentum:.0f}</b></span>'
+            f'<span>Liquidity<b>{liquidity:.0f}</b></span>'
+            f'<span>Risk<b class="{risk_class}">{risk:.0f}%</b></span>'
+            f'</div></div>'
+        )
+        cards_html.append(card_html)
+
+    table_html = (
+        '<div class="desktop-op-table">'
+        '<table class="op-table">'
+        '<thead><tr><th>#</th><th>Symbol</th><th>Price</th><th>Opportunity</th><th>Breakout</th><th>Relative Volume</th><th>Momentum</th><th>Liquidity</th><th>Risk</th></tr></thead>'
+        f'<tbody>{"".join(rows_html)}</tbody>'
+        '</table></div>'
+        f'<div class="mobile-op-list">{"".join(cards_html)}</div>'
     )
+    st.markdown(table_html, unsafe_allow_html=True)
 
 
 def display_market_status(snapshot=None):
