@@ -21,6 +21,8 @@ for key, default in {
     "plan_selected": None,
     "auth_user": None,
     "user_profile": None,
+    "trial_active": False,
+    "trial_days_left": 0,
 }.items():
     if key not in st.session_state:
         st.session_state[key] = default
@@ -31,26 +33,33 @@ if not st.session_state.get("auth_user"):
     st.stop()
 
 try:
-    from supabase_auth import refresh_profile
+    from supabase_auth import has_pro_access, refresh_profile, trial_status
     profile = refresh_profile()
 except Exception:
     profile = st.session_state.get("user_profile") or {}
+    def has_pro_access(p):
+        return str(p.get("subscription_status", "free") or "free").lower() == "pro"
+    def trial_status(p):
+        return {"active": False, "days_left": 0}
 
-status = str(profile.get("subscription_status", "free") or "free").lower()
 role = str(profile.get("role", "user") or "user").lower()
-actual_plan = "pro" if status == "pro" else "free"
+trial = trial_status(profile)
+pro_access = has_pro_access(profile)
+actual_plan = "pro" if pro_access else "free"
 st.session_state.plan_selected = actual_plan
+st.session_state.trial_active = bool(trial.get("active"))
+st.session_state.trial_days_left = int(trial.get("days_left", 0) or 0)
 
 if st.session_state.get("active_page") in (None, "auth"):
-    st.session_state.active_page = "dashboard" if actual_plan == "pro" else "free_home"
+    st.session_state.active_page = "dashboard" if pro_access else "free_home"
 
 FREE_PAGES = {"free_home", "scanner", "analysis", "account"}
 PRO_PAGES = {"dashboard", "scanner", "analysis", "flow", "catalysts", "watchlist", "alerts", "advanced", "account"}
-allowed_pages = PRO_PAGES if actual_plan == "pro" else FREE_PAGES
+allowed_pages = PRO_PAGES if pro_access else FREE_PAGES
 if role == "admin":
     allowed_pages = allowed_pages | {"admin"}
 
-requested_page = st.session_state.get("active_page", "free_home" if actual_plan == "free" else "dashboard")
+requested_page = st.session_state.get("active_page", "dashboard" if pro_access else "free_home")
 if requested_page not in allowed_pages:
     st.session_state.active_page = "account"
     st.warning("🔒 لا تملك صلاحية الوصول إلى هذه الصفحة.")
@@ -61,7 +70,7 @@ try:
 except Exception as exc:
     st.sidebar.warning(f"تعذر تحميل التنقل: {exc}")
 
-page = st.session_state.get("active_page", "free_home" if actual_plan == "free" else "dashboard")
+page = st.session_state.get("active_page", "dashboard" if pro_access else "free_home")
 try:
     if page == "free_home":
         from frontend.pages.free_home import render
