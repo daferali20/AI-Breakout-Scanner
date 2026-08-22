@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import base64
 import hashlib
+import json
 from datetime import datetime, timedelta
 
 import extra_streamlit_components as stx
@@ -30,23 +31,18 @@ def _manager():
 
 
 def save_refresh_token(refresh_token: str, remember: bool = False) -> None:
-    """Save an encrypted refresh token.
-
-    remember=False -> browser-session cookie (survives page refresh, not browser close).
-    remember=True  -> persistent cookie for COOKIE_DAYS days.
-    """
+    """Save encrypted session state without ever storing the password."""
     if not refresh_token:
         return
-    encrypted = _fernet().encrypt(refresh_token.encode("utf-8")).decode("utf-8")
-    kwargs = {
-        "key": "set_auth_cookie",
-    }
+    payload = json.dumps({"refresh_token": refresh_token, "remember": bool(remember)}, separators=(",", ":"))
+    encrypted = _fernet().encrypt(payload.encode("utf-8")).decode("utf-8")
+    kwargs = {"key": "set_auth_cookie"}
     if remember:
         kwargs["expires_at"] = datetime.now() + timedelta(days=COOKIE_DAYS)
     _manager().set(COOKIE_NAME, encrypted, **kwargs)
 
 
-def load_refresh_token() -> str | None:
+def load_session_cookie() -> dict | None:
     try:
         encrypted = _manager().get(COOKIE_NAME)
     except Exception:
@@ -54,10 +50,24 @@ def load_refresh_token() -> str | None:
     if not encrypted:
         return None
     try:
-        return _fernet().decrypt(str(encrypted).encode("utf-8")).decode("utf-8")
+        decoded = _fernet().decrypt(str(encrypted).encode("utf-8")).decode("utf-8")
+        try:
+            payload = json.loads(decoded)
+            token = str(payload.get("refresh_token", "") or "")
+            if token:
+                return {"refresh_token": token, "remember": bool(payload.get("remember", False))}
+        except json.JSONDecodeError:
+            # Backward compatibility with the first encrypted-cookie format.
+            if decoded:
+                return {"refresh_token": decoded, "remember": True}
     except (InvalidToken, ValueError, TypeError):
         clear_refresh_token()
-        return None
+    return None
+
+
+def load_refresh_token() -> str | None:
+    payload = load_session_cookie()
+    return str(payload.get("refresh_token")) if payload else None
 
 
 def clear_refresh_token() -> None:
