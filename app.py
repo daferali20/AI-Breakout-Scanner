@@ -24,14 +24,27 @@ for key, default in {
     "user_profile": None,
     "trial_active": False,
     "trial_days_left": 0,
+    "guest_mode": False,
+    "guest_gate_open": False,
+    "guest_started_at": None,
 }.items():
     if key not in st.session_state:
         st.session_state[key] = default
 
+# Guest Preview is deliberately separated from authenticated navigation.
+# No Supabase profile, sidebar, admin functions, or protected pages are loaded for guests.
 if not st.session_state.get("auth_user"):
+    if st.session_state.get("guest_mode"):
+        from frontend.pages.guest_preview import render as render_guest_preview
+        render_guest_preview()
+        st.stop()
     from auth_page import render as render_auth
     render_auth()
     st.stop()
+
+# A real authenticated session always overrides any stale guest state.
+st.session_state.guest_mode = False
+st.session_state.guest_gate_open = False
 
 try:
     from supabase_auth import has_pro_access, refresh_profile, trial_status
@@ -51,7 +64,7 @@ st.session_state.plan_selected = actual_plan
 st.session_state.trial_active = bool(trial.get("active"))
 st.session_state.trial_days_left = int(trial.get("days_left", 0) or 0)
 
-if st.session_state.get("active_page") in (None, "auth"):
+if st.session_state.get("active_page") in (None, "auth", "guest"):
     st.session_state.active_page = "dashboard" if pro_access else "free_home"
 
 FREE_PAGES = {"free_home", "scanner", "analysis", "account", "privacy", "terms"}
@@ -60,8 +73,6 @@ allowed_pages = PRO_PAGES if pro_access else FREE_PAGES
 if role == "admin":
     allowed_pages = allowed_pages | {"admin"}
 
-# Internal deep links such as ?page=analysis&symbol=NVDA.
-# Consume the page parameter once so normal sidebar navigation remains in control afterwards.
 query_page = str(st.query_params.get("page", "") or "").strip().lower()
 if query_page and query_page in allowed_pages:
     st.session_state.active_page = query_page
