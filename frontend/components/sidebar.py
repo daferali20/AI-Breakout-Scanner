@@ -50,7 +50,6 @@ def _go_internal(target: str) -> None:
 
 
 def _internal_item(label: str, target: str, active_page: str, item_id: str | None = None) -> None:
-    """Render one internal navigation button with a stable unique widget key."""
     active = active_page == target
     unique_id = item_id or target
     if st.button(
@@ -151,13 +150,15 @@ def render_sidebar() -> None:
             )
 
         st.markdown('<div class="sidebar-bottom-separator"></div>', unsafe_allow_html=True)
+        _internal_item("🔒  سياسة الخصوصية", "privacy", active_page, item_id="privacy_policy")
+
         if st.button("🚪 تسجيل الخروج", width="stretch", key="logout_button"):
             from supabase_auth import logout
             logout()
             st.rerun()
 
         st.markdown(
-            f"<div class='sidebar-footer'>{datetime.now().strftime('%Y-%m-%d %H:%M')}<br>AI Breakout Scanner</div>",
+            f"<div class='sidebar-footer'>{datetime.now().strftime('%Y-%m-%d %H:%M')}<br>AI Breakout Scanner · Privacy</div>",
             unsafe_allow_html=True,
         )
 
