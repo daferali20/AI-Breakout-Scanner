@@ -54,8 +54,8 @@ st.session_state.trial_days_left = int(trial.get("days_left", 0) or 0)
 if st.session_state.get("active_page") in (None, "auth"):
     st.session_state.active_page = "dashboard" if pro_access else "free_home"
 
-FREE_PAGES = {"free_home", "scanner", "analysis", "account", "privacy"}
-PRO_PAGES = {"dashboard", "scanner", "analysis", "flow", "catalysts", "watchlist", "alerts", "advanced", "account", "privacy"}
+FREE_PAGES = {"free_home", "scanner", "analysis", "account", "privacy", "terms"}
+PRO_PAGES = {"dashboard", "scanner", "analysis", "flow", "catalysts", "watchlist", "alerts", "advanced", "account", "privacy", "terms"}
 allowed_pages = PRO_PAGES if pro_access else FREE_PAGES
 if role == "admin":
     allowed_pages = allowed_pages | {"admin"}
@@ -114,6 +114,9 @@ try:
         render()
     elif page == "privacy":
         from frontend.pages.privacy_policy import render
+        render()
+    elif page == "terms":
+        from frontend.pages.terms_conditions import render
         render()
     elif page == "admin":
         from frontend.pages.admin import render
