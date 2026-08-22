@@ -3,21 +3,22 @@ from __future__ import annotations
 
 import streamlit as st
 
-from supabase_auth import refresh_profile, update_profile_name
+from supabase_auth import has_pro_access, refresh_profile, trial_status, update_profile_name
 
 
 def render() -> None:
     profile = st.session_state.get("user_profile") or {}
     user = st.session_state.get("auth_user") or {}
-    plan = st.session_state.get("plan_selected", "free")
 
     st.title("👤 حسابي")
-    st.caption("إدارة بيانات الحساب ومراجعة الخطة الحالية.")
+    st.caption("إدارة بيانات الحساب ومراجعة الخطة والفترة التجريبية.")
 
     name = str(profile.get("full_name") or user.get("email") or "مستخدم")
     email = str(profile.get("email") or user.get("email") or "غير متاح")
     role = str(profile.get("role") or "user")
-    status = str(profile.get("subscription_status") or plan or "free").lower()
+    status = str(profile.get("subscription_status") or "free").lower()
+    trial = trial_status(profile)
+    pro_access = has_pro_access(profile)
 
     c1, c2 = st.columns([1.4, 1])
     with c1:
@@ -32,11 +33,23 @@ def render() -> None:
     with c2:
         with st.container(border=True):
             st.markdown("### حالة الاشتراك")
-            st.metric("الخطة", "👑 Pro" if status == "pro" else "🟢 Free")
             if status == "pro":
+                st.metric("الخطة", "👑 Pro")
                 st.success("الخطة المدفوعة مفعّلة.")
+            elif trial.get("active"):
+                st.metric("الخطة", "🎁 تجربة Pro")
+                st.success(f"الفترة التجريبية مفعلة — متبقي تقريبًا {trial['days_left']} يوم.")
+                if profile.get("trial_ends_at"):
+                    st.caption(f"تنتهي التجربة: {profile['trial_ends_at']}")
             else:
-                st.info("أنت تستخدم الخطة المجانية حاليًا.")
+                st.metric("الخطة", "🟢 Free")
+                if profile.get("trial_ends_at"):
+                    st.warning("انتهت الفترة التجريبية. يمكنك الاستمرار بالخطة المجانية أو الاشتراك في Pro.")
+                else:
+                    st.info("أنت تستخدم الخطة المجانية حاليًا.")
+
+    if trial.get("active") and status != "pro":
+        st.info("🎁 خلال التجربة لديك وصول كامل إلى صفحات وأدوات Pro. بعد انتهاء المدة يعود الحساب تلقائيًا إلى صلاحيات Free ما لم يتم تفعيل اشتراك Pro.")
 
     st.divider()
     st.subheader("✏️ تعديل الاسم")
@@ -56,7 +69,7 @@ def render() -> None:
 
     st.divider()
     a, b = st.columns(2)
-    if a.button("🔄 تحديث الحساب من Supabase", width="stretch"):
+    if a.button("🔄 تحديث الحساب", width="stretch"):
         try:
             refresh_profile()
             st.success("تم تحديث بيانات الحساب والخطة.")
@@ -65,10 +78,10 @@ def render() -> None:
             st.error(f"تعذر تحديث الحساب: {exc}")
 
     if b.button("🏠 العودة للرئيسية", width="stretch"):
-        st.session_state.active_page = "dashboard" if status == "pro" else "free_home"
+        st.session_state.active_page = "dashboard" if pro_access else "free_home"
         st.rerun()
 
     st.divider()
     st.subheader("🔐 الأمان")
-    st.write("تتم إدارة المصادقة وكلمة المرور عبر Supabase Auth.")
+    st.write("تتم إدارة المصادقة وكلمة المرور عبر نظام المصادقة الآمن.")
     st.caption("التطبيق لا يعرض كلمة المرور ولا يخزنها داخل Streamlit.")
