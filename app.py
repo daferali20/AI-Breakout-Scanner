@@ -5,13 +5,14 @@ import streamlit as st
 
 st.set_page_config(page_title="AI Breakout Scanner | ماسح الفرص", page_icon="🚀", layout="wide", initial_sidebar_state="expanded")
 PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
-CSS_PATH = os.path.join(PROJECT_ROOT, "frontend", "assets", "style.css")
-if os.path.isfile(CSS_PATH):
-    try:
-        with open(CSS_PATH, "r", encoding="utf-8") as css_file:
-            st.markdown(f"<style>{css_file.read()}</style>", unsafe_allow_html=True)
-    except OSError:
-        pass
+for css_name in ("style.css", "topbar.css"):
+    css_path = os.path.join(PROJECT_ROOT, "frontend", "assets", css_name)
+    if os.path.isfile(css_path):
+        try:
+            with open(css_path, "r", encoding="utf-8") as css_file:
+                st.markdown(f"<style>{css_file.read()}</style>", unsafe_allow_html=True)
+        except OSError:
+            pass
 
 for key, default in {
     "last_scan_time": None,
