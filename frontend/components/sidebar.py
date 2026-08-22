@@ -1,5 +1,5 @@
 """قائمة جانبية احترافية وواضحة للمستخدم والخطة والتنقل."""
-from datetime import datetime
+from datetime import datetime, timezone
 import streamlit as st
 
 SIDEBAR_STYLE = """
@@ -27,6 +27,25 @@ SIDEBAR_STYLE = """
 """
 
 
+def _trial_from_profile(profile: dict) -> tuple[bool, int]:
+    start_raw = profile.get("trial_started_at")
+    end_raw = profile.get("trial_ends_at")
+    if not start_raw or not end_raw:
+        return False, 0
+    try:
+        start = datetime.fromisoformat(str(start_raw).replace("Z", "+00:00"))
+        end = datetime.fromisoformat(str(end_raw).replace("Z", "+00:00"))
+        if start.tzinfo is None: start = start.replace(tzinfo=timezone.utc)
+        if end.tzinfo is None: end = end.replace(tzinfo=timezone.utc)
+        now = datetime.now(timezone.utc)
+        active = start.astimezone(timezone.utc) <= now < end.astimezone(timezone.utc)
+        seconds = max(0, int((end.astimezone(timezone.utc) - now).total_seconds())) if active else 0
+        days = (seconds + 86399) // 86400 if seconds else 0
+        return active, days
+    except Exception:
+        return False, 0
+
+
 def _account_card(name: str, email: str, plan: str, role: str, trial_active: bool) -> None:
     if trial_active:
         plan_label, plan_class = "7-DAY TRIAL", "trial"
@@ -37,10 +56,16 @@ def _account_card(name: str, email: str, plan: str, role: str, trial_active: boo
 
 
 def render_sidebar():
-    plan = st.session_state.get("plan_selected", "free")
-    trial_active = bool(st.session_state.get("trial_active", False))
-    trial_days_left = int(st.session_state.get("trial_days_left", 0) or 0)
     profile = st.session_state.get("user_profile") or {}
+    profile_trial_active, profile_trial_days = _trial_from_profile(profile)
+    trial_active = profile_trial_active or bool(st.session_state.get("trial_active", False))
+    trial_days_left = profile_trial_days if profile_trial_active else int(st.session_state.get("trial_days_left", 0) or 0)
+    paid_status = str(profile.get("subscription_status", "free") or "free").lower()
+    plan = "pro" if paid_status == "pro" or trial_active else "free"
+    st.session_state.trial_active = trial_active
+    st.session_state.trial_days_left = trial_days_left
+    st.session_state.plan_selected = plan
+
     user = st.session_state.get("auth_user") or {}
     role = str(profile.get("role", "user") or "user").lower()
     display_name = str(profile.get("full_name") or user.get("email") or "مستخدم")
