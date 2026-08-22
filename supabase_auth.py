@@ -92,14 +92,8 @@ def sign_in(email: str, password: str) -> dict[str, Any]:
 
 
 def refresh_auth_session(refresh_token: str) -> dict[str, Any]:
-    """Exchange a Supabase refresh token for a fresh access/refresh token pair."""
     url, _ = _config()
-    response = requests.post(
-        f"{url}/auth/v1/token?grant_type=refresh_token",
-        headers=_headers(),
-        json={"refresh_token": refresh_token},
-        timeout=20,
-    )
+    response = requests.post(f"{url}/auth/v1/token?grant_type=refresh_token", headers=_headers(), json={"refresh_token": refresh_token}, timeout=20)
     if not response.ok:
         raise RuntimeError(_error_message(response))
     return response.json()
@@ -215,39 +209,44 @@ def establish_session(auth_payload: dict[str, Any], remember: bool = False) -> d
     if not access_token:
         return {"user": user, "profile": {}, "requires_confirmation": True}
     profile = fetch_profile(str(user.get("id", "")), str(access_token))
+    refresh_token = auth_payload.get("refresh_token")
     st.session_state.auth_user = user
     st.session_state.auth_access_token = access_token
-    st.session_state.auth_refresh_token = auth_payload.get("refresh_token")
+    st.session_state.auth_refresh_token = refresh_token
     st.session_state.user_profile = profile
     st.session_state.remember_me = bool(remember)
     _sync_entitlement_session(profile)
     st.session_state.active_page = "dashboard" if has_pro_access(profile) else "free_home"
-    if remember and auth_payload.get("refresh_token"):
+    if refresh_token:
         try:
             from auth_persistence import save_refresh_token
-            save_refresh_token(str(auth_payload.get("refresh_token")))
+            save_refresh_token(str(refresh_token), remember=bool(remember))
         except Exception:
             pass
     return {"user": user, "profile": profile, "requires_confirmation": False}
 
 
 def restore_persistent_session() -> bool:
-    """Restore a remembered Supabase session after browser refresh/reconnect."""
+    """Restore either a browser-session cookie or a long-term remembered session."""
     if st.session_state.get("auth_user"):
         return True
     try:
-        from auth_persistence import clear_refresh_token, load_refresh_token, save_refresh_token
-        refresh_token = load_refresh_token()
+        from auth_persistence import clear_refresh_token, load_session_cookie, save_refresh_token
+        cookie = load_session_cookie()
     except Exception:
         return False
+    if not cookie:
+        return False
+    refresh_token = str(cookie.get("refresh_token", "") or "")
+    remember = bool(cookie.get("remember", False))
     if not refresh_token:
         return False
     try:
         payload = refresh_auth_session(refresh_token)
-        result = establish_session(payload, remember=True)
+        result = establish_session(payload, remember=remember)
         new_refresh = payload.get("refresh_token")
         if new_refresh:
-            save_refresh_token(str(new_refresh))
+            save_refresh_token(str(new_refresh), remember=remember)
         return not bool(result.get("requires_confirmation"))
     except Exception:
         try:
