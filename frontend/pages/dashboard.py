@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import html
+from urllib.parse import quote
+
 import pandas as pd
 import plotly.express as px
 import streamlit as st
@@ -241,6 +243,19 @@ def _bar(value, invert=False):
     return f'<div class="mini-bar"><span class="{cls}" style="width:{value:.0f}%"></span></div>'
 
 
+def _analysis_link(symbol: str, mobile: bool = False) -> str:
+    """Build an internal, compact stock-analysis action link."""
+    href = f"?page=analysis&symbol={quote(symbol)}"
+    size = "36px" if mobile else "34px"
+    return (
+        f'<a href="{href}" target="_self" title="استعراض وتحليل {html.escape(symbol)}" '
+        f'aria-label="استعراض وتحليل {html.escape(symbol)}" '
+        f'style="display:inline-flex;align-items:center;justify-content:center;width:{size};height:{size};'
+        f'border:1px solid #355078;border-radius:8px;background:#14233a;color:#9ab7ff!important;'
+        f'font-size:18px;font-weight:800;text-decoration:none;line-height:1;">↗</a>'
+    )
+
+
 def display_top_opportunities(snapshot=None):
     results = _results(snapshot or _snapshot())
     st.markdown('<div class="section-head"><b>🔥 Top Opportunities</b><span>AI-ranked breakout candidates</span></div>', unsafe_allow_html=True)
@@ -252,7 +267,8 @@ def display_top_opportunities(snapshot=None):
     cards_html = []
 
     for i, (_, row) in enumerate(results.head(10).iterrows(), 1):
-        symbol = html.escape(str(row.get("symbol", "—")))
+        raw_symbol = str(row.get("symbol", "—")).upper().strip()
+        symbol = html.escape(raw_symbol)
         price = _safe_float(row.get("price"))
         score = _safe_float(row.get("opportunity_score"))
         prob = _safe_float(row.get("breakout_probability"))
@@ -264,6 +280,8 @@ def display_top_opportunities(snapshot=None):
         risk_label = "LOW" if risk <= 25 else ("MEDIUM" if risk <= 40 else "HIGH")
         risk_class = "low" if risk <= 25 else ("medium" if risk <= 40 else "high")
         volume_label = "High" if rvol >= 1.5 else "Average"
+        action_link = _analysis_link(raw_symbol)
+        mobile_action_link = _analysis_link(raw_symbol, mobile=True)
 
         row_html = (
             f'<tr>'
@@ -276,13 +294,15 @@ def display_top_opportunities(snapshot=None):
             f'<td><b>{momentum:.0f}/100</b>{_bar(momentum)}</td>'
             f'<td><b>{liquidity:.0f}/100</b>{_bar(liquidity)}</td>'
             f'<td><b>{risk:.0f}%</b><small class="{risk_class}">{risk_label}</small></td>'
+            f'<td style="text-align:center;width:54px">{action_link}</td>'
             f'</tr>'
         )
         rows_html.append(row_html)
 
         card_html = (
             f'<div class="mobile-op-card">'
-            f'<div class="mobile-op-top"><div><span class="rank-badge">#{i}</span><b>{symbol}</b><small>{signal}</small></div><span class="score-ring">{score:.1f}</span></div>'
+            f'<div class="mobile-op-top"><div><span class="rank-badge">#{i}</span><b>{symbol}</b><small>{signal}</small></div>'
+            f'<div style="display:flex;align-items:center;gap:8px"><span class="score-ring">{score:.1f}</span>{mobile_action_link}</div></div>'
             f'<div class="mobile-op-price">${price:,.2f}</div>'
             f'<div class="mobile-grid">'
             f'<span>Breakout<b>{prob:.0f}%</b></span>'
@@ -297,7 +317,7 @@ def display_top_opportunities(snapshot=None):
     table_html = (
         '<div class="desktop-op-table">'
         '<table class="op-table">'
-        '<thead><tr><th>#</th><th>Symbol</th><th>Price</th><th>Opportunity</th><th>Breakout</th><th>Relative Volume</th><th>Momentum</th><th>Liquidity</th><th>Risk</th></tr></thead>'
+        '<thead><tr><th>#</th><th>Symbol</th><th>Price</th><th>Opportunity</th><th>Breakout</th><th>Relative Volume</th><th>Momentum</th><th>Liquidity</th><th>Risk</th><th style="width:54px;text-align:center">عرض</th></tr></thead>'
         f'<tbody>{"".join(rows_html)}</tbody>'
         '</table></div>'
         f'<div class="mobile-op-list">{"".join(cards_html)}</div>'
