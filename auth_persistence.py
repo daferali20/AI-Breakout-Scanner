@@ -20,26 +20,30 @@ def _fernet() -> Fernet:
         or st.secrets.get("SUPABASE_SERVICE_ROLE_KEY", "")
     ).strip()
     if not secret:
-        raise RuntimeError("AUTH_COOKIE_SECRET أو SUPABASE_SECRET_KEY مطلوب لتشفير جلسة تذكرني.")
+        raise RuntimeError("AUTH_COOKIE_SECRET أو SUPABASE_SECRET_KEY مطلوب لتشفير جلسة تسجيل الدخول.")
     digest = hashlib.sha256(secret.encode("utf-8")).digest()
     return Fernet(base64.urlsafe_b64encode(digest))
 
 
 def _manager():
-    # Use a stable key so only one cookie component is mounted per app run.
     return stx.CookieManager(key="auth_cookie_manager")
 
 
-def save_refresh_token(refresh_token: str) -> None:
+def save_refresh_token(refresh_token: str, remember: bool = False) -> None:
+    """Save an encrypted refresh token.
+
+    remember=False -> browser-session cookie (survives page refresh, not browser close).
+    remember=True  -> persistent cookie for COOKIE_DAYS days.
+    """
     if not refresh_token:
         return
     encrypted = _fernet().encrypt(refresh_token.encode("utf-8")).decode("utf-8")
-    _manager().set(
-        COOKIE_NAME,
-        encrypted,
-        expires_at=datetime.now() + timedelta(days=COOKIE_DAYS),
-        key="set_auth_cookie",
-    )
+    kwargs = {
+        "key": "set_auth_cookie",
+    }
+    if remember:
+        kwargs["expires_at"] = datetime.now() + timedelta(days=COOKIE_DAYS)
+    _manager().set(COOKIE_NAME, encrypted, **kwargs)
 
 
 def load_refresh_token() -> str | None:
