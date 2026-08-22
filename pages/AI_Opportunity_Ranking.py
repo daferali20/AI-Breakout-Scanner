@@ -18,13 +18,14 @@ from backend.market.regime import detect_market_regime
 from backend.results_store import save_scan
 
 st.set_page_config(page_title="AI Opportunity Ranking", page_icon="🏆", layout="wide")
+CSS_PATH=os.path.join(PROJECT_ROOT,"frontend","assets","style.css")
+if os.path.isfile(CSS_PATH):
+    try:
+        with open(CSS_PATH,"r",encoding="utf-8") as f: st.markdown(f"<style>{f.read()}</style>",unsafe_allow_html=True)
+    except OSError: pass
 require_access("pro")
-
-with st.sidebar:
-    if st.button("🏠 لوحة التحكم", key="go_dashboard", width="stretch"):
-        st.switch_page("app.py")
-    st.page_link("app.py", label="العودة إلى لوحة التحكم", icon="🏠")
-    st.markdown("---")
+from frontend.components.sidebar import render_sidebar
+render_sidebar()
 
 st.title("🏆 AI Opportunity Ranking")
 st.caption("ترتيب الفرص يجمع الاختراق والسيولة والزخم والاتجاه ومخاطر الاختراق الكاذب.")
@@ -61,14 +62,14 @@ scan_mode = st.radio(
     "مصدر الأسهم",
     ["🔎 مسح تلقائي للسوق", "✍️ أسهم محددة"],
     horizontal=True,
-    help="المسح التلقائي يجلب قائمة محدثة من S&P 500 وNasdaq-100 ثم يحلل الأسهم بدل الاكتفاء بالقائمة المكتوبة."
+    help="المسح التلقائي يجلب قائمة محدثة ثم يحلل الأسهم بدل الاكتفاء بالقائمة المكتوبة."
 )
 
 if scan_mode == "🔎 مسح تلقائي للسوق":
     universe, universe_source = load_market_universe()
     scan_count = st.slider("عدد الأسهم التي سيتم فحصها", 10, min(250, len(universe)), 50, step=10)
     symbols = universe[:scan_count]
-    st.caption(f"📡 المصدر: {universe_source} — سيتم فحص {len(symbols)} سهمًا تلقائيًا.")
+    st.caption(f"📡 سيتم فحص {len(symbols)} سهمًا تلقائيًا.")
 else:
     universe_source = "أسهم محددة"
     symbols_text = st.text_input("الأسهم المراد فحصها", value=", ".join(DEFAULT_SYMBOLS))
@@ -149,7 +150,7 @@ if st.button("🚀 تشغيل الفحص", type="primary", width="stretch"):
         scan_symbols_count=len(symbols),
         scan_success_count=len(rows),
         last_scan_time=now,
-        scan_universe_source=universe_source,
+        scan_universe_source="AI Opportunity Engine",
         market_regime=regime,
     )
     st.session_state.scan_results = ranked.copy()
@@ -158,7 +159,7 @@ if st.button("🚀 تشغيل الفحص", type="primary", width="stretch"):
     st.session_state.scan_symbols_count = len(symbols)
     st.session_state.scan_success_count = len(rows)
     st.session_state.last_scan_time = now
-    st.session_state.scan_universe_source = universe_source
+    st.session_state.scan_universe_source = "AI Opportunity Engine"
     st.session_state.market_regime = regime
 
     if regime:
@@ -168,7 +169,7 @@ if st.button("🚀 تشغيل الفحص", type="primary", width="stretch"):
         c3.metric("Volatility", f"{regime['volatility_score']:.1f}")
 
     if ranked.empty:
-        st.warning("لم يتم الحصول على نتائج صالحة من بيانات السوق. تحقق من اتصال Yahoo Finance وحاول مرة أخرى.")
+        st.warning("لم يتم الحصول على نتائج صالحة من بيانات السوق. حاول مرة أخرى.")
     else:
         st.success(f"✅ تم حفظ {len(ranked)} فرصة في لوحة التحكم — تم تحليل {len(rows)} من أصل {len(symbols)} سهمًا.")
         st.subheader("أفضل الفرص")
@@ -189,5 +190,3 @@ else:
     saved = st.session_state.get("scan_results", pd.DataFrame())
     if isinstance(saved, pd.DataFrame) and not saved.empty:
         st.success("📌 توجد نتائج محفوظة من آخر مسح. افتح لوحة التحكم لمشاهدتها.")
-        if st.button("🏠 عرض النتائج في لوحة التحكم", width="stretch"):
-            st.switch_page("app.py")
