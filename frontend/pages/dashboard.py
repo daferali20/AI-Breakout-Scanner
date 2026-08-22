@@ -1,4 +1,4 @@
-"""AI Opportunity Engine dashboard — responsive financial terminal."""
+"""AI Opportunity Engine dashboard — premium responsive financial terminal."""
 from __future__ import annotations
 
 import html
@@ -63,21 +63,33 @@ def _safe_float(value, default=0.0):
         return default
 
 
+def _results(snapshot):
+    data = snapshot.get("scan_results", pd.DataFrame())
+    return data.copy() if isinstance(data, pd.DataFrame) else pd.DataFrame()
+
+
 def render(auto_run=False):
     snapshot = _snapshot()
-    last_scan = snapshot.get("last_scan_time") or "لم يتم المسح بعد"
+    last_scan = snapshot.get("last_scan_time") or "No scan yet"
     regime = snapshot.get("market_regime")
     regime_name = regime.get("regime", "READY") if isinstance(regime, dict) else "READY"
+    universe, source = load_market_universe()
 
     st.markdown(
         f"""
-        <div class="terminal-hero">
+        <div class="terminal-topbar">
+          <div class="terminal-market-pill"><span class="state-dot"></span><b>Scanner Ready</b></div>
+          <div><span>Universe</span><b>{len(universe):,}</b></div>
+          <div><span>Market Sample</span><b>{html.escape(str(regime_name))}</b></div>
+          <div class="topbar-last"><span>Last Scan</span><b>{html.escape(str(last_scan))}</b></div>
+        </div>
+        <div class="terminal-hero terminal-hero-v2">
           <div>
             <div class="terminal-eyebrow">AI OPPORTUNITY ENGINE</div>
-            <div class="terminal-title">🧠 محرك اكتشاف الفرص</div>
-            <div class="terminal-sub">تحليل الاختراق والزخم والسيولة وترتيب أفضل الفرص تلقائيًا.</div>
+            <div class="terminal-title">🧠 AI Opportunity Engine</div>
+            <div class="terminal-sub">Advanced breakout, momentum and liquidity ranking across the current market universe.</div>
           </div>
-          <div class="engine-state"><span class="state-dot"></span><b>Scanner {html.escape(str(regime_name))}</b><small>آخر مسح: {html.escape(str(last_scan))}</small></div>
+          <div class="engine-state"><span class="state-dot"></span><b>Engine Online</b><small>AI-ranked opportunity workflow</small></div>
         </div>
         """,
         unsafe_allow_html=True,
@@ -86,15 +98,17 @@ def render(auto_run=False):
     config = st.session_state.get("sidebar_config", {})
     min_score = config.get("min_score", 40)
     max_symbols = config.get("max_symbols", 100)
-    universe, source = load_market_universe()
 
-    f1, f2, f3 = st.columns([2.4, .8, .9])
+    f1, f2, f3 = st.columns([2.15, .85, 1.0])
     with f1:
-        st.caption(f"🔎 نطاق الاكتشاف: {len(universe):,} سهم · الحد الأدنى للفرصة: {min_score}")
+        st.markdown(
+            f"<div class='terminal-filter-copy'>💡 Showing the strongest AI-ranked opportunities · Min score <b>{min_score}</b></div>",
+            unsafe_allow_html=True,
+        )
     with f2:
-        top_n = st.selectbox("عدد النتائج", [5, 10, 15, 20], index=1, label_visibility="collapsed")
+        top_n = st.selectbox("Results", [5, 10, 15, 20], index=1, label_visibility="collapsed")
     with f3:
-        run_here = st.button("🚀 تشغيل المسح", type="primary", width="stretch")
+        run_here = st.button("🚀 Run Scanner", type="primary", width="stretch")
 
     if auto_run or run_here:
         _run_scan(universe, source, int(min_score), int(top_n), int(max_symbols))
@@ -103,7 +117,7 @@ def render(auto_run=False):
     display_metrics(snapshot)
     display_top_opportunities(snapshot)
 
-    with st.expander("🌐 حالة المحرك والنشاط", expanded=False):
+    with st.expander("🌐 Engine details & activity", expanded=False):
         display_market_status(snapshot)
         display_activity(snapshot)
 
@@ -169,7 +183,8 @@ def _run_scan(symbols, source, min_score, top_n, max_symbols):
             errors.append({"symbol": symbol, "error": str(exc)})
         progress.progress(index / len(candidates))
 
-    progress.empty(); status.empty()
+    progress.empty()
+    status.empty()
     ranked_all = rank_opportunities(rows, top_n=max(top_n, len(rows)))
     if ranked_all.empty:
         st.warning("لم يتم العثور على فرص قابلة للتحليل في هذه الجولة.")
@@ -188,29 +203,40 @@ def _run_scan(symbols, source, min_score, top_n, max_symbols):
 
     now = pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S")
     errors_df = pd.DataFrame(errors)
-    payload = dict(scan_results=ranked, scan_results_all=ranked_all, scan_errors=errors_df,
-                   scan_symbols_count=len(symbols), scan_success_count=len(rows), last_scan_time=now,
-                   scan_universe_source="AI Opportunity Engine", market_regime=regime)
+    payload = dict(
+        scan_results=ranked,
+        scan_results_all=ranked_all,
+        scan_errors=errors_df,
+        scan_symbols_count=len(symbols),
+        scan_success_count=len(rows),
+        last_scan_time=now,
+        scan_universe_source="AI Opportunity Engine",
+        market_regime=regime,
+    )
     save_scan(**payload)
     st.session_state.update(payload)
     st.toast(f"اكتمل المسح: {len(rows)} سهم · {len(ranked)} فرصة", icon="✅")
 
 
-def _results(snapshot):
-    data = snapshot.get("scan_results", pd.DataFrame())
-    return data.copy() if isinstance(data, pd.DataFrame) else pd.DataFrame()
-
-
 def display_metrics(snapshot=None):
-    snapshot = snapshot or _snapshot(); results = _results(snapshot)
-    total = int(snapshot.get("scan_success_count", 0)); opportunities = len(results)
+    snapshot = snapshot or _snapshot()
+    results = _results(snapshot)
+    total = int(snapshot.get("scan_success_count", 0))
+    opportunities = len(results)
     avg = pd.to_numeric(results.get("opportunity_score", pd.Series(dtype=float)), errors="coerce").mean() if not results.empty else 0
     strong = int(results.get("signal_quality", pd.Series(dtype=str)).astype(str).str.contains("Strong|Elite|قوي|شراء", case=False, na=False).sum()) if not results.empty else 0
-    c1, c2, c3, c4 = st.columns(4)
-    c1.metric("Analyzed", total, help="عدد الأسهم التي اكتمل تحليلها")
-    c2.metric("Opportunities", opportunities)
-    c3.metric("Avg Opportunity Score", f"{float(avg or 0):.1f}")
-    c4.metric("Strong Opportunities", strong)
+
+    cards = [
+        ("⚡", "Analyzed", f"{total}", "Stocks", "blue"),
+        ("★", "Opportunities", f"{opportunities}", "Stocks", "violet"),
+        ("◎", "Avg Opportunity Score", f"{float(avg or 0):.1f}", "/100", "green"),
+        ("🔥", "Strong Opportunities", f"{strong}", "Stocks", "amber"),
+    ]
+    html_cards = "".join(
+        f"<div class='terminal-stat-card'><div class='stat-icon {tone}'>{icon}</div><div><span>{label}</span><b>{value}</b><small>{suffix}</small></div></div>"
+        for icon, label, value, suffix, tone in cards
+    )
+    st.markdown(f"<div class='terminal-stat-grid'>{html_cards}</div>", unsafe_allow_html=True)
 
 
 def _bar(value, invert=False):
@@ -226,54 +252,95 @@ def display_top_opportunities(snapshot=None):
         st.info("ستظهر أفضل الفرص هنا فور اكتمال أول مسح.")
         return
 
-    rows_html = []
-    cards_html = []
+    rows_html, cards_html = [], []
     for i, (_, row) in enumerate(results.head(10).iterrows(), 1):
         symbol = html.escape(str(row.get("symbol", "—")))
-        price = _safe_float(row.get("price")); score = _safe_float(row.get("opportunity_score"))
-        prob = _safe_float(row.get("breakout_probability")); rvol = _safe_float(row.get("relative_volume"), 1)
-        momentum = _safe_float(row.get("momentum_score")); liquidity = _safe_float(row.get("liquidity_score")); risk = _safe_float(row.get("false_breakout_risk"))
+        price = _safe_float(row.get("price"))
+        score = _safe_float(row.get("opportunity_score"))
+        prob = _safe_float(row.get("breakout_probability"))
+        rvol = _safe_float(row.get("relative_volume"), 1)
+        momentum = _safe_float(row.get("momentum_score"))
+        liquidity = _safe_float(row.get("liquidity_score"))
+        risk = _safe_float(row.get("false_breakout_risk"))
         signal = html.escape(str(row.get("signal_class") or row.get("signal") or "WATCH"))
         risk_label = "LOW" if risk <= 25 else ("MEDIUM" if risk <= 40 else "HIGH")
         risk_class = "low" if risk <= 25 else ("medium" if risk <= 40 else "high")
-        rows_html.append(f"""
-        <tr><td class="rank">{i}</td><td><b>{symbol}</b><small>{signal}</small></td><td><b>${price:,.2f}</b></td>
-        <td><span class="score-ring">{score:.1f}</span></td><td><b>{prob:.0f}%</b>{_bar(prob)}</td>
-        <td><b>{rvol:.2f}x</b><small class="positive">{'High' if rvol >= 1.5 else 'Average'}</small></td>
-        <td><b>{momentum:.0f}/100</b>{_bar(momentum)}</td><td><b>{liquidity:.0f}/100</b>{_bar(liquidity)}</td>
-        <td><b>{risk:.0f}%</b><small class="{risk_class}">{risk_label}</small></td></tr>""")
-        cards_html.append(f"""
-        <div class="mobile-op-card"><div class="mobile-op-top"><div><span class="rank-badge">#{i}</span><b>{symbol}</b><small>{signal}</small></div><span class="score-ring">{score:.1f}</span></div>
-        <div class="mobile-op-price">${price:,.2f}</div><div class="mobile-grid"><span>Breakout<b>{prob:.0f}%</b></span><span>RVOL<b>{rvol:.2f}x</b></span><span>Momentum<b>{momentum:.0f}</b></span><span>Liquidity<b>{liquidity:.0f}</b></span><span>Risk<b class="{risk_class}">{risk:.0f}%</b></span></div></div>""")
 
-    st.markdown(f"""
-    <div class="desktop-op-table"><table class="op-table"><thead><tr><th>#</th><th>Symbol</th><th>Price</th><th>Opportunity</th><th>Breakout</th><th>Relative Volume</th><th>Momentum</th><th>Liquidity</th><th>Risk</th></tr></thead><tbody>{''.join(rows_html)}</tbody></table></div>
-    <div class="mobile-op-list">{''.join(cards_html)}</div>
-    """, unsafe_allow_html=True)
+        rows_html.append(
+            f"""
+            <tr>
+              <td class="rank">{i}</td>
+              <td><b>{symbol}</b><small>{signal}</small></td>
+              <td><b>${price:,.2f}</b></td>
+              <td><span class="score-ring">{score:.1f}</span></td>
+              <td><b>{prob:.0f}%</b>{_bar(prob)}</td>
+              <td><b>{rvol:.2f}x</b><small class="positive">{'High' if rvol >= 1.5 else 'Average'}</small></td>
+              <td><b>{momentum:.0f}/100</b>{_bar(momentum)}</td>
+              <td><b>{liquidity:.0f}/100</b>{_bar(liquidity)}</td>
+              <td><b>{risk:.0f}%</b><small class="{risk_class}">{risk_label}</small></td>
+            </tr>
+            """
+        )
+        cards_html.append(
+            f"""
+            <div class="mobile-op-card">
+              <div class="mobile-op-top"><div><span class="rank-badge">#{i}</span><b>{symbol}</b><small>{signal}</small></div><span class="score-ring">{score:.1f}</span></div>
+              <div class="mobile-op-price">${price:,.2f}</div>
+              <div class="mobile-grid">
+                <span>Breakout<b>{prob:.0f}%</b></span><span>RVOL<b>{rvol:.2f}x</b></span><span>Momentum<b>{momentum:.0f}</b></span><span>Liquidity<b>{liquidity:.0f}</b></span><span>Risk<b class="{risk_class}">{risk:.0f}%</b></span>
+              </div>
+            </div>
+            """
+        )
+
+    st.markdown(
+        f"""
+        <div class="desktop-op-table"><table class="op-table"><thead><tr><th>#</th><th>Symbol</th><th>Price</th><th>Opportunity</th><th>Breakout</th><th>Relative Volume</th><th>Momentum</th><th>Liquidity</th><th>Risk</th></tr></thead><tbody>{''.join(rows_html)}</tbody></table></div>
+        <div class="mobile-op-list">{''.join(cards_html)}</div>
+        """,
+        unsafe_allow_html=True,
+    )
 
 
 def display_market_status(snapshot=None):
-    snapshot = snapshot or _snapshot(); errors = snapshot.get("scan_errors", pd.DataFrame()); regime = snapshot.get("market_regime")
+    snapshot = snapshot or _snapshot()
+    errors = snapshot.get("scan_errors", pd.DataFrame())
+    regime = snapshot.get("market_regime")
     regime_name = regime.get("regime", "READY") if isinstance(regime, dict) else "READY"
     c1, c2, c3 = st.columns(3)
-    c1.metric("Engine", "AI Opportunity Engine"); c2.metric("Market Sample", regime_name); c3.metric("Errors", len(errors) if isinstance(errors, pd.DataFrame) else 0)
-    if snapshot.get("last_scan_time"): st.caption(f"آخر مسح: {snapshot['last_scan_time']}")
+    c1.metric("Engine", "AI Opportunity Engine")
+    c2.metric("Market Sample", regime_name)
+    c3.metric("Errors", len(errors) if isinstance(errors, pd.DataFrame) else 0)
+    if snapshot.get("last_scan_time"):
+        st.caption(f"آخر مسح: {snapshot['last_scan_time']}")
 
 
 def display_activity(snapshot=None):
     results = _results(snapshot or _snapshot())
-    if results.empty: return
+    if results.empty:
+        return
     c1, c2 = st.columns(2)
     if "relative_volume" in results.columns:
-        chart = results[["symbol", "relative_volume"]].copy(); chart["relative_volume"] = pd.to_numeric(chart["relative_volume"], errors="coerce"); chart = chart.dropna().sort_values("relative_volume", ascending=False).head(10)
+        chart = results[["symbol", "relative_volume"]].copy()
+        chart["relative_volume"] = pd.to_numeric(chart["relative_volume"], errors="coerce")
+        chart = chart.dropna().sort_values("relative_volume", ascending=False).head(10)
         if not chart.empty:
-            with c1: st.plotly_chart(px.bar(chart, x="symbol", y="relative_volume", title="Relative Volume"), width="stretch")
+            with c1:
+                st.plotly_chart(px.bar(chart, x="symbol", y="relative_volume", title="Relative Volume"), width="stretch")
     if "opportunity_score" in results.columns:
-        chart = results[["symbol", "opportunity_score"]].copy(); chart["opportunity_score"] = pd.to_numeric(chart["opportunity_score"], errors="coerce"); chart = chart.dropna().sort_values("opportunity_score", ascending=False).head(10)
+        chart = results[["symbol", "opportunity_score"]].copy()
+        chart["opportunity_score"] = pd.to_numeric(chart["opportunity_score"], errors="coerce")
+        chart = chart.dropna().sort_values("opportunity_score", ascending=False).head(10)
         if not chart.empty:
             with c2:
-                fig = px.bar(chart, x="symbol", y="opportunity_score", title="Opportunity Score"); fig.update_layout(yaxis_range=[0, 100]); st.plotly_chart(fig, width="stretch")
+                fig = px.bar(chart, x="symbol", y="opportunity_score", title="Opportunity Score")
+                fig.update_layout(yaxis_range=[0, 100])
+                st.plotly_chart(fig, width="stretch")
 
 
-def display_charts(): display_activity()
-def display_scan_results(): display_top_opportunities()
+def display_charts():
+    display_activity()
+
+
+def display_scan_results():
+    display_top_opportunities()
