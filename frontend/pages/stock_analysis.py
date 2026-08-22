@@ -33,7 +33,6 @@ def _fallback_levels(symbol: str) -> dict[str, float]:
         df = yf.download(symbol, period="3mo", interval="1d", auto_adjust=False, progress=False, threads=False)
         if df is None or df.empty:
             return {}
-        # yfinance may return MultiIndex columns even for one symbol.
         if isinstance(df.columns, pd.MultiIndex):
             try:
                 df = df.xs(symbol, axis=1, level=1)
@@ -148,12 +147,17 @@ def render() -> None:
         data = data.sort_values("__score", ascending=False)
 
     symbols = data["symbol"].tolist()
-    default_index = 0
-    query_symbol = str(st.query_params.get("symbol", "")).upper().strip()
-    if query_symbol in symbols:
-        default_index = symbols.index(query_symbol)
 
-    symbol = st.selectbox("اختر السهم للتحليل", symbols, index=default_index, key="stock_analysis_symbol")
+    requested_symbol = str(st.session_state.pop("analysis_symbol", "") or "").upper().strip()
+    if not requested_symbol:
+        requested_symbol = str(st.query_params.get("symbol", "") or "").upper().strip()
+
+    if requested_symbol in symbols:
+        st.session_state["stock_analysis_symbol"] = requested_symbol
+    elif st.session_state.get("stock_analysis_symbol") not in symbols:
+        st.session_state["stock_analysis_symbol"] = symbols[0]
+
+    symbol = st.selectbox("اختر السهم للتحليل", symbols, key="stock_analysis_symbol")
     row = data.loc[data["symbol"] == symbol].iloc[0]
 
     price = _num(row, "price", "current_price")
