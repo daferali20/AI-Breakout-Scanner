@@ -22,6 +22,16 @@ def _headers(token: str | None = None) -> dict[str, str]:
     return headers
 
 
+def _admin_headers() -> dict[str, str]:
+    secret_key = str(st.secrets.get("SUPABASE_SECRET_KEY", "") or st.secrets.get("SUPABASE_SERVICE_ROLE_KEY", "")).strip()
+    if not secret_key:
+        raise RuntimeError("SUPABASE_SECRET_KEY غير موجود في Streamlit Secrets")
+    headers = {"apikey": secret_key, "Content-Type": "application/json", "Accept": "application/json"}
+    if secret_key.count(".") == 2:
+        headers["Authorization"] = f"Bearer {secret_key}"
+    return headers
+
+
 def _error_message(response: requests.Response) -> str:
     try:
         payload = response.json()
@@ -43,7 +53,6 @@ def _parse_utc(value: Any) -> datetime | None:
 
 
 def trial_status(profile: dict[str, Any]) -> dict[str, Any]:
-    """Return server-derived trial state from profile timestamps."""
     start = _parse_utc(profile.get("trial_started_at"))
     end = _parse_utc(profile.get("trial_ends_at"))
     now = datetime.now(timezone.utc)
@@ -113,31 +122,52 @@ def request_password_reset(email: str) -> None:
         raise RuntimeError(_error_message(response))
 
 
-def fetch_profile(user_id: str, access_token: str) -> dict[str, Any]:
+def _fetch_profile_server(user_id: str) -> dict[str, Any]:
+    """Read one profile with the server secret. The secret never leaves Streamlit."""
     url, _ = _config()
-    headers = {**_headers(access_token), "Accept": "application/json"}
-    base_params = {"id": f"eq.{user_id}", "limit": "1"}
-    extended_select = "id,email,full_name,role,subscription_status,trial_started_at,trial_ends_at,created_at,updated_at"
+    select = "id,email,full_name,role,subscription_status,trial_started_at,trial_ends_at,created_at,updated_at"
     response = requests.get(
         f"{url}/rest/v1/profiles",
-        headers=headers,
-        params={**base_params, "select": extended_select},
+        headers=_admin_headers(),
+        params={"id": f"eq.{user_id}", "select": select, "limit": "1"},
         timeout=20,
     )
     if not response.ok:
-        # Backward compatibility before the trial columns are added in Supabase.
-        fallback = requests.get(
-            f"{url}/rest/v1/profiles",
-            headers=headers,
-            params={**base_params, "select": "id,email,full_name,role,subscription_status,created_at,updated_at"},
-            timeout=20,
-        )
-        if not fallback.ok:
-            raise RuntimeError(_error_message(fallback))
-        rows = fallback.json()
-        return rows[0] if rows else {}
+        raise RuntimeError(f"{response.status_code}: {_error_message(response)}")
     rows = response.json()
     return rows[0] if rows else {}
+
+
+def fetch_profile(user_id: str, access_token: str) -> dict[str, Any]:
+    """Fetch the user's own profile; use the server route only for entitlement fallback."""
+    url, _ = _config()
+    headers = {**_headers(access_token), "Accept": "application/json"}
+    select = "id,email,full_name,role,subscription_status,trial_started_at,trial_ends_at,created_at,updated_at"
+    response = requests.get(
+        f"{url}/rest/v1/profiles",
+        headers=headers,
+        params={"id": f"eq.{user_id}", "select": select, "limit": "1"},
+        timeout=20,
+    )
+
+    profile: dict[str, Any] = {}
+    if response.ok:
+        rows = response.json()
+        profile = rows[0] if rows else {}
+
+    # A trial/subscription is an authorization decision. If the authenticated
+    # REST path did not return the entitlement columns, resolve them server-side
+    # instead of silently downgrading the user to Free.
+    needs_server_entitlement = (
+        not profile
+        or "subscription_status" not in profile
+        or "trial_started_at" not in profile
+        or "trial_ends_at" not in profile
+    )
+    if needs_server_entitlement:
+        return _fetch_profile_server(user_id)
+
+    return profile
 
 
 def refresh_profile() -> dict[str, Any]:
@@ -146,7 +176,19 @@ def refresh_profile() -> dict[str, Any]:
     user_id = str(user.get("id", "")).strip()
     if not user_id or not token:
         raise RuntimeError("جلسة المستخدم غير متاحة.")
+
     profile = fetch_profile(user_id, str(token))
+
+    # Extra consistency check: if DB says Free and no trial timestamps came
+    # through, verify the entitlement once from the trusted server path.
+    if str(profile.get("subscription_status", "free") or "free").lower() != "pro" and not profile.get("trial_ends_at"):
+        try:
+            trusted = _fetch_profile_server(user_id)
+            if trusted:
+                profile = trusted
+        except Exception:
+            pass
+
     st.session_state.user_profile = profile
     _sync_entitlement_session(profile)
     return profile
@@ -168,21 +210,10 @@ def update_profile_name(full_name: str) -> dict[str, Any]:
     )
     if not response.ok:
         raise RuntimeError(_error_message(response))
-    rows = response.json()
-    profile = rows[0] if rows else fetch_profile(user_id, str(token))
+    profile = fetch_profile(user_id, str(token))
     st.session_state.user_profile = profile
     _sync_entitlement_session(profile)
     return profile
-
-
-def _admin_headers() -> dict[str, str]:
-    secret_key = str(st.secrets.get("SUPABASE_SECRET_KEY", "") or st.secrets.get("SUPABASE_SERVICE_ROLE_KEY", "")).strip()
-    if not secret_key:
-        raise RuntimeError("SUPABASE_SECRET_KEY غير موجود في Streamlit Secrets")
-    headers = {"apikey": secret_key, "Content-Type": "application/json", "Accept": "application/json"}
-    if secret_key.count(".") == 2:
-        headers["Authorization"] = f"Bearer {secret_key}"
-    return headers
 
 
 def _require_admin() -> None:
@@ -201,13 +232,6 @@ def admin_list_profiles() -> list[dict[str, Any]]:
         params={"select": select, "order": "created_at.desc"},
         timeout=20,
     )
-    if not response.ok:
-        response = requests.get(
-            f"{url}/rest/v1/profiles",
-            headers=_admin_headers(),
-            params={"select": "id,email,full_name,role,subscription_status,created_at,updated_at", "order": "created_at.desc"},
-            timeout=20,
-        )
     if not response.ok:
         raise RuntimeError(f"{response.status_code}: {_error_message(response)}")
     return response.json()
