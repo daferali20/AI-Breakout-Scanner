@@ -59,13 +59,7 @@ def trial_status(profile: dict[str, Any]) -> dict[str, Any]:
     active = bool(start and end and start <= now < end)
     seconds_left = max(0, int((end - now).total_seconds())) if end else 0
     days_left = (seconds_left + 86399) // 86400 if seconds_left else 0
-    return {
-        "active": active,
-        "started_at": start,
-        "ends_at": end,
-        "seconds_left": seconds_left,
-        "days_left": days_left,
-    }
+    return {"active": active, "started_at": start, "ends_at": end, "seconds_left": seconds_left, "days_left": days_left}
 
 
 def has_pro_access(profile: dict[str, Any]) -> bool:
@@ -83,12 +77,7 @@ def _sync_entitlement_session(profile: dict[str, Any]) -> None:
 
 def sign_up(email: str, password: str, full_name: str) -> dict[str, Any]:
     url, _ = _config()
-    response = requests.post(
-        f"{url}/auth/v1/signup",
-        headers=_headers(),
-        json={"email": email.strip().lower(), "password": password, "data": {"full_name": full_name.strip()}},
-        timeout=20,
-    )
+    response = requests.post(f"{url}/auth/v1/signup", headers=_headers(), json={"email": email.strip().lower(), "password": password, "data": {"full_name": full_name.strip()}}, timeout=20)
     if not response.ok:
         raise RuntimeError(_error_message(response))
     return response.json()
@@ -96,10 +85,19 @@ def sign_up(email: str, password: str, full_name: str) -> dict[str, Any]:
 
 def sign_in(email: str, password: str) -> dict[str, Any]:
     url, _ = _config()
+    response = requests.post(f"{url}/auth/v1/token?grant_type=password", headers=_headers(), json={"email": email.strip().lower(), "password": password}, timeout=20)
+    if not response.ok:
+        raise RuntimeError(_error_message(response))
+    return response.json()
+
+
+def refresh_auth_session(refresh_token: str) -> dict[str, Any]:
+    """Exchange a Supabase refresh token for a fresh access/refresh token pair."""
+    url, _ = _config()
     response = requests.post(
-        f"{url}/auth/v1/token?grant_type=password",
+        f"{url}/auth/v1/token?grant_type=refresh_token",
         headers=_headers(),
-        json={"email": email.strip().lower(), "password": password},
+        json={"refresh_token": refresh_token},
         timeout=20,
     )
     if not response.ok:
@@ -111,27 +109,15 @@ def request_password_reset(email: str) -> None:
     url, _ = _config()
     redirect_to = str(st.secrets.get("PASSWORD_RESET_REDIRECT_URL", "")).strip()
     params = {"redirect_to": redirect_to} if redirect_to else None
-    response = requests.post(
-        f"{url}/auth/v1/recover",
-        headers=_headers(),
-        params=params,
-        json={"email": email.strip().lower()},
-        timeout=20,
-    )
+    response = requests.post(f"{url}/auth/v1/recover", headers=_headers(), params=params, json={"email": email.strip().lower()}, timeout=20)
     if not response.ok:
         raise RuntimeError(_error_message(response))
 
 
 def _fetch_profile_server(user_id: str) -> dict[str, Any]:
-    """Read one profile with the server secret. The secret never leaves Streamlit."""
     url, _ = _config()
     select = "id,email,full_name,role,subscription_status,trial_started_at,trial_ends_at,created_at,updated_at"
-    response = requests.get(
-        f"{url}/rest/v1/profiles",
-        headers=_admin_headers(),
-        params={"id": f"eq.{user_id}", "select": select, "limit": "1"},
-        timeout=20,
-    )
+    response = requests.get(f"{url}/rest/v1/profiles", headers=_admin_headers(), params={"id": f"eq.{user_id}", "select": select, "limit": "1"}, timeout=20)
     if not response.ok:
         raise RuntimeError(f"{response.status_code}: {_error_message(response)}")
     rows = response.json()
@@ -139,34 +125,17 @@ def _fetch_profile_server(user_id: str) -> dict[str, Any]:
 
 
 def fetch_profile(user_id: str, access_token: str) -> dict[str, Any]:
-    """Fetch the user's own profile; use the server route only for entitlement fallback."""
     url, _ = _config()
     headers = {**_headers(access_token), "Accept": "application/json"}
     select = "id,email,full_name,role,subscription_status,trial_started_at,trial_ends_at,created_at,updated_at"
-    response = requests.get(
-        f"{url}/rest/v1/profiles",
-        headers=headers,
-        params={"id": f"eq.{user_id}", "select": select, "limit": "1"},
-        timeout=20,
-    )
-
+    response = requests.get(f"{url}/rest/v1/profiles", headers=headers, params={"id": f"eq.{user_id}", "select": select, "limit": "1"}, timeout=20)
     profile: dict[str, Any] = {}
     if response.ok:
         rows = response.json()
         profile = rows[0] if rows else {}
-
-    # A trial/subscription is an authorization decision. If the authenticated
-    # REST path did not return the entitlement columns, resolve them server-side
-    # instead of silently downgrading the user to Free.
-    needs_server_entitlement = (
-        not profile
-        or "subscription_status" not in profile
-        or "trial_started_at" not in profile
-        or "trial_ends_at" not in profile
-    )
+    needs_server_entitlement = not profile or "subscription_status" not in profile or "trial_started_at" not in profile or "trial_ends_at" not in profile
     if needs_server_entitlement:
         return _fetch_profile_server(user_id)
-
     return profile
 
 
@@ -176,11 +145,7 @@ def refresh_profile() -> dict[str, Any]:
     user_id = str(user.get("id", "")).strip()
     if not user_id or not token:
         raise RuntimeError("جلسة المستخدم غير متاحة.")
-
     profile = fetch_profile(user_id, str(token))
-
-    # Extra consistency check: if DB says Free and no trial timestamps came
-    # through, verify the entitlement once from the trusted server path.
     if str(profile.get("subscription_status", "free") or "free").lower() != "pro" and not profile.get("trial_ends_at"):
         try:
             trusted = _fetch_profile_server(user_id)
@@ -188,7 +153,6 @@ def refresh_profile() -> dict[str, Any]:
                 profile = trusted
         except Exception:
             pass
-
     st.session_state.user_profile = profile
     _sync_entitlement_session(profile)
     return profile
@@ -201,13 +165,7 @@ def update_profile_name(full_name: str) -> dict[str, Any]:
     if not user_id or not token:
         raise RuntimeError("جلسة المستخدم غير متاحة.")
     url, _ = _config()
-    response = requests.patch(
-        f"{url}/rest/v1/profiles",
-        headers={**_headers(str(token)), "Prefer": "return=representation"},
-        params={"id": f"eq.{user_id}"},
-        json={"full_name": full_name.strip()},
-        timeout=20,
-    )
+    response = requests.patch(f"{url}/rest/v1/profiles", headers={**_headers(str(token)), "Prefer": "return=representation"}, params={"id": f"eq.{user_id}"}, json={"full_name": full_name.strip()}, timeout=20)
     if not response.ok:
         raise RuntimeError(_error_message(response))
     profile = fetch_profile(user_id, str(token))
@@ -226,12 +184,7 @@ def admin_list_profiles() -> list[dict[str, Any]]:
     _require_admin()
     url, _ = _config()
     select = "id,email,full_name,role,subscription_status,trial_started_at,trial_ends_at,created_at,updated_at"
-    response = requests.get(
-        f"{url}/rest/v1/profiles",
-        headers=_admin_headers(),
-        params={"select": select, "order": "created_at.desc"},
-        timeout=20,
-    )
+    response = requests.get(f"{url}/rest/v1/profiles", headers=_admin_headers(), params={"select": select, "order": "created_at.desc"}, timeout=20)
     if not response.ok:
         raise RuntimeError(f"{response.status_code}: {_error_message(response)}")
     return response.json()
@@ -247,20 +200,14 @@ def admin_update_user(user_id: str, subscription_status: str, role: str) -> dict
     if user_id == current_id and role != "admin":
         raise ValueError("لا يمكنك إزالة صلاحية Admin من حسابك الحالي من داخل اللوحة.")
     url, _ = _config()
-    response = requests.patch(
-        f"{url}/rest/v1/profiles",
-        headers={**_admin_headers(), "Prefer": "return=representation"},
-        params={"id": f"eq.{user_id}"},
-        json={"subscription_status": subscription_status, "role": role},
-        timeout=20,
-    )
+    response = requests.patch(f"{url}/rest/v1/profiles", headers={**_admin_headers(), "Prefer": "return=representation"}, params={"id": f"eq.{user_id}"}, json={"subscription_status": subscription_status, "role": role}, timeout=20)
     if not response.ok:
         raise RuntimeError(f"{response.status_code}: {_error_message(response)}")
     rows = response.json()
     return rows[0] if rows else {}
 
 
-def establish_session(auth_payload: dict[str, Any]) -> dict[str, Any]:
+def establish_session(auth_payload: dict[str, Any], remember: bool = False) -> dict[str, Any]:
     user = auth_payload.get("user") or {}
     access_token = auth_payload.get("access_token")
     if not user:
@@ -272,9 +219,42 @@ def establish_session(auth_payload: dict[str, Any]) -> dict[str, Any]:
     st.session_state.auth_access_token = access_token
     st.session_state.auth_refresh_token = auth_payload.get("refresh_token")
     st.session_state.user_profile = profile
+    st.session_state.remember_me = bool(remember)
     _sync_entitlement_session(profile)
     st.session_state.active_page = "dashboard" if has_pro_access(profile) else "free_home"
+    if remember and auth_payload.get("refresh_token"):
+        try:
+            from auth_persistence import save_refresh_token
+            save_refresh_token(str(auth_payload.get("refresh_token")))
+        except Exception:
+            pass
     return {"user": user, "profile": profile, "requires_confirmation": False}
+
+
+def restore_persistent_session() -> bool:
+    """Restore a remembered Supabase session after browser refresh/reconnect."""
+    if st.session_state.get("auth_user"):
+        return True
+    try:
+        from auth_persistence import clear_refresh_token, load_refresh_token, save_refresh_token
+        refresh_token = load_refresh_token()
+    except Exception:
+        return False
+    if not refresh_token:
+        return False
+    try:
+        payload = refresh_auth_session(refresh_token)
+        result = establish_session(payload, remember=True)
+        new_refresh = payload.get("refresh_token")
+        if new_refresh:
+            save_refresh_token(str(new_refresh))
+        return not bool(result.get("requires_confirmation"))
+    except Exception:
+        try:
+            clear_refresh_token()
+        except Exception:
+            pass
+        return False
 
 
 def logout() -> None:
@@ -285,9 +265,11 @@ def logout() -> None:
             requests.post(f"{url}/auth/v1/logout", headers=_headers(token), timeout=10)
         except Exception:
             pass
-    for key in (
-        "auth_user", "auth_access_token", "auth_refresh_token", "user_profile",
-        "plan_selected", "trial_active", "trial_days_left", "trial_ends_at",
-    ):
+    try:
+        from auth_persistence import clear_refresh_token
+        clear_refresh_token()
+    except Exception:
+        pass
+    for key in ("auth_user", "auth_access_token", "auth_refresh_token", "user_profile", "plan_selected", "trial_active", "trial_days_left", "trial_ends_at", "remember_me"):
         st.session_state.pop(key, None)
     st.session_state.active_page = "auth"
